@@ -27,6 +27,24 @@ export class JobProcessor {
   }
 
   async processJobAlerts(minRelevanceScore: number = 0.6): Promise<void> {
+    const lockName = 'job_processing';
+    const lockOwner = `process_${Date.now()}`;
+    
+    // Check if already processing
+    if (await this.db.isLocked(lockName)) {
+      console.log('⏳ Job processing already in progress, skipping...');
+      await this.telegram.sendStatusMessage('⏳ **Job Processing Skipped**\n\nAnother job processing is already in progress. Please wait for it to complete.');
+      return;
+    }
+
+    // Try to acquire lock
+    const lockAcquired = await this.db.acquireLock(lockName, lockOwner, 30); // 30 minute timeout
+    if (!lockAcquired) {
+      console.log('❌ Failed to acquire processing lock');
+      await this.telegram.sendStatusMessage('❌ **Job Processing Failed**\n\nCould not acquire processing lock. Another process may be running.');
+      return;
+    }
+
     try {
       console.log('Starting job alert processing...');
       await this.telegram.sendStatusMessage('🚀 **Job Processing Started**\n\n⏳ Initializing systems...');
@@ -141,6 +159,9 @@ export class JobProcessor {
       console.error('Error processing job alerts:', error);
       await this.telegram.sendErrorMessage(`Job processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw error;
+    } finally {
+      // Always release the lock
+      await this.db.releaseLock(lockName, lockOwner);
     }
   }
 
@@ -224,6 +245,24 @@ export class JobProcessor {
   }
 
   async sendDailySummary(): Promise<void> {
+    const lockName = 'daily_summary';
+    const lockOwner = `summary_${Date.now()}`;
+    
+    // Check if daily summary is already running
+    if (await this.db.isLocked(lockName)) {
+      console.log('⏳ Daily summary already in progress, skipping...');
+      await this.telegram.sendStatusMessage('⏳ **Daily Summary Skipped**\n\nDaily summary is already being generated.');
+      return;
+    }
+
+    // Try to acquire lock
+    const lockAcquired = await this.db.acquireLock(lockName, lockOwner, 10); // 10 minute timeout
+    if (!lockAcquired) {
+      console.log('❌ Failed to acquire daily summary lock');
+      await this.telegram.sendStatusMessage('❌ **Daily Summary Failed**\n\nCould not acquire processing lock.');
+      return;
+    }
+
     try {
       console.log('🌙 Generating daily summary...');
       
@@ -239,6 +278,9 @@ export class JobProcessor {
     } catch (error) {
       console.error('Error sending daily summary:', error);
       await this.telegram.sendErrorMessage(`Daily summary failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      // Always release the lock
+      await this.db.releaseLock(lockName, lockOwner);
     }
   }
 

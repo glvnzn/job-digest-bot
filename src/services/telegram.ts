@@ -8,11 +8,19 @@ export class TelegramService {
   constructor() {
     // Enable polling only in development for commands
     const enablePolling = process.env.NODE_ENV !== 'production';
+    console.log(`🤖 Telegram bot starting with polling: ${enablePolling}`);
+    
     this.bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN!, { polling: enablePolling });
     this.chatId = process.env.TELEGRAM_CHAT_ID!;
     
     if (enablePolling) {
+      console.log('📱 Setting up Telegram commands...');
       this.setupCommands();
+      
+      // Add error handling for polling
+      this.bot.on('polling_error', (error) => {
+        console.error('🚨 Telegram polling error:', error);
+      });
     }
   }
 

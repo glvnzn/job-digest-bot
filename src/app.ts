@@ -58,17 +58,8 @@ async function initializeApp(): Promise<void> {
     console.log('⏱️ Scheduled job processing every hour');
     console.log('🌙 Scheduled daily summary at 9 PM UTC');
     
-    // Run initial job processing on startup (for testing)
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('🧪 Running initial job processing for testing...');
-      setTimeout(async () => {
-        try {
-          await jobProcessor.processJobAlerts();
-        } catch (error) {
-          console.error('❌ Initial job processing failed:', error);
-        }
-      }, 5000);
-    }
+    // Don't run initial job processing in development - use Telegram commands instead
+    console.log('💡 Use Telegram commands to manually trigger processing in development mode');
     
   } catch (error) {
     console.error('❌ Failed to initialize app:', error);

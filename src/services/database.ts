@@ -64,9 +64,19 @@ export class DatabaseService {
       );
     `;
 
+    const createJobLockTable = `
+      CREATE TABLE IF NOT EXISTS job_locks (
+        lock_name VARCHAR PRIMARY KEY,
+        locked_at TIMESTAMP DEFAULT NOW(),
+        locked_by VARCHAR,
+        expires_at TIMESTAMP
+      );
+    `;
+
     await this.pool.query(createJobsTable);
     await this.pool.query(createResumeAnalysisTable);
     await this.pool.query(createProcessedEmailsTable);
+    await this.pool.query(createJobLockTable);
   }
 
   async saveJob(job: JobListing): Promise<void> {
@@ -265,6 +275,88 @@ export class DatabaseService {
         count: parseInt(row.count)
       }))
     };
+  }
+
+  async acquireLock(lockName: string, lockOwner: string, timeoutMinutes: number = 30): Promise<boolean> {
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + timeoutMinutes);
+
+    try {
+      // Try to acquire lock
+      const insertQuery = `
+        INSERT INTO job_locks (lock_name, locked_by, expires_at)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (lock_name) DO NOTHING
+        RETURNING lock_name
+      `;
+      
+      const result = await this.pool.query(insertQuery, [lockName, lockOwner, expiresAt]);
+      
+      if (result.rows.length > 0) {
+        console.log(`🔒 Lock acquired: ${lockName} by ${lockOwner}`);
+        return true;
+      }
+
+      // Check if existing lock is expired
+      const cleanupQuery = `
+        DELETE FROM job_locks 
+        WHERE lock_name = $1 AND expires_at < NOW()
+        RETURNING lock_name
+      `;
+      
+      const cleanupResult = await this.pool.query(cleanupQuery, [lockName]);
+      
+      if (cleanupResult.rows.length > 0) {
+        console.log(`🧹 Cleaned up expired lock: ${lockName}`);
+        // Try to acquire again after cleanup
+        const retryResult = await this.pool.query(insertQuery, [lockName, lockOwner, expiresAt]);
+        if (retryResult.rows.length > 0) {
+          console.log(`🔒 Lock acquired after cleanup: ${lockName} by ${lockOwner}`);
+          return true;
+        }
+      }
+
+      console.log(`❌ Lock not available: ${lockName} (already held by another process)`);
+      return false;
+      
+    } catch (error) {
+      console.error('Error acquiring lock:', error);
+      return false;
+    }
+  }
+
+  async releaseLock(lockName: string, lockOwner: string): Promise<void> {
+    try {
+      const query = `
+        DELETE FROM job_locks 
+        WHERE lock_name = $1 AND locked_by = $2
+        RETURNING lock_name
+      `;
+      
+      const result = await this.pool.query(query, [lockName, lockOwner]);
+      
+      if (result.rows.length > 0) {
+        console.log(`🔓 Lock released: ${lockName} by ${lockOwner}`);
+      }
+    } catch (error) {
+      console.error('Error releasing lock:', error);
+    }
+  }
+
+  async isLocked(lockName: string): Promise<boolean> {
+    try {
+      // Clean up expired locks first
+      await this.pool.query('DELETE FROM job_locks WHERE expires_at < NOW()');
+      
+      // Check if lock exists
+      const query = 'SELECT 1 FROM job_locks WHERE lock_name = $1';
+      const result = await this.pool.query(query, [lockName]);
+      
+      return result.rows.length > 0;
+    } catch (error) {
+      console.error('Error checking lock status:', error);
+      return false;
+    }
   }
 
   async close(): Promise<void> {
