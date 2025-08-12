@@ -2,6 +2,7 @@ import { GmailService } from './gmail';
 import { OpenAIService } from './openai';
 import { TelegramService } from './telegram';
 import { DatabaseService } from './database';
+import { QueueService } from './queue';
 import { JobListing, ResumeAnalysis } from '../models/types';
 
 export class JobProcessor {
@@ -9,6 +10,7 @@ export class JobProcessor {
   private openai: OpenAIService;
   private telegram: TelegramService;
   private db: DatabaseService;
+  private queue: QueueService | null = null;
 
   constructor() {
     this.gmail = new GmailService();
@@ -20,31 +22,42 @@ export class JobProcessor {
   async initialize(): Promise<void> {
     await this.db.init();
     
+    // Initialize queue service
+    this.queue = new QueueService(this);
+    await this.queue.startWorker();
+    
     // Connect Telegram commands to job processor
     this.telegram.setJobProcessor(this);
+    this.telegram.setStatusCallback(() => this.handleStatusCommand());
     
     console.log('Job processor initialized');
   }
 
+  // Public method that adds job to queue
   async processJobAlerts(minRelevanceScore: number = 0.6): Promise<void> {
-    const lockName = 'job_processing';
-    const lockOwner = `process_${Date.now()}`;
-    
-    // Check if already processing
-    if (await this.db.isLocked(lockName)) {
-      console.log('⏳ Job processing already in progress, skipping...');
-      await this.telegram.sendStatusMessage('⏳ **Job Processing Skipped**\n\nAnother job processing is already in progress. Please wait for it to complete.');
-      return;
+    if (!this.queue) {
+      throw new Error('Queue service not initialized');
     }
 
-    // Try to acquire lock
-    const lockAcquired = await this.db.acquireLock(lockName, lockOwner, 30); // 30 minute timeout
-    if (!lockAcquired) {
-      console.log('❌ Failed to acquire processing lock');
-      await this.telegram.sendStatusMessage('❌ **Job Processing Failed**\n\nCould not acquire processing lock. Another process may be running.');
-      return;
+    try {
+      await this.queue.addProcessJobsJob({
+        minRelevanceScore,
+        triggeredBy: 'manual'
+      });
+      
+      await this.telegram.sendStatusMessage('🚀 **Job Processing Queued**\n\n⏳ Added to processing queue. Will start shortly...');
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('already in queue')) {
+        await this.telegram.sendStatusMessage('⏳ **Job Processing Skipped**\n\nAnother job processing is already in queue or running. Please wait for it to complete.');
+      } else {
+        console.error('Failed to queue job processing:', error);
+        await this.telegram.sendErrorMessage(`Failed to queue job processing: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     }
+  }
 
+  // Internal method that does the actual processing (called by worker)
+  async processJobAlertsInternal(minRelevanceScore: number = 0.6): Promise<void> {
     try {
       console.log('Starting job alert processing...');
       await this.telegram.sendStatusMessage('🚀 **Job Processing Started**\n\n⏳ Initializing systems...');
@@ -159,9 +172,6 @@ export class JobProcessor {
       console.error('Error processing job alerts:', error);
       await this.telegram.sendErrorMessage(`Job processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw error;
-    } finally {
-      // Always release the lock
-      await this.db.releaseLock(lockName, lockOwner);
     }
   }
 
@@ -244,25 +254,30 @@ export class JobProcessor {
     }
   }
 
+  // Public method that adds job to queue  
   async sendDailySummary(): Promise<void> {
-    const lockName = 'daily_summary';
-    const lockOwner = `summary_${Date.now()}`;
-    
-    // Check if daily summary is already running
-    if (await this.db.isLocked(lockName)) {
-      console.log('⏳ Daily summary already in progress, skipping...');
-      await this.telegram.sendStatusMessage('⏳ **Daily Summary Skipped**\n\nDaily summary is already being generated.');
-      return;
+    if (!this.queue) {
+      throw new Error('Queue service not initialized');
     }
 
-    // Try to acquire lock
-    const lockAcquired = await this.db.acquireLock(lockName, lockOwner, 10); // 10 minute timeout
-    if (!lockAcquired) {
-      console.log('❌ Failed to acquire daily summary lock');
-      await this.telegram.sendStatusMessage('❌ **Daily Summary Failed**\n\nCould not acquire processing lock.');
-      return;
+    try {
+      await this.queue.addDailySummaryJob({
+        triggeredBy: 'manual'
+      });
+      
+      await this.telegram.sendStatusMessage('📊 **Daily Summary Queued**\n\n⏳ Added to processing queue. Will start shortly...');
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('already in queue')) {
+        await this.telegram.sendStatusMessage('⏳ **Daily Summary Skipped**\n\nDaily summary is already in queue or running. Please wait for it to complete.');
+      } else {
+        console.error('Failed to queue daily summary:', error);
+        await this.telegram.sendErrorMessage(`Failed to queue daily summary: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     }
+  }
 
+  // Internal method that does the actual summary generation (called by worker)
+  async sendDailySummaryInternal(): Promise<void> {
     try {
       console.log('🌙 Generating daily summary...');
       
@@ -278,14 +293,111 @@ export class JobProcessor {
     } catch (error) {
       console.error('Error sending daily summary:', error);
       await this.telegram.sendErrorMessage(`Daily summary failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      // Always release the lock
-      await this.db.releaseLock(lockName, lockOwner);
+      throw error;
     }
   }
 
 
+  // Queue methods for cron jobs (no Telegram notifications)
+  async queueJobProcessing(triggeredBy: 'cron' | 'manual'): Promise<void> {
+    if (!this.queue) {
+      throw new Error('Queue service not initialized');
+    }
+
+    try {
+      await this.queue.addProcessJobsJob({
+        minRelevanceScore: 0.6,
+        triggeredBy
+      });
+      console.log(`📝 Job processing queued (triggered by: ${triggeredBy})`);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('already in queue')) {
+        console.log('⏳ Job processing already in queue or running');
+      } else {
+        console.error('Failed to queue job processing:', error);
+        throw error;
+      }
+    }
+  }
+
+  async queueDailySummary(triggeredBy: 'cron' | 'manual'): Promise<void> {
+    if (!this.queue) {
+      throw new Error('Queue service not initialized');
+    }
+
+    try {
+      await this.queue.addDailySummaryJob({
+        triggeredBy
+      });
+      console.log(`📝 Daily summary queued (triggered by: ${triggeredBy})`);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('already in queue')) {
+        console.log('⏳ Daily summary already in queue or running');
+      } else {
+        console.error('Failed to queue daily summary:', error);
+        throw error;
+      }
+    }
+  }
+
+  async getQueueStatus(): Promise<any> {
+    if (!this.queue) {
+      return { error: 'Queue service not initialized' };
+    }
+    
+    const [stats, currentJob] = await Promise.all([
+      this.queue.getJobStats(),
+      this.queue.getCurrentJob()
+    ]);
+
+    return {
+      stats,
+      currentJob
+    };
+  }
+
+  async handleStatusCommand(): Promise<void> {
+    const queueStatus = await this.getQueueStatus();
+    
+    let statusMessage = `**Bot Status: Active** ✅
+
+⏰ **Next scheduled scan:** Top of next hour
+🌙 **Daily summary:** 9:00 PM UTC
+🤖 **AI Processing:** OpenAI GPT-4o-mini
+📧 **Email Processing:** Gmail API connected
+🔗 **Database:** PostgreSQL connected
+📊 **Queue:** Redis + BullMQ connected
+
+**Queue Status:**`;
+
+    if (queueStatus.error) {
+      statusMessage += `\n❌ ${queueStatus.error}`;
+    } else {
+      const { stats, currentJob } = queueStatus;
+      statusMessage += `
+📝 **Waiting:** ${stats.waiting} jobs
+⚡ **Active:** ${stats.active} jobs  
+✅ **Completed:** ${stats.completed} jobs
+❌ **Failed:** ${stats.failed} jobs`;
+
+      if (currentJob) {
+        statusMessage += `
+
+🔄 **Currently Running:**
+📋 ${currentJob.name} (ID: ${currentJob.id})
+📊 Progress: ${currentJob.progress}%`;
+      }
+    }
+
+    statusMessage += '\n\nAll systems operational!';
+    
+    await this.telegram.sendStatusMessage(statusMessage);
+  }
+
   async cleanup(): Promise<void> {
+    if (this.queue) {
+      await this.queue.close();
+    }
     await this.db.close();
   }
 }

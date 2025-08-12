@@ -4,6 +4,7 @@ import { JobListing } from '../models/types';
 export class TelegramService {
   private bot: TelegramBot;
   private chatId: string;
+  private statusCallback?: () => Promise<void>;
 
   constructor() {
     // Enable polling only in development for commands
@@ -72,9 +73,13 @@ export class TelegramService {
       }
     });
 
-    this.bot.onText(/\/status/, (msg) => {
+    this.bot.onText(/\/status/, async (msg) => {
       if (msg.chat.id.toString() === this.chatId) {
-        this.sendStatusMessage(`**Bot Status: Active** ✅
+        // This will be set by the job processor
+        if (this.statusCallback) {
+          await this.statusCallback();
+        } else {
+          this.sendStatusMessage(`**Bot Status: Active** ✅
 
 ⏰ **Next scheduled scan:** Top of next hour
 🌙 **Daily summary:** 9:00 PM UTC
@@ -83,8 +88,13 @@ export class TelegramService {
 🔗 **Database:** PostgreSQL connected
 
 All systems operational!`);
+        }
       }
     });
+  }
+
+  setStatusCallback(callback: () => Promise<void>): void {
+    this.statusCallback = callback;
   }
 
   setJobProcessor(processor: any): void {

@@ -33,7 +33,7 @@ async function initializeApp(): Promise<void> {
     cron.schedule('0 * * * *', async () => {
       console.log('⏰ Running scheduled job processing...');
       try {
-        await jobProcessor.processJobAlerts();
+        await jobProcessor.queueJobProcessing('cron');
       } catch (error) {
         console.error('❌ Scheduled job processing failed:', error);
       }
@@ -46,7 +46,7 @@ async function initializeApp(): Promise<void> {
     cron.schedule('0 21 * * *', async () => {
       console.log('🌙 Running daily summary...');
       try {
-        await jobProcessor.sendDailySummary();
+        await jobProcessor.queueDailySummary('cron');
       } catch (error) {
         console.error('❌ Daily summary failed:', error);
       }
