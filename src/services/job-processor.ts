@@ -45,14 +45,10 @@ export class JobProcessor {
         triggeredBy: 'manual',
       });
 
-      await this.telegram.sendStatusMessage(
-        '🚀 **Job Processing Queued**\n\n⏳ Added to processing queue. Will start shortly...'
-      );
+      await this.telegram.sendStatusMessage('🚀 Jobs queued');
     } catch (error) {
       if (error instanceof Error && error.message.includes('already in queue')) {
-        await this.telegram.sendStatusMessage(
-          '⏳ **Job Processing Skipped**\n\nAnother job processing is already in queue or running. Please wait for it to complete.'
-        );
+        await this.telegram.sendStatusMessage('⏳ Already processing');
       } else {
         console.error('Failed to queue job processing:', error);
         await this.telegram.sendErrorMessage(
@@ -66,9 +62,7 @@ export class JobProcessor {
   async processJobAlertsInternal(minRelevanceScore: number = 0.6, job?: any): Promise<void> {
     try {
       console.log('Starting job alert processing...');
-      await this.telegram.sendStatusMessage(
-        '🚀 **Job Processing Started**\n\n⏳ Initializing systems...'
-      );
+      await this.telegram.sendStatusMessage('🚀 Processing jobs...');
 
       // Progress: 5% - Starting
       if (job) await job.updateProgress(5, 'Initializing systems...');
@@ -78,14 +72,9 @@ export class JobProcessor {
       if (!resumeAnalysis || this.isAnalysisOld(resumeAnalysis.analyzedAt)) {
         console.log('Analyzing resume...');
         if (job) await job.updateProgress(10, 'Analyzing resume...');
-        await this.telegram.sendStatusMessage(
-          '📄 **Analyzing Resume**\n\n🧠 Using AI to understand your skills and experience...'
-        );
+        await this.telegram.sendStatusMessage('📄 Analyzing resume...');
         resumeAnalysis = await this.analyzeResume();
         await this.db.saveResumeAnalysis(resumeAnalysis);
-        await this.telegram.sendStatusMessage(
-          '✅ **Resume Analysis Complete**\n\n🎯 Skills and preferences identified!'
-        );
       }
 
       // Progress: 20% - Fetching emails
@@ -93,9 +82,7 @@ export class JobProcessor {
 
       // Fetch recent emails and let AI classify them
       console.log('Fetching recent emails...');
-      await this.telegram.sendStatusMessage(
-        '📧 **Fetching Emails**\n\n📥 Reading recent emails from Gmail...'
-      );
+      await this.telegram.sendStatusMessage('📧 Reading emails...');
       const allEmails = await this.gmail.getRecentEmails();
       console.log(`Found ${allEmails.length} recent emails`);
 
@@ -104,9 +91,7 @@ export class JobProcessor {
 
       // Use AI to classify which emails are job-related
       console.log('Classifying emails with AI...');
-      await this.telegram.sendStatusMessage(
-        `🤖 **AI Email Analysis**\n\n📊 Found ${allEmails.length} emails\n🔍 Analyzing which contain job opportunities...`
-      );
+      await this.telegram.sendStatusMessage(`🤖 Analyzing ${allEmails.length} emails...`);
       const classifications = await this.openai.classifyEmailsBatch(allEmails);
 
       // Filter to only job-related emails with reasonable confidence
@@ -121,9 +106,7 @@ export class JobProcessor {
       console.log(
         `AI classified ${jobRelatedEmails.length} emails as job-related (out of ${allEmails.length} total)`
       );
-      await this.telegram.sendStatusMessage(
-        `✅ **Email Classification Complete**\n\n🎯 **${jobRelatedEmails.length}** job-related emails found\n📄 **${allEmails.length - jobRelatedEmails.length}** non-job emails skipped\n\n⏳ Now extracting job details...`
-      );
+      await this.telegram.sendStatusMessage(`✅ Found ${jobRelatedEmails.length} job emails`);
 
       let totalJobsProcessed = 0;
       const relevantJobs: JobListing[] = [];
@@ -200,7 +183,7 @@ export class JobProcessor {
         // Send progress update every few emails
         if (totalJobsProcessed % 20 === 0 && totalJobsProcessed > 0) {
           await this.telegram.sendStatusMessage(
-            `📈 **Processing Update**\n\n✅ **${totalJobsProcessed}** jobs extracted so far\n🎯 **${relevantJobs.length}** relevant matches found\n⏳ Still analyzing...`
+            `📈 ${totalJobsProcessed} jobs, ${relevantJobs.length} relevant`
           );
         }
       }
@@ -225,7 +208,7 @@ export class JobProcessor {
         console.log('No relevant jobs found to notify');
         if (totalJobsProcessed > 0) {
           await this.telegram.sendStatusMessage(
-            `Processed ${totalJobsProcessed} jobs but none met the relevance threshold (≥${Math.round(minRelevanceScore * 100)}%).`
+            `📊 ${totalJobsProcessed} jobs processed, 0 relevant`
           );
         }
       }
@@ -239,7 +222,7 @@ export class JobProcessor {
 
       // Send completion summary
       await this.telegram.sendStatusMessage(
-        `🎉 **Job Processing Complete**\n\n📊 **Final Results:**\n✅ **${totalJobsProcessed}** total jobs processed\n🎯 **${relevantJobs.length}** relevant jobs found\n📱 Notifications sent for all matches!\n\n⏰ Next scan in 1 hour`
+        `✅ Complete: ${totalJobsProcessed} jobs, ${relevantJobs.length} sent\n${this.getNextScanMessage()}`
       );
     } catch (error) {
       console.error('Error processing job alerts:', error);
@@ -330,6 +313,22 @@ export class JobProcessor {
     return analyzedAt < weekAgo;
   }
 
+  private getNextScanMessage(): string {
+    const now = new Date();
+    const currentHourUTC = now.getUTCHours();
+
+    // Scan schedule is 6am-8pm UTC (hours 6-20)
+    if (currentHourUTC >= 6 && currentHourUTC < 20) {
+      return '⏰ Next scan in 1 hour';
+    } else if (currentHourUTC >= 20 && currentHourUTC < 21) {
+      return '🌙 Daily summary at 9 PM UTC, next scan tomorrow 6 AM UTC';
+    } else {
+      // Between 9 PM and 6 AM - no scans scheduled
+      const hoursUntil6AM = currentHourUTC < 6 ? 6 - currentHourUTC : 24 - currentHourUTC + 6;
+      return `🌙 Next scan in ${hoursUntil6AM} hours (6 AM UTC)`;
+    }
+  }
+
   async testServices(): Promise<boolean> {
     try {
       console.log('Testing services...');
@@ -358,14 +357,10 @@ export class JobProcessor {
         triggeredBy: 'manual',
       });
 
-      await this.telegram.sendStatusMessage(
-        '📊 **Daily Summary Queued**\n\n⏳ Added to processing queue. Will start shortly...'
-      );
+      await this.telegram.sendStatusMessage('📊 Summary queued');
     } catch (error) {
       if (error instanceof Error && error.message.includes('already in queue')) {
-        await this.telegram.sendStatusMessage(
-          '⏳ **Daily Summary Skipped**\n\nDaily summary is already in queue or running. Please wait for it to complete.'
-        );
+        await this.telegram.sendStatusMessage('⏳ Summary already running');
       } else {
         console.error('Failed to queue daily summary:', error);
         await this.telegram.sendErrorMessage(
@@ -438,11 +433,23 @@ export class JobProcessor {
         triggeredBy,
       });
       console.log(`📝 Daily summary queued (triggered by: ${triggeredBy})`);
+
+      // Send notification for cron-triggered summaries too (for debugging)
+      if (triggeredBy === 'cron') {
+        await this.telegram.sendStatusMessage('🌙 Daily summary');
+      }
     } catch (error) {
       if (error instanceof Error && error.message.includes('already in queue')) {
         console.log('⏳ Daily summary already in queue or running');
       } else {
         console.error('Failed to queue daily summary:', error);
+
+        // Send error notification for failed cron summaries
+        if (triggeredBy === 'cron') {
+          await this.telegram.sendErrorMessage(
+            `Failed to queue daily summary: ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
+        }
         throw error;
       }
     }
@@ -467,37 +474,18 @@ export class JobProcessor {
   async handleStatusCommand(): Promise<void> {
     const queueStatus = await this.getQueueStatus();
 
-    let statusMessage = `**Bot Status: Active** ✅
-
-⏰ **Next scheduled scan:** Top of next hour
-🌙 **Daily summary:** 9:00 PM UTC
-🤖 **AI Processing:** OpenAI GPT-4o-mini
-📧 **Email Processing:** Gmail API connected
-🔗 **Database:** PostgreSQL connected
-📊 **Queue:** Redis + BullMQ connected
-
-**Queue Status:**`;
+    let statusMessage = `✅ Active - Scans 6am-8pm UTC, Summary 9pm`;
 
     if (queueStatus.error) {
       statusMessage += `\n❌ ${queueStatus.error}`;
     } else {
       const { stats, currentJob } = queueStatus;
-      statusMessage += `
-📝 **Waiting:** ${stats.waiting} jobs
-⚡ **Active:** ${stats.active} jobs  
-✅ **Completed:** ${stats.completed} jobs
-❌ **Failed:** ${stats.failed} jobs`;
+      statusMessage += `\nQueue: ${stats.waiting} waiting, ${stats.active} active`;
 
       if (currentJob) {
-        statusMessage += `
-
-🔄 **Currently Running:**
-📋 ${currentJob.name} (ID: ${currentJob.id})
-📊 Progress: ${currentJob.progress}%`;
+        statusMessage += `\n🔄 Running: ${currentJob.name} (${currentJob.progress}%)`;
       }
     }
-
-    statusMessage += '\n\nAll systems operational!';
 
     await this.telegram.sendStatusMessage(statusMessage);
   }
@@ -549,9 +537,7 @@ export class JobProcessor {
       }
 
       if (orphanedCount > 0) {
-        await this.telegram.sendStatusMessage(
-          `🔄 **Email Recovery Complete**\n\n✅ Processed **${orphanedCount}** orphaned emails\n\nAll unprocessed emails have been handled.`
-        );
+        await this.telegram.sendStatusMessage(`🔄 Recovered ${orphanedCount} emails`);
       } else {
         console.log('✅ No orphaned emails found');
       }

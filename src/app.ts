@@ -29,9 +29,10 @@ async function initializeApp(): Promise<void> {
 
     console.log('✅ All services initialized successfully');
 
-    // Schedule job processing every hour
+    // Schedule job processing every hour from 6 AM to 8 PM UTC
+    // (9 PM is reserved for daily summary)
     cron.schedule(
-      '0 * * * *',
+      '0 6-20 * * *',
       async () => {
         console.log('⏰ Running scheduled job processing...');
         try {
@@ -46,13 +47,15 @@ async function initializeApp(): Promise<void> {
       }
     );
 
-    // Schedule daily summary at 9 PM UTC (adjust timezone as needed)
+    // Schedule daily summary at 9 PM UTC
     cron.schedule(
       '0 21 * * *',
       async () => {
-        console.log('🌙 Running daily summary...');
+        const currentTime = new Date().toISOString();
+        console.log(`🌙 Running daily summary at ${currentTime} (9 PM UTC trigger)...`);
         try {
           await jobProcessor.queueDailySummary('cron');
+          console.log('✅ Daily summary queued successfully');
         } catch (error) {
           console.error('❌ Daily summary failed:', error);
         }
@@ -63,8 +66,8 @@ async function initializeApp(): Promise<void> {
       }
     );
 
-    console.log('⏱️ Scheduled job processing every hour');
-    console.log('🌙 Scheduled daily summary at 9 PM UTC');
+    console.log('⏱️ Scheduled job processing: 6 AM - 8 PM UTC (hourly)');
+    console.log('🌙 Scheduled daily summary: 9 PM UTC daily');
 
     // Don't run initial job processing in development - use Telegram commands instead
     console.log('💡 Use Telegram commands to manually trigger processing in development mode');

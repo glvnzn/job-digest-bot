@@ -32,7 +32,7 @@ The application uses a service layer architecture with five main services:
 - **DatabaseService** - PostgreSQL operations with connection pooling and mutex locks
 
 ### Data Flow
-1. Cron jobs trigger `JobProcessor.processJobAlerts()` hourly
+1. Cron jobs trigger `JobProcessor.processJobAlerts()` hourly from 6 AM to 8 PM UTC
 2. Gmail service fetches unread emails from last 3 days
 3. OpenAI classifies emails as job-related using batch processing
 4. For each job email: extract jobs → calculate relevance scores → save to database

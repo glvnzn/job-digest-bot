@@ -77,15 +77,7 @@ export class TelegramService {
         if (this.statusCallback) {
           await this.statusCallback();
         } else {
-          this.sendStatusMessage(`**Bot Status: Active** ✅
-
-⏰ **Next scheduled scan:** Top of next hour
-🌙 **Daily summary:** 9:00 PM UTC
-🤖 **AI Processing:** OpenAI GPT-4o-mini
-📧 **Email Processing:** Gmail API connected
-🔗 **Database:** PostgreSQL connected
-
-All systems operational!`);
+          this.sendStatusMessage(`✅ Active - Scans 6am-8pm UTC, Summary 9pm`);
         }
       }
     });
@@ -100,9 +92,7 @@ All systems operational!`);
     this.bot.onText(/\/process/, async (msg) => {
       if (msg.chat.id.toString() === this.chatId) {
         try {
-          await this.sendStatusMessage(
-            '🚀 **Manual Processing Started**\n\nProcessing job alerts now...'
-          );
+          await this.sendStatusMessage('🚀 Processing jobs...');
           await processor.processJobAlerts();
         } catch (error) {
           await this.sendErrorMessage(
@@ -116,9 +106,7 @@ All systems operational!`);
     this.bot.onText(/\/summary/, async (msg) => {
       if (msg.chat.id.toString() === this.chatId) {
         try {
-          await this.sendStatusMessage(
-            "📊 **Generating Daily Summary**\n\nCollecting today's job data..."
-          );
+          await this.sendStatusMessage('📊 Generating summary...');
           await processor.sendDailySummary();
         } catch (error) {
           await this.sendErrorMessage(
@@ -133,7 +121,7 @@ All systems operational!`);
     if (jobs.length === 0) {
       if (isHourlyBatch) {
         await this.sendStatusMessage(
-          '📊 **Hourly Batch Complete**\n\nNo relevant jobs found in this batch.\n\n⏰ Next scan in 1 hour'
+          `📊 **Hourly Batch Complete**\n\nNo relevant jobs found in this batch.\n\n${this.getNextScanMessage()}`
         );
       }
       console.log('No relevant jobs to send');
@@ -326,6 +314,22 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
     }
 
     return ''; // No warning needed
+  }
+
+  private getNextScanMessage(): string {
+    const now = new Date();
+    const currentHourUTC = now.getUTCHours();
+
+    // Scan schedule is 6am-8pm UTC (hours 6-20)
+    if (currentHourUTC >= 6 && currentHourUTC < 20) {
+      return '⏰ Next scan in 1 hour';
+    } else if (currentHourUTC >= 20 && currentHourUTC < 21) {
+      return '🌙 Daily summary at 9 PM UTC, next scan tomorrow 6 AM UTC';
+    } else {
+      // Between 9 PM and 6 AM - no scans scheduled
+      const hoursUntil6AM = currentHourUTC < 6 ? 6 - currentHourUTC : 24 - currentHourUTC + 6;
+      return `🌙 Next scan in ${hoursUntil6AM} hours (6 AM UTC)`;
+    }
   }
 
   private async sendMessage(message: string): Promise<void> {
