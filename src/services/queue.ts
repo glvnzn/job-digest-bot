@@ -64,17 +64,18 @@ export class QueueService {
         switch (job.name) {
           case 'process-jobs':
             const processData = job.data as ProcessJobsData;
-            await this.jobProcessor.processJobAlertsInternal(processData.minRelevanceScore);
+            await this.jobProcessor.processJobAlertsInternal(processData.minRelevanceScore, job);
             break;
             
           case 'daily-summary':
-            await this.jobProcessor.sendDailySummaryInternal();
+            await this.jobProcessor.sendDailySummaryInternal(job);
             break;
             
           default:
             throw new Error(`Unknown job type: ${job.name}`);
         }
         
+        await job.updateProgress(100);
         console.log(`✅ Job completed: ${job.name} (ID: ${job.id})`);
       } catch (error) {
         console.error(`❌ Job failed: ${job.name} (ID: ${job.id})`, error);
@@ -170,6 +171,7 @@ export class QueueService {
     id: string;
     name: string;
     progress: number;
+    progressData?: string;
     processedOn?: number;
   } | null> {
     const activeJobs = await this.jobQueue.getActive();
@@ -180,6 +182,7 @@ export class QueueService {
       id: job.id!,
       name: job.name,
       progress: job.progress,
+      progressData: job.data?.progressData || undefined,
       processedOn: job.processedOn,
     };
   }

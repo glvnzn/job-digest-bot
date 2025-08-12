@@ -57,27 +57,37 @@ export class JobProcessor {
   }
 
   // Internal method that does the actual processing (called by worker)
-  async processJobAlertsInternal(minRelevanceScore: number = 0.6): Promise<void> {
+  async processJobAlertsInternal(minRelevanceScore: number = 0.6, job?: any): Promise<void> {
     try {
       console.log('Starting job alert processing...');
       await this.telegram.sendStatusMessage('🚀 **Job Processing Started**\n\n⏳ Initializing systems...');
+      
+      // Progress: 5% - Starting
+      if (job) await job.updateProgress(5, 'Initializing systems...');
       
       // Get resume analysis (analyze if not exists or older than 7 days)
       let resumeAnalysis = await this.db.getLatestResumeAnalysis();
       if (!resumeAnalysis || this.isAnalysisOld(resumeAnalysis.analyzedAt)) {
         console.log('Analyzing resume...');
+        if (job) await job.updateProgress(10, 'Analyzing resume...');
         await this.telegram.sendStatusMessage('📄 **Analyzing Resume**\n\n🧠 Using AI to understand your skills and experience...');
         resumeAnalysis = await this.analyzeResume();
         await this.db.saveResumeAnalysis(resumeAnalysis);
         await this.telegram.sendStatusMessage('✅ **Resume Analysis Complete**\n\n🎯 Skills and preferences identified!');
       }
 
+      // Progress: 20% - Fetching emails
+      if (job) await job.updateProgress(20, 'Fetching emails from Gmail...');
+      
       // Fetch recent emails and let AI classify them
       console.log('Fetching recent emails...');
       await this.telegram.sendStatusMessage('📧 **Fetching Emails**\n\n📥 Reading recent emails from Gmail...');
       const allEmails = await this.gmail.getRecentEmails();
       console.log(`Found ${allEmails.length} recent emails`);
 
+      // Progress: 30% - AI classification
+      if (job) await job.updateProgress(30, 'Running AI email classification...');
+      
       // Use AI to classify which emails are job-related
       console.log('Classifying emails with AI...');
       await this.telegram.sendStatusMessage(`🤖 **AI Email Analysis**\n\n📊 Found ${allEmails.length} emails\n🔍 Analyzing which contain job opportunities...`);
@@ -89,13 +99,23 @@ export class JobProcessor {
         return classification && classification.isJobRelated && classification.confidence >= 0.5;
       });
       
+      // Progress: 40% - Classification complete
+      if (job) await job.updateProgress(40, `Found ${jobRelatedEmails.length} job-related emails`);
+      
       console.log(`AI classified ${jobRelatedEmails.length} emails as job-related (out of ${allEmails.length} total)`);
       await this.telegram.sendStatusMessage(`✅ **Email Classification Complete**\n\n🎯 **${jobRelatedEmails.length}** job-related emails found\n📄 **${allEmails.length - jobRelatedEmails.length}** non-job emails skipped\n\n⏳ Now extracting job details...`);
 
       let totalJobsProcessed = 0;
       let relevantJobs: JobListing[] = [];
+      const totalEmailsToProcess = jobRelatedEmails.length;
 
-      for (const email of jobRelatedEmails) {
+      for (let i = 0; i < jobRelatedEmails.length; i++) {
+        const email = jobRelatedEmails[i];
+        
+        // Progress: 40-80% based on email processing
+        const emailProgress = 40 + Math.floor((i / totalEmailsToProcess) * 40);
+        if (job) await job.updateProgress(emailProgress, `Processing email ${i + 1}/${totalEmailsToProcess}`);
+        
         // Skip if already processed
         if (await this.db.isEmailProcessed(email.id)) {
           console.log(`Email ${email.id} already processed, skipping`);
@@ -141,6 +161,9 @@ export class JobProcessor {
         }
       }
 
+      // Progress: 85% - Sending notifications
+      if (job) await job.updateProgress(85, 'Sending job notifications...');
+      
       // Send notifications for relevant jobs
       if (relevantJobs.length > 0) {
         console.log(`Sending notifications for ${relevantJobs.length} relevant jobs`);
@@ -162,6 +185,9 @@ export class JobProcessor {
           );
         }
       }
+
+      // Progress: 95% - Finalizing
+      if (job) await job.updateProgress(95, 'Finalizing results...');
 
       console.log(`Job processing completed. Total jobs: ${totalJobsProcessed}, Relevant: ${relevantJobs.length}`);
       
@@ -277,9 +303,11 @@ export class JobProcessor {
   }
 
   // Internal method that does the actual summary generation (called by worker)
-  async sendDailySummaryInternal(): Promise<void> {
+  async sendDailySummaryInternal(job?: any): Promise<void> {
     try {
       console.log('🌙 Generating daily summary...');
+      
+      if (job) await job.updateProgress(10, 'Fetching daily job data...');
       
       const today = new Date();
       const [dailyJobs, dailyStats] = await Promise.all([
@@ -287,7 +315,11 @@ export class JobProcessor {
         this.db.getDailyStats(today)
       ]);
       
+      if (job) await job.updateProgress(50, 'Generating summary report...');
+      
       await this.telegram.sendDailySummary(dailyJobs, dailyStats);
+      
+      if (job) await job.updateProgress(90, 'Daily summary sent');
       
       console.log(`Daily summary sent: ${dailyJobs.length} relevant jobs, ${dailyStats.totalJobsProcessed} total processed`);
     } catch (error) {
