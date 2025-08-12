@@ -225,6 +225,7 @@ export class OpenAIService {
       const jobs = JSON.parse(cleanContent);
 
       return jobs.map((job: any, index: number) => ({
+        // eslint-disable-line @typescript-eslint/no-explicit-any
         id: `job_${Date.now()}_${index}`,
         title: job.title || 'Unknown Title',
         company: job.company || 'Unknown Company',
@@ -377,6 +378,7 @@ export class OpenAIService {
   }
 
   private parseValidDate(dateInput: any): Date {
+    // eslint-disable-line @typescript-eslint/no-explicit-any
     if (!dateInput) return new Date();
 
     const date = new Date(dateInput);

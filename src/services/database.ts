@@ -203,14 +203,16 @@ export class DatabaseService {
     const startOfDay = new Date(date);
     startOfDay.setUTCHours(0, 0, 0, 0);
     // Subtract 8 hours to convert Manila time to UTC
-    const startOfDayUTC = new Date(startOfDay.getTime() - (8 * 60 * 60 * 1000));
+    const startOfDayUTC = new Date(startOfDay.getTime() - 8 * 60 * 60 * 1000);
 
     const endOfDay = new Date(date);
     endOfDay.setUTCHours(23, 59, 59, 999);
     // Subtract 8 hours to convert Manila time to UTC
-    const endOfDayUTC = new Date(endOfDay.getTime() - (8 * 60 * 60 * 1000));
+    const endOfDayUTC = new Date(endOfDay.getTime() - 8 * 60 * 60 * 1000);
 
-    console.log(`Daily summary query range (Manila day converted to UTC): ${startOfDayUTC.toISOString()} to ${endOfDayUTC.toISOString()}`);
+    console.log(
+      `Daily summary query range (Manila day converted to UTC): ${startOfDayUTC.toISOString()} to ${endOfDayUTC.toISOString()}`
+    );
 
     const query = `
       SELECT * FROM jobs 
@@ -248,13 +250,15 @@ export class DatabaseService {
     // Convert Manila "day" to UTC time range for database query
     const startOfDay = new Date(date);
     startOfDay.setUTCHours(0, 0, 0, 0);
-    const startOfDayUTC = new Date(startOfDay.getTime() - (8 * 60 * 60 * 1000));
+    const startOfDayUTC = new Date(startOfDay.getTime() - 8 * 60 * 60 * 1000);
 
     const endOfDay = new Date(date);
     endOfDay.setUTCHours(23, 59, 59, 999);
-    const endOfDayUTC = new Date(endOfDay.getTime() - (8 * 60 * 60 * 1000));
+    const endOfDayUTC = new Date(endOfDay.getTime() - 8 * 60 * 60 * 1000);
 
-    console.log(`Daily stats query range (Manila day converted to UTC): ${startOfDayUTC.toISOString()} to ${endOfDayUTC.toISOString()}`);
+    console.log(
+      `Daily stats query range (Manila day converted to UTC): ${startOfDayUTC.toISOString()} to ${endOfDayUTC.toISOString()}`
+    );
 
     // Get total jobs processed today
     const totalJobsQuery = `
@@ -268,7 +272,10 @@ export class DatabaseService {
       SELECT COUNT(*) as count FROM jobs 
       WHERE created_at >= $1 AND created_at <= $2 AND relevance_score >= 0.6
     `;
-    const relevantJobsResult = await this.pool.query(relevantJobsQuery, [startOfDayUTC, endOfDayUTC]);
+    const relevantJobsResult = await this.pool.query(relevantJobsQuery, [
+      startOfDayUTC,
+      endOfDayUTC,
+    ]);
 
     // Get emails processed today
     const emailsQuery = `

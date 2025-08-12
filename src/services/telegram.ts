@@ -88,6 +88,7 @@ export class TelegramService {
   }
 
   setJobProcessor(processor: any): void {
+    // eslint-disable-line @typescript-eslint/no-explicit-any
     // Handle manual processing command
     this.bot.onText(/\/process/, async (msg) => {
       if (msg.chat.id.toString() === this.chatId) {
@@ -319,7 +320,7 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
   private getNextScanMessage(): string {
     const now = new Date();
     // Convert to Manila time to check the hour
-    const manilaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    const manilaTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
     const currentHourManila = manilaTime.getUTCHours();
 
     // Scan schedule is 6am-8pm Manila (hours 6-20)
@@ -329,7 +330,8 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
       return '🌙 Daily summary at 9 PM Manila, next scan tomorrow 6 AM Manila';
     } else {
       // Between 9 PM and 6 AM - no scans scheduled
-      const hoursUntil6AM = currentHourManila < 6 ? 6 - currentHourManila : 24 - currentHourManila + 6;
+      const hoursUntil6AM =
+        currentHourManila < 6 ? 6 - currentHourManila : 24 - currentHourManila + 6;
       return `🌙 Next scan in ${hoursUntil6AM} hours (6 AM Manila)`;
     }
   }

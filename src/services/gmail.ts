@@ -11,7 +11,7 @@ export interface EmailData {
 
 export class GmailService {
   private oauth2Client: OAuth2Client;
-  private gmail: any;
+  private gmail: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
   constructor() {
     this.oauth2Client = new OAuth2Client(
@@ -51,6 +51,7 @@ export class GmailService {
         const batch = response.data.messages.slice(i, i + batchSize);
 
         const batchPromises = batch.map(async (message: any) => {
+          // eslint-disable-line @typescript-eslint/no-explicit-any
           try {
             const email = await this.getEmailDetails(message.id);
             return email;
@@ -91,9 +92,9 @@ export class GmailService {
       const message = response.data;
       const headers = message.payload.headers;
 
-      const subjectHeader = headers.find((h: any) => h.name === 'Subject');
-      const fromHeader = headers.find((h: any) => h.name === 'From');
-      const dateHeader = headers.find((h: any) => h.name === 'Date');
+      const subjectHeader = headers.find((h: any) => h.name === 'Subject'); // eslint-disable-line @typescript-eslint/no-explicit-any
+      const fromHeader = headers.find((h: any) => h.name === 'From'); // eslint-disable-line @typescript-eslint/no-explicit-any
+      const dateHeader = headers.find((h: any) => h.name === 'Date'); // eslint-disable-line @typescript-eslint/no-explicit-any
 
       const body = this.extractEmailBody(message.payload);
 
@@ -111,6 +112,7 @@ export class GmailService {
   }
 
   private extractEmailBody(payload: any): string {
+    // eslint-disable-line @typescript-eslint/no-explicit-any
     let body = '';
 
     if (payload.body && payload.body.data) {

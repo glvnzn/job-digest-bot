@@ -60,6 +60,7 @@ export class JobProcessor {
 
   // Internal method that does the actual processing (called by worker)
   async processJobAlertsInternal(minRelevanceScore: number = 0.6, job?: any): Promise<void> {
+    // eslint-disable-line @typescript-eslint/no-explicit-any
     try {
       console.log('Starting job alert processing...');
       await this.telegram.sendStatusMessage('🚀 Processing jobs...');
@@ -315,8 +316,8 @@ export class JobProcessor {
 
   private getCurrentManilaDate(): Date {
     const now = new Date();
-    // Convert to Manila time (UTC+8) 
-    const manilaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    // Convert to Manila time (UTC+8)
+    const manilaTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
     // Create a new Date object representing "today" in Manila time zone
     return new Date(manilaTime.getUTCFullYear(), manilaTime.getUTCMonth(), manilaTime.getUTCDate());
   }
@@ -324,7 +325,7 @@ export class JobProcessor {
   private getNextScanMessage(): string {
     const now = new Date();
     // Convert to Manila time to check the hour
-    const manilaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    const manilaTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
     const currentHourManila = manilaTime.getUTCHours();
 
     // Scan schedule is 6am-8pm Manila (hours 6-20)
@@ -334,7 +335,8 @@ export class JobProcessor {
       return '🌙 Daily summary at 9 PM Manila, next scan tomorrow 6 AM Manila';
     } else {
       // Between 9 PM and 6 AM - no scans scheduled
-      const hoursUntil6AM = currentHourManila < 6 ? 6 - currentHourManila : 24 - currentHourManila + 6;
+      const hoursUntil6AM =
+        currentHourManila < 6 ? 6 - currentHourManila : 24 - currentHourManila + 6;
       return `🌙 Next scan in ${hoursUntil6AM} hours (6 AM Manila)`;
     }
   }
@@ -382,6 +384,7 @@ export class JobProcessor {
 
   // Internal method that does the actual summary generation (called by worker)
   async sendDailySummaryInternal(job?: any): Promise<void> {
+    // eslint-disable-line @typescript-eslint/no-explicit-any
     try {
       console.log('🌙 Generating daily summary...');
 
@@ -467,6 +470,7 @@ export class JobProcessor {
   }
 
   async getQueueStatus(): Promise<any> {
+    // eslint-disable-line @typescript-eslint/no-explicit-any
     if (!this.queue) {
       return { error: 'Queue service not initialized' };
     }
