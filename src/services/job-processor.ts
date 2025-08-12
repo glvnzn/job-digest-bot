@@ -150,7 +150,11 @@ export class JobProcessor {
 
         try {
           // Extract jobs from email
-          const jobs = await this.openai.extractJobsFromEmail(email.body, email.subject, email.from);
+          const jobs = await this.openai.extractJobsFromEmail(
+            email.body,
+            email.subject,
+            email.from
+          );
 
           if (jobs.length === 0) {
             console.log('No jobs found in email, marking as processed but NOT archiving');
@@ -177,13 +181,13 @@ export class JobProcessor {
           console.log(`Processed ${jobs.length} jobs from email ${email.id}`);
         } catch (emailError) {
           console.error(`Error processing email ${email.id}:`, emailError);
-          
+
           // Even if processing fails, we should mark the email as read to avoid reprocessing
           // This prevents infinite retry loops on problematic emails
           try {
             await this.markEmailAsProcessedOnly(email.id, 0);
             console.log(`Marked problematic email ${email.id} as processed to prevent retry loop`);
-            
+
             // Send error notification for this specific email
             await this.telegram.sendErrorMessage(
               `Failed to process email "${email.subject}" from ${email.from}: ${emailError instanceof Error ? emailError.message : 'Unknown error'}`
@@ -502,28 +506,32 @@ export class JobProcessor {
   async markOrphanedEmailsAsProcessed(): Promise<void> {
     try {
       console.log('🔄 Checking for orphaned unread emails...');
-      
+
       // Get recent emails that might be stuck
       const allEmails = await this.gmail.getRecentEmails();
       let orphanedCount = 0;
-      
+
       for (const email of allEmails) {
         const isProcessed = await this.db.isEmailProcessed(email.id);
-        
+
         if (!isProcessed) {
           console.log(`Found orphaned email: ${email.subject} (${email.id})`);
-          
+
           // Try to process it normally first
           try {
-            const jobs = await this.openai.extractJobsFromEmail(email.body, email.subject, email.from);
-            
+            const jobs = await this.openai.extractJobsFromEmail(
+              email.body,
+              email.subject,
+              email.from
+            );
+
             if (jobs.length === 0) {
               await this.markEmailAsProcessedOnly(email.id, 0);
             } else {
               // For recovery, we'll just mark as processed without full job processing
               await this.markEmailAsProcessedOnly(email.id, jobs.length);
             }
-            
+
             orphanedCount++;
             console.log(`✅ Recovered orphaned email: ${email.id}`);
           } catch (error) {
@@ -539,7 +547,7 @@ export class JobProcessor {
           }
         }
       }
-      
+
       if (orphanedCount > 0) {
         await this.telegram.sendStatusMessage(
           `🔄 **Email Recovery Complete**\n\n✅ Processed **${orphanedCount}** orphaned emails\n\nAll unprocessed emails have been handled.`
@@ -547,10 +555,11 @@ export class JobProcessor {
       } else {
         console.log('✅ No orphaned emails found');
       }
-      
     } catch (error) {
       console.error('Error during email recovery:', error);
-      await this.telegram.sendErrorMessage(`Email recovery failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      await this.telegram.sendErrorMessage(
+        `Email recovery failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 

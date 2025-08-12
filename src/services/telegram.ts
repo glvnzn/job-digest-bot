@@ -208,7 +208,9 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
 
           summaryMessage += `${relevanceEmoji} **${job.title}**\n`;
           summaryMessage += `🏢 ${job.company} ${remoteEmoji} | 📊 ${scorePercentage}%\n`;
-          summaryMessage += `🔗 [Apply](${job.applyUrl})\n\n`;
+
+          const urlWarning = this.getUrlWarning(job.applyUrl);
+          summaryMessage += `🔗 [Apply](${job.applyUrl})${urlWarning}\n\n`;
         });
       }
 
@@ -268,7 +270,10 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
 
       message += `${relevanceEmoji} **${job.title}**\n`;
       message += `🏢 ${job.company} ${remoteEmoji} | 📊 ${scorePercentage}%\n`;
-      message += `🔗 [Apply](${job.applyUrl})\n\n`;
+
+      // Add URL warning if it looks like it might be wrong
+      const urlWarning = this.getUrlWarning(job.applyUrl);
+      message += `🔗 [Apply](${job.applyUrl})${urlWarning}\n\n`;
     });
 
     return message;
@@ -305,6 +310,22 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
     if (score >= 0.6) return '✅';
     if (score >= 0.5) return '📋';
     return '📄';
+  }
+
+  private getUrlWarning(url: string): string {
+    if (!url) return ' ⚠️ _No URL_';
+
+    // Check for potentially problematic LinkedIn URLs
+    if (url.includes('linkedin.com/company/') && !url.includes('/jobs/')) {
+      return ' ⚠️ _Company page - may not be direct job link_';
+    }
+
+    // Check for other suspicious patterns
+    if (url.includes('/company') && !url.includes('job')) {
+      return ' ⚠️ _May be company page_';
+    }
+
+    return ''; // No warning needed
   }
 
   private async sendMessage(message: string): Promise<void> {

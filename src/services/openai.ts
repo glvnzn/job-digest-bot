@@ -190,7 +190,11 @@ export class OpenAIService {
         Rules:
         - Extract ALL job listings from the email
         - If location mentions "remote", "work from home", "WFH", set isRemote to true
-        - Extract apply URLs carefully
+        - Extract apply URLs carefully:
+          * For LinkedIn: Look for URLs containing "/jobs/view/" or "linkedin.com/jobs" - NOT company pages
+          * Prefer direct job application URLs over company profile URLs
+          * If you find tracking URLs, try to extract the actual job URL from them
+          * Avoid URLs that go to company pages or profiles
         - If salary not mentioned, set as null
         - Determine source from email sender
         - If job details are incomplete, extract what you can
@@ -228,7 +232,7 @@ export class OpenAIService {
         isRemote: job.isRemote || false,
         description: job.description || '',
         requirements: job.requirements || [],
-        applyUrl: job.applyUrl || '',
+        applyUrl: this.cleanApplyUrl(job.applyUrl || '', emailFrom),
         salary: job.salary,
         postedDate: this.parseValidDate(job.postedDate),
         source: job.source || this.determineSource(emailFrom),
@@ -321,6 +325,55 @@ export class OpenAIService {
     if (emailFrom.includes('indeed')) return 'Indeed';
     if (emailFrom.includes('glassdoor')) return 'Glassdoor';
     return 'Unknown';
+  }
+
+  private cleanApplyUrl(url: string, emailFrom: string): string {
+    if (!url || url.trim() === '') return '';
+
+    try {
+      // Clean up common URL issues
+      let cleanUrl = url.trim();
+
+      // Handle LinkedIn URLs specifically
+      if (emailFrom.includes('linkedin') || cleanUrl.includes('linkedin.com')) {
+        // If it's a company page URL instead of job URL, warn about it
+        if (cleanUrl.includes('/company/') && !cleanUrl.includes('/jobs/')) {
+          console.warn(`LinkedIn company URL detected instead of job URL: ${cleanUrl}`);
+          // Return it anyway but log for monitoring
+          return cleanUrl;
+        }
+
+        // If it's a valid LinkedIn job URL, clean tracking parameters
+        if (cleanUrl.includes('/jobs/view/') || cleanUrl.includes('linkedin.com/jobs')) {
+          // Remove common tracking parameters
+          cleanUrl = cleanUrl.split('?')[0]; // Remove query parameters that are usually tracking
+          return cleanUrl;
+        }
+      }
+
+      // Handle Indeed URLs
+      if (emailFrom.includes('indeed') || cleanUrl.includes('indeed.com')) {
+        // Indeed URLs often have tracking - keep the core URL
+        if (cleanUrl.includes('/viewjob?jk=')) {
+          return cleanUrl.split('&')[0]; // Keep only the job key parameter
+        }
+      }
+
+      // Generic URL validation
+      if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+        return cleanUrl;
+      }
+
+      // If URL doesn't start with protocol, assume https
+      if (cleanUrl.includes('.com') || cleanUrl.includes('.org')) {
+        return `https://${cleanUrl}`;
+      }
+
+      return cleanUrl;
+    } catch (error) {
+      console.warn(`Error cleaning URL "${url}":`, error);
+      return url; // Return original if cleaning fails
+    }
   }
 
   private parseValidDate(dateInput: any): Date {
