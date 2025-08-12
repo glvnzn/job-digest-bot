@@ -166,8 +166,10 @@ export class GmailService {
           removeLabelIds: ['UNREAD'],
         },
       });
+      console.log(`Email ${messageId} marked as read successfully`);
     } catch (error) {
       console.error(`Failed to mark email ${messageId} as read:`, error);
+      throw error; // Throw the error so caller can handle it properly
     }
   }
 

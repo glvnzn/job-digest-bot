@@ -148,32 +148,50 @@ export class JobProcessor {
 
         console.log(`Processing email: ${email.subject}`);
 
-        // Extract jobs from email
-        const jobs = await this.openai.extractJobsFromEmail(email.body, email.subject, email.from);
+        try {
+          // Extract jobs from email
+          const jobs = await this.openai.extractJobsFromEmail(email.body, email.subject, email.from);
 
-        if (jobs.length === 0) {
-          console.log('No jobs found in email, marking as processed but NOT deleting');
-          await this.markEmailAsProcessedOnly(email.id, 0);
-          continue;
-        }
+          if (jobs.length === 0) {
+            console.log('No jobs found in email, marking as processed but NOT archiving');
+            await this.markEmailAsProcessedOnly(email.id, 0);
+            continue;
+          }
 
-        // Calculate relevance scores and save jobs
-        for (const job of jobs) {
-          job.emailMessageId = email.id;
-          job.relevanceScore = await this.openai.calculateJobRelevance(job, resumeAnalysis);
+          // Calculate relevance scores and save jobs
+          for (const job of jobs) {
+            job.emailMessageId = email.id;
+            job.relevanceScore = await this.openai.calculateJobRelevance(job, resumeAnalysis);
 
-          await this.db.saveJob(job);
-          totalJobsProcessed++;
+            await this.db.saveJob(job);
+            totalJobsProcessed++;
 
-          // Collect relevant jobs for notification
-          if (job.relevanceScore >= minRelevanceScore) {
-            relevantJobs.push(job);
+            // Collect relevant jobs for notification
+            if (job.relevanceScore >= minRelevanceScore) {
+              relevantJobs.push(job);
+            }
+          }
+
+          // Mark email as processed and archive (only archive if jobs were found)
+          await this.markEmailProcessedAndArchive(email.id, jobs.length);
+          console.log(`Processed ${jobs.length} jobs from email ${email.id}`);
+        } catch (emailError) {
+          console.error(`Error processing email ${email.id}:`, emailError);
+          
+          // Even if processing fails, we should mark the email as read to avoid reprocessing
+          // This prevents infinite retry loops on problematic emails
+          try {
+            await this.markEmailAsProcessedOnly(email.id, 0);
+            console.log(`Marked problematic email ${email.id} as processed to prevent retry loop`);
+            
+            // Send error notification for this specific email
+            await this.telegram.sendErrorMessage(
+              `Failed to process email "${email.subject}" from ${email.from}: ${emailError instanceof Error ? emailError.message : 'Unknown error'}`
+            );
+          } catch (markError) {
+            console.error(`Failed to mark email ${email.id} as processed:`, markError);
           }
         }
-
-        // Mark email as processed and archive (only archive if jobs were found)
-        await this.markEmailProcessedAndArchive(email.id, jobs.length);
-        console.log(`Processed ${jobs.length} jobs from email ${email.id}`);
 
         // Send progress update every few emails
         if (totalJobsProcessed % 20 === 0 && totalJobsProcessed > 0) {
@@ -234,22 +252,29 @@ export class JobProcessor {
   }
 
   private async markEmailAsProcessedOnly(messageId: string, jobsExtracted: number): Promise<void> {
-    // Save to database and mark as read (but don't archive non-job emails)
-    await this.db.saveProcessedEmail({
-      messageId,
-      subject: '',
-      from: '',
-      processedAt: new Date(),
-      jobsExtracted,
-      deleted: false,
-    });
+    // Always save to database first - this is most important to prevent reprocessing
+    try {
+      await this.db.saveProcessedEmail({
+        messageId,
+        subject: '',
+        from: '',
+        processedAt: new Date(),
+        jobsExtracted,
+        deleted: false,
+      });
+      console.log(`Email ${messageId} saved to database as processed`);
+    } catch (error) {
+      console.error(`Critical error: Failed to save email ${messageId} to database:`, error);
+      throw error; // This is critical - if we can't track it, it will be reprocessed
+    }
 
-    // Just mark as read, don't archive since no jobs were found
+    // Try to mark as read (less critical than database save)
     try {
       await this.gmail.markAsRead(messageId);
-      console.log(`Email ${messageId} marked as processed and read (no jobs found)`);
+      console.log(`Email ${messageId} marked as read (no jobs found)`);
     } catch (error) {
-      console.error(`Failed to mark email ${messageId} as read:`, error);
+      console.error(`Warning: Failed to mark email ${messageId} as read in Gmail:`, error);
+      // Don't throw - email is already tracked in database
     }
   }
 
@@ -257,21 +282,27 @@ export class JobProcessor {
     messageId: string,
     jobsExtracted: number
   ): Promise<void> {
-    // Save to database
-    await this.db.saveProcessedEmail({
-      messageId,
-      subject: '',
-      from: '',
-      processedAt: new Date(),
-      jobsExtracted,
-      deleted: false,
-    });
+    // Always save to database first - this is most important to prevent reprocessing
+    try {
+      await this.db.saveProcessedEmail({
+        messageId,
+        subject: '',
+        from: '',
+        processedAt: new Date(),
+        jobsExtracted,
+        deleted: false,
+      });
+      console.log(`Email ${messageId} saved to database as processed`);
+    } catch (error) {
+      console.error(`Critical error: Failed to save email ${messageId} to database:`, error);
+      throw error; // This is critical - if we can't track it, it will be reprocessed
+    }
 
-    // Mark as read and archive since it contained job opportunities
+    // Try to mark as read and archive (less critical than database save)
     try {
       await this.gmail.markAsReadAndArchive(messageId);
 
-      // Update database to mark as archived
+      // Update database to mark as archived (only if Gmail operation succeeded)
       await this.db.saveProcessedEmail({
         messageId,
         subject: '',
@@ -283,7 +314,9 @@ export class JobProcessor {
 
       console.log(`Email ${messageId} processed and archived (contained ${jobsExtracted} jobs)`);
     } catch (error) {
-      console.error(`Failed to archive email ${messageId}:`, error);
+      console.error(`Warning: Failed to archive email ${messageId} in Gmail:`, error);
+      // Don't throw - email is already tracked in database as processed
+      console.log(`Email ${messageId} is tracked as processed but remains in inbox`);
     }
   }
 
@@ -463,6 +496,62 @@ export class JobProcessor {
     statusMessage += '\n\nAll systems operational!';
 
     await this.telegram.sendStatusMessage(statusMessage);
+  }
+
+  // Recovery method to mark orphaned emails as processed (run manually if needed)
+  async markOrphanedEmailsAsProcessed(): Promise<void> {
+    try {
+      console.log('🔄 Checking for orphaned unread emails...');
+      
+      // Get recent emails that might be stuck
+      const allEmails = await this.gmail.getRecentEmails();
+      let orphanedCount = 0;
+      
+      for (const email of allEmails) {
+        const isProcessed = await this.db.isEmailProcessed(email.id);
+        
+        if (!isProcessed) {
+          console.log(`Found orphaned email: ${email.subject} (${email.id})`);
+          
+          // Try to process it normally first
+          try {
+            const jobs = await this.openai.extractJobsFromEmail(email.body, email.subject, email.from);
+            
+            if (jobs.length === 0) {
+              await this.markEmailAsProcessedOnly(email.id, 0);
+            } else {
+              // For recovery, we'll just mark as processed without full job processing
+              await this.markEmailAsProcessedOnly(email.id, jobs.length);
+            }
+            
+            orphanedCount++;
+            console.log(`✅ Recovered orphaned email: ${email.id}`);
+          } catch (error) {
+            console.error(`Failed to recover email ${email.id}:`, error);
+            // Force mark as processed to prevent infinite loops
+            try {
+              await this.markEmailAsProcessedOnly(email.id, 0);
+              orphanedCount++;
+              console.log(`⚠️ Force-marked problematic email as processed: ${email.id}`);
+            } catch (forceError) {
+              console.error(`Critical: Could not force-mark email ${email.id}:`, forceError);
+            }
+          }
+        }
+      }
+      
+      if (orphanedCount > 0) {
+        await this.telegram.sendStatusMessage(
+          `🔄 **Email Recovery Complete**\n\n✅ Processed **${orphanedCount}** orphaned emails\n\nAll unprocessed emails have been handled.`
+        );
+      } else {
+        console.log('✅ No orphaned emails found');
+      }
+      
+    } catch (error) {
+      console.error('Error during email recovery:', error);
+      await this.telegram.sendErrorMessage(`Email recovery failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   async cleanup(): Promise<void> {
