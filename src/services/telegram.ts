@@ -17,23 +17,22 @@ export class TelegramService {
     }
 
     try {
-      // Send summary first
-      const summaryMessage = this.formatSummaryMessage(jobs);
-      await this.bot.sendMessage(this.chatId, summaryMessage, { 
-        parse_mode: 'Markdown',
-        disable_web_page_preview: true 
-      });
-
-      // Send individual job notifications
-      for (const job of jobs) {
-        const message = this.formatJobMessage(job);
-        await this.bot.sendMessage(this.chatId, message, { 
+      // Send compact consolidated list
+      const compactList = this.formatCompactJobList(jobs);
+      
+      // Split into chunks if too long (Telegram has a message limit)
+      const chunks = this.splitMessage(compactList, 4000);
+      
+      for (let i = 0; i < chunks.length; i++) {
+        const header = i === 0 ? '' : `📋 **Job List (Part ${i + 1})**\n\n`;
+        await this.bot.sendMessage(this.chatId, header + chunks[i], { 
           parse_mode: 'Markdown',
           disable_web_page_preview: true 
         });
         
-        // Small delay to avoid rate limiting
-        await this.delay(500);
+        if (i < chunks.length - 1) {
+          await this.delay(1000); // Longer delay between chunks
+        }
       }
 
       console.log(`Sent ${jobs.length} job notifications to Telegram`);
@@ -41,6 +40,64 @@ export class TelegramService {
       console.error('Failed to send Telegram notifications:', error);
       throw error;
     }
+  }
+
+  private formatCompactJobList(jobs: JobListing[]): string {
+    const highRelevanceJobs = jobs.filter(job => job.relevanceScore >= 0.8);
+    const mediumRelevanceJobs = jobs.filter(job => job.relevanceScore >= 0.6 && job.relevanceScore < 0.8);
+    const remoteJobs = jobs.filter(job => job.isRemote);
+    
+    let message = `🎯 **Job Digest - ${jobs.length} Opportunities**
+
+📊 **Summary:**
+⭐ High Relevance (≥80%): **${highRelevanceJobs.length}**
+📈 Medium Relevance (60-79%): **${mediumRelevanceJobs.length}**
+🏠 Remote: **${remoteJobs.length}** | 🏢 On-site: **${jobs.length - remoteJobs.length}**
+
+📅 Generated: ${new Date().toLocaleString()}
+
+---
+
+`;
+
+    // Sort by relevance score (highest first)
+    const sortedJobs = jobs.sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+    sortedJobs.forEach((job) => {
+      const relevanceEmoji = this.getRelevanceEmoji(job.relevanceScore);
+      const remoteEmoji = job.isRemote ? '🏠' : '🏢';
+      const scorePercentage = Math.round(job.relevanceScore * 100);
+      
+      message += `${relevanceEmoji} **${job.title}**\n`;
+      message += `🏢 ${job.company} ${remoteEmoji} | 📊 ${scorePercentage}%\n`;
+      message += `🔗 [Apply](${job.applyUrl})\n\n`;
+    });
+
+    return message;
+  }
+
+  private splitMessage(message: string, maxLength: number): string[] {
+    if (message.length <= maxLength) return [message];
+    
+    const chunks: string[] = [];
+    let currentChunk = '';
+    const lines = message.split('\n');
+    
+    for (const line of lines) {
+      if ((currentChunk + line + '\n').length > maxLength) {
+        if (currentChunk) {
+          chunks.push(currentChunk.trim());
+          currentChunk = '';
+        }
+      }
+      currentChunk += line + '\n';
+    }
+    
+    if (currentChunk.trim()) {
+      chunks.push(currentChunk.trim());
+    }
+    
+    return chunks;
   }
 
   private formatSummaryMessage(jobs: JobListing[]): string {

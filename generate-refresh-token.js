@@ -12,10 +12,9 @@ const oauth2Client = new google.auth.OAuth2(
   REDIRECT_URI
 );
 
-// Gmail API scope for reading and deleting emails
+// Gmail API scope for full Gmail access (needed for deleting emails)
 const SCOPES = [
-  'https://www.googleapis.com/auth/gmail.readonly',
-  'https://www.googleapis.com/auth/gmail.modify'
+  'https://mail.google.com/'
 ];
 
 async function generateRefreshToken() {

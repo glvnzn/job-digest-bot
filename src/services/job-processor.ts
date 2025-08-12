@@ -25,22 +25,27 @@ export class JobProcessor {
   async processJobAlerts(minRelevanceScore: number = 0.6): Promise<void> {
     try {
       console.log('Starting job alert processing...');
+      await this.telegram.sendStatusMessage('🚀 **Job Processing Started**\n\n⏳ Initializing systems...');
       
       // Get resume analysis (analyze if not exists or older than 7 days)
       let resumeAnalysis = await this.db.getLatestResumeAnalysis();
       if (!resumeAnalysis || this.isAnalysisOld(resumeAnalysis.analyzedAt)) {
         console.log('Analyzing resume...');
+        await this.telegram.sendStatusMessage('📄 **Analyzing Resume**\n\n🧠 Using AI to understand your skills and experience...');
         resumeAnalysis = await this.analyzeResume();
         await this.db.saveResumeAnalysis(resumeAnalysis);
+        await this.telegram.sendStatusMessage('✅ **Resume Analysis Complete**\n\n🎯 Skills and preferences identified!');
       }
 
       // Fetch recent emails and let AI classify them
       console.log('Fetching recent emails...');
+      await this.telegram.sendStatusMessage('📧 **Fetching Emails**\n\n📥 Reading recent emails from Gmail...');
       const allEmails = await this.gmail.getRecentEmails();
       console.log(`Found ${allEmails.length} recent emails`);
 
       // Use AI to classify which emails are job-related
       console.log('Classifying emails with AI...');
+      await this.telegram.sendStatusMessage(`🤖 **AI Email Analysis**\n\n📊 Found ${allEmails.length} emails\n🔍 Analyzing which contain job opportunities...`);
       const classifications = await this.openai.classifyEmailsBatch(allEmails);
       
       // Filter to only job-related emails with reasonable confidence
@@ -50,6 +55,7 @@ export class JobProcessor {
       });
       
       console.log(`AI classified ${jobRelatedEmails.length} emails as job-related (out of ${allEmails.length} total)`);
+      await this.telegram.sendStatusMessage(`✅ **Email Classification Complete**\n\n🎯 **${jobRelatedEmails.length}** job-related emails found\n📄 **${allEmails.length - jobRelatedEmails.length}** non-job emails skipped\n\n⏳ Now extracting job details...`);
 
       let totalJobsProcessed = 0;
       let relevantJobs: JobListing[] = [];
@@ -90,9 +96,14 @@ export class JobProcessor {
           }
         }
 
-        // Mark email as processed and delete (only delete if jobs were found)
-        await this.markEmailProcessedAndDelete(email.id, jobs.length);
+        // Mark email as processed and archive (only archive if jobs were found)
+        await this.markEmailProcessedAndArchive(email.id, jobs.length);
         console.log(`Processed ${jobs.length} jobs from email ${email.id}`);
+        
+        // Send progress update every few emails
+        if (totalJobsProcessed % 20 === 0 && totalJobsProcessed > 0) {
+          await this.telegram.sendStatusMessage(`📈 **Processing Update**\n\n✅ **${totalJobsProcessed}** jobs extracted so far\n🎯 **${relevantJobs.length}** relevant matches found\n⏳ Still analyzing...`);
+        }
       }
 
       // Send notifications for relevant jobs
@@ -119,6 +130,9 @@ export class JobProcessor {
 
       console.log(`Job processing completed. Total jobs: ${totalJobsProcessed}, Relevant: ${relevantJobs.length}`);
       
+      // Send completion summary
+      await this.telegram.sendStatusMessage(`🎉 **Job Processing Complete**\n\n📊 **Final Results:**\n✅ **${totalJobsProcessed}** total jobs processed\n🎯 **${relevantJobs.length}** relevant jobs found\n📱 Notifications sent for all matches!\n\n⏰ Next scan in 1 hour`);
+      
     } catch (error) {
       console.error('Error processing job alerts:', error);
       await this.telegram.sendErrorMessage(`Job processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -132,7 +146,7 @@ export class JobProcessor {
   }
 
   private async markEmailAsProcessedOnly(messageId: string, jobsExtracted: number): Promise<void> {
-    // Save to database but don't delete email
+    // Save to database and mark as read (but don't archive non-job emails)
     await this.db.saveProcessedEmail({
       messageId,
       subject: '',
@@ -142,10 +156,16 @@ export class JobProcessor {
       deleted: false
     });
     
-    console.log(`Email ${messageId} marked as processed (no jobs found, email preserved)`);
+    // Just mark as read, don't archive since no jobs were found
+    try {
+      await this.gmail.markAsRead(messageId);
+      console.log(`Email ${messageId} marked as processed and read (no jobs found)`);
+    } catch (error) {
+      console.error(`Failed to mark email ${messageId} as read:`, error);
+    }
   }
 
-  private async markEmailProcessedAndDelete(messageId: string, jobsExtracted: number): Promise<void> {
+  private async markEmailProcessedAndArchive(messageId: string, jobsExtracted: number): Promise<void> {
     // Save to database
     await this.db.saveProcessedEmail({
       messageId,
@@ -156,23 +176,23 @@ export class JobProcessor {
       deleted: false
     });
 
-    // Delete the email since it contained job opportunities
+    // Mark as read and archive since it contained job opportunities
     try {
-      await this.gmail.deleteEmail(messageId);
+      await this.gmail.markAsReadAndArchive(messageId);
       
-      // Update database to mark as deleted
+      // Update database to mark as archived
       await this.db.saveProcessedEmail({
         messageId,
         subject: '',
         from: '',
         processedAt: new Date(),
         jobsExtracted,
-        deleted: true
+        deleted: true // We'll use this field to indicate "archived"
       });
       
-      console.log(`Email ${messageId} processed and deleted (contained ${jobsExtracted} jobs)`);
+      console.log(`Email ${messageId} processed and archived (contained ${jobsExtracted} jobs)`);
     } catch (error) {
-      console.error(`Failed to delete email ${messageId}:`, error);
+      console.error(`Failed to archive email ${messageId}:`, error);
     }
   }
 

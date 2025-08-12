@@ -29,8 +29,8 @@ export class GmailService {
 
   async getRecentEmails(): Promise<EmailData[]> {
     try {
-      // Get recent emails without filtering - let AI decide what's job-related
-      const query = 'newer_than:1d';
+      // Get unread emails from recent days - let AI decide what's job-related
+      const query = 'is:unread newer_than:3d';
       
       const response = await this.gmail.users.messages.list({
         userId: 'me',
@@ -168,6 +168,38 @@ export class GmailService {
       });
     } catch (error) {
       console.error(`Failed to mark email ${messageId} as read:`, error);
+    }
+  }
+
+  async archiveEmail(messageId: string): Promise<void> {
+    try {
+      await this.gmail.users.messages.modify({
+        userId: 'me',
+        id: messageId,
+        resource: {
+          removeLabelIds: ['INBOX']
+        }
+      });
+      console.log(`Email ${messageId} archived successfully`);
+    } catch (error) {
+      console.error(`Failed to archive email ${messageId}:`, error);
+      throw error;
+    }
+  }
+
+  async markAsReadAndArchive(messageId: string): Promise<void> {
+    try {
+      await this.gmail.users.messages.modify({
+        userId: 'me',
+        id: messageId,
+        resource: {
+          removeLabelIds: ['UNREAD', 'INBOX']
+        }
+      });
+      console.log(`Email ${messageId} marked as read and archived successfully`);
+    } catch (error) {
+      console.error(`Failed to mark email ${messageId} as read and archive:`, error);
+      throw error;
     }
   }
 
