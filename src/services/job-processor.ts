@@ -313,6 +313,12 @@ export class JobProcessor {
     return analyzedAt < weekAgo;
   }
 
+  private getCurrentUTCDate(): Date {
+    const now = new Date();
+    // Create a new Date object representing "today" in UTC
+    return new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  }
+
   private getNextScanMessage(): string {
     const now = new Date();
     const currentHourUTC = now.getUTCHours();
@@ -377,7 +383,8 @@ export class JobProcessor {
 
       if (job) await job.updateProgress(10, 'Fetching daily job data...');
 
-      const today = new Date();
+      const today = this.getCurrentUTCDate();
+      console.log(`Daily summary requested for UTC date: ${today.toISOString()}`);
       const [dailyJobs, dailyStats] = await Promise.all([
         this.db.getDailyJobSummary(today),
         this.db.getDailyStats(today),

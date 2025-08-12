@@ -199,10 +199,12 @@ export class DatabaseService {
 
   async getDailyJobSummary(date: Date): Promise<JobListing[]> {
     const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
+    startOfDay.setUTCHours(0, 0, 0, 0);
 
     const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    console.log(`Daily summary query range (UTC): ${startOfDay.toISOString()} to ${endOfDay.toISOString()}`);
 
     const query = `
       SELECT * FROM jobs 
@@ -238,10 +240,12 @@ export class DatabaseService {
     topSources: Array<{ source: string; count: number }>;
   }> {
     const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
+    startOfDay.setUTCHours(0, 0, 0, 0);
 
     const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    console.log(`Daily stats query range (UTC): ${startOfDay.toISOString()} to ${endOfDay.toISOString()}`);
 
     // Get total jobs processed today
     const totalJobsQuery = `
