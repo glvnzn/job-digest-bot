@@ -191,6 +191,11 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
         const sortedJobs = jobs.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
         sortedJobs.forEach((job) => {
+          // Skip jobs without apply URL
+          if (!job.applyUrl || job.applyUrl.trim() === '' || job.applyUrl === 'Unknown URL') {
+            return;
+          }
+
           const relevanceEmoji = this.getRelevanceEmoji(job.relevanceScore);
           const remoteEmoji = job.isRemote ? '🏠' : '🏢';
           const scorePercentage = Math.round(job.relevanceScore * 100);
@@ -253,6 +258,11 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
     const sortedJobs = jobs.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
     sortedJobs.forEach((job) => {
+      // Skip jobs without apply URL
+      if (!job.applyUrl || job.applyUrl.trim() === '' || job.applyUrl === 'Unknown URL') {
+        return;
+      }
+
       const relevanceEmoji = this.getRelevanceEmoji(job.relevanceScore);
       const remoteEmoji = job.isRemote ? '🏠' : '🏢';
       const scorePercentage = Math.round(job.relevanceScore * 100);
