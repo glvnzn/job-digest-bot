@@ -313,25 +313,29 @@ export class JobProcessor {
     return analyzedAt < weekAgo;
   }
 
-  private getCurrentUTCDate(): Date {
+  private getCurrentManilaDate(): Date {
     const now = new Date();
-    // Create a new Date object representing "today" in UTC
-    return new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    // Convert to Manila time (UTC+8) 
+    const manilaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    // Create a new Date object representing "today" in Manila time zone
+    return new Date(manilaTime.getUTCFullYear(), manilaTime.getUTCMonth(), manilaTime.getUTCDate());
   }
 
   private getNextScanMessage(): string {
     const now = new Date();
-    const currentHourUTC = now.getUTCHours();
+    // Convert to Manila time to check the hour
+    const manilaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    const currentHourManila = manilaTime.getUTCHours();
 
-    // Scan schedule is 6am-8pm UTC (hours 6-20)
-    if (currentHourUTC >= 6 && currentHourUTC < 20) {
+    // Scan schedule is 6am-8pm Manila (hours 6-20)
+    if (currentHourManila >= 6 && currentHourManila < 20) {
       return '⏰ Next scan in 1 hour';
-    } else if (currentHourUTC >= 20 && currentHourUTC < 21) {
-      return '🌙 Daily summary at 9 PM UTC, next scan tomorrow 6 AM UTC';
+    } else if (currentHourManila >= 20 && currentHourManila < 21) {
+      return '🌙 Daily summary at 9 PM Manila, next scan tomorrow 6 AM Manila';
     } else {
       // Between 9 PM and 6 AM - no scans scheduled
-      const hoursUntil6AM = currentHourUTC < 6 ? 6 - currentHourUTC : 24 - currentHourUTC + 6;
-      return `🌙 Next scan in ${hoursUntil6AM} hours (6 AM UTC)`;
+      const hoursUntil6AM = currentHourManila < 6 ? 6 - currentHourManila : 24 - currentHourManila + 6;
+      return `🌙 Next scan in ${hoursUntil6AM} hours (6 AM Manila)`;
     }
   }
 
@@ -383,8 +387,8 @@ export class JobProcessor {
 
       if (job) await job.updateProgress(10, 'Fetching daily job data...');
 
-      const today = this.getCurrentUTCDate();
-      console.log(`Daily summary requested for UTC date: ${today.toISOString()}`);
+      const today = this.getCurrentManilaDate();
+      console.log(`Daily summary requested for Manila date: ${today.toISOString()}`);
       const [dailyJobs, dailyStats] = await Promise.all([
         this.db.getDailyJobSummary(today),
         this.db.getDailyStats(today),
@@ -481,7 +485,7 @@ export class JobProcessor {
   async handleStatusCommand(): Promise<void> {
     const queueStatus = await this.getQueueStatus();
 
-    let statusMessage = `✅ Active - Scans 6am-8pm UTC, Summary 9pm`;
+    let statusMessage = `✅ Active - Scans 6am-8pm Manila, Summary 9pm`;
 
     if (queueStatus.error) {
       statusMessage += `\n❌ ${queueStatus.error}`;

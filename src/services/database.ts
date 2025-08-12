@@ -198,13 +198,19 @@ export class DatabaseService {
   }
 
   async getDailyJobSummary(date: Date): Promise<JobListing[]> {
+    // Convert Manila "day" to UTC time range for database query
+    // date parameter is already a Manila date (midnight to midnight Manila time)
     const startOfDay = new Date(date);
     startOfDay.setUTCHours(0, 0, 0, 0);
+    // Subtract 8 hours to convert Manila time to UTC
+    const startOfDayUTC = new Date(startOfDay.getTime() - (8 * 60 * 60 * 1000));
 
     const endOfDay = new Date(date);
     endOfDay.setUTCHours(23, 59, 59, 999);
+    // Subtract 8 hours to convert Manila time to UTC
+    const endOfDayUTC = new Date(endOfDay.getTime() - (8 * 60 * 60 * 1000));
 
-    console.log(`Daily summary query range (UTC): ${startOfDay.toISOString()} to ${endOfDay.toISOString()}`);
+    console.log(`Daily summary query range (Manila day converted to UTC): ${startOfDayUTC.toISOString()} to ${endOfDayUTC.toISOString()}`);
 
     const query = `
       SELECT * FROM jobs 
@@ -212,7 +218,7 @@ export class DatabaseService {
       ORDER BY relevance_score DESC, created_at DESC
     `;
 
-    const result = await this.pool.query(query, [startOfDay, endOfDay]);
+    const result = await this.pool.query(query, [startOfDayUTC, endOfDayUTC]);
 
     return result.rows.map((row) => ({
       id: row.id,
@@ -239,34 +245,37 @@ export class DatabaseService {
     emailsProcessed: number;
     topSources: Array<{ source: string; count: number }>;
   }> {
+    // Convert Manila "day" to UTC time range for database query
     const startOfDay = new Date(date);
     startOfDay.setUTCHours(0, 0, 0, 0);
+    const startOfDayUTC = new Date(startOfDay.getTime() - (8 * 60 * 60 * 1000));
 
     const endOfDay = new Date(date);
     endOfDay.setUTCHours(23, 59, 59, 999);
+    const endOfDayUTC = new Date(endOfDay.getTime() - (8 * 60 * 60 * 1000));
 
-    console.log(`Daily stats query range (UTC): ${startOfDay.toISOString()} to ${endOfDay.toISOString()}`);
+    console.log(`Daily stats query range (Manila day converted to UTC): ${startOfDayUTC.toISOString()} to ${endOfDayUTC.toISOString()}`);
 
     // Get total jobs processed today
     const totalJobsQuery = `
       SELECT COUNT(*) as count FROM jobs 
       WHERE created_at >= $1 AND created_at <= $2
     `;
-    const totalJobsResult = await this.pool.query(totalJobsQuery, [startOfDay, endOfDay]);
+    const totalJobsResult = await this.pool.query(totalJobsQuery, [startOfDayUTC, endOfDayUTC]);
 
     // Get relevant jobs count
     const relevantJobsQuery = `
       SELECT COUNT(*) as count FROM jobs 
       WHERE created_at >= $1 AND created_at <= $2 AND relevance_score >= 0.6
     `;
-    const relevantJobsResult = await this.pool.query(relevantJobsQuery, [startOfDay, endOfDay]);
+    const relevantJobsResult = await this.pool.query(relevantJobsQuery, [startOfDayUTC, endOfDayUTC]);
 
     // Get emails processed today
     const emailsQuery = `
       SELECT COUNT(*) as count FROM processed_emails 
       WHERE processed_at >= $1 AND processed_at <= $2
     `;
-    const emailsResult = await this.pool.query(emailsQuery, [startOfDay, endOfDay]);
+    const emailsResult = await this.pool.query(emailsQuery, [startOfDayUTC, endOfDayUTC]);
 
     // Get top sources
     const sourcesQuery = `
@@ -276,7 +285,7 @@ export class DatabaseService {
       ORDER BY count DESC 
       LIMIT 5
     `;
-    const sourcesResult = await this.pool.query(sourcesQuery, [startOfDay, endOfDay]);
+    const sourcesResult = await this.pool.query(sourcesQuery, [startOfDayUTC, endOfDayUTC]);
 
     return {
       totalJobsProcessed: parseInt(totalJobsResult.rows[0].count),

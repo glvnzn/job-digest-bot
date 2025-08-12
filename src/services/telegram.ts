@@ -77,7 +77,7 @@ export class TelegramService {
         if (this.statusCallback) {
           await this.statusCallback();
         } else {
-          this.sendStatusMessage(`✅ Active - Scans 6am-8pm UTC, Summary 9pm`);
+          this.sendStatusMessage(`✅ Active - Scans 6am-8pm Manila, Summary 9pm`);
         }
       }
     });
@@ -318,17 +318,19 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
 
   private getNextScanMessage(): string {
     const now = new Date();
-    const currentHourUTC = now.getUTCHours();
+    // Convert to Manila time to check the hour
+    const manilaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    const currentHourManila = manilaTime.getUTCHours();
 
-    // Scan schedule is 6am-8pm UTC (hours 6-20)
-    if (currentHourUTC >= 6 && currentHourUTC < 20) {
+    // Scan schedule is 6am-8pm Manila (hours 6-20)
+    if (currentHourManila >= 6 && currentHourManila < 20) {
       return '⏰ Next scan in 1 hour';
-    } else if (currentHourUTC >= 20 && currentHourUTC < 21) {
-      return '🌙 Daily summary at 9 PM UTC, next scan tomorrow 6 AM UTC';
+    } else if (currentHourManila >= 20 && currentHourManila < 21) {
+      return '🌙 Daily summary at 9 PM Manila, next scan tomorrow 6 AM Manila';
     } else {
       // Between 9 PM and 6 AM - no scans scheduled
-      const hoursUntil6AM = currentHourUTC < 6 ? 6 - currentHourUTC : 24 - currentHourUTC + 6;
-      return `🌙 Next scan in ${hoursUntil6AM} hours (6 AM UTC)`;
+      const hoursUntil6AM = currentHourManila < 6 ? 6 - currentHourManila : 24 - currentHourManila + 6;
+      return `🌙 Next scan in ${hoursUntil6AM} hours (6 AM Manila)`;
     }
   }
 
