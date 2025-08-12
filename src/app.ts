@@ -119,6 +119,7 @@ app.post('/daily-summary', async (_, res) => {
   }
 });
 
+
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('🛑 Shutting down gracefully...');

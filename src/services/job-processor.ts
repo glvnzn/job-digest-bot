@@ -238,6 +238,7 @@ export class JobProcessor {
     }
   }
 
+
   async cleanup(): Promise<void> {
     await this.db.close();
   }
