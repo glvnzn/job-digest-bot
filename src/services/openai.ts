@@ -248,17 +248,103 @@ export class OpenAIService {
     }
   }
 
+  private async fetchJobUrlContent(url: string): Promise<string> {
+    try {
+      // Set a reasonable timeout and user agent
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Accept-Encoding': 'gzip, deflate',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const html = await response.text();
+      
+      // Basic HTML text extraction - remove scripts, styles, and HTML tags
+      let text = html
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&[a-zA-Z0-9#]+;/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      // Limit content size to avoid token limits (keep first 3000 characters)
+      if (text.length > 3000) {
+        text = text.substring(0, 3000) + '...';
+      }
+
+      // Filter out common non-job-content
+      const lines = text.split('\n').filter(line => {
+        const cleanLine = line.trim().toLowerCase();
+        return cleanLine.length > 10 && 
+               !cleanLine.includes('cookie') &&
+               !cleanLine.includes('privacy policy') &&
+               !cleanLine.includes('terms of service') &&
+               !cleanLine.includes('©') &&
+               !cleanLine.includes('copyright');
+      });
+
+      return lines.join('\n').trim();
+
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error('Request timeout');
+        }
+        throw new Error(`Failed to fetch URL: ${error.message}`);
+      }
+      throw new Error('Unknown error fetching URL');
+    }
+  }
+
   async calculateJobRelevance(job: JobListing, resumeAnalysis: ResumeAnalysis): Promise<number> {
     try {
+      // Try to fetch additional content from the job URL first
+      let urlContent = '';
+      let contentSource = 'email';
+      
+      if (job.applyUrl && job.applyUrl !== 'Unknown URL') {
+        try {
+          console.log(`Fetching content from job URL: ${job.applyUrl}`);
+          urlContent = await this.fetchJobUrlContent(job.applyUrl);
+          if (urlContent.trim()) {
+            contentSource = 'url + email';
+            console.log(`✅ Successfully fetched URL content (${urlContent.length} chars)`);
+          }
+        } catch (error) {
+          console.log(`⚠️ Failed to fetch URL content, using email data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+
+      const jobDescription = urlContent.trim() ? 
+        `${job.description}\n\nAdditional details from job posting:\n${urlContent}` : 
+        job.description;
+
       const prompt = `
         Calculate how relevant this job is for this candidate based on their resume analysis.
 
-        Job Details:
+        Job Details (source: ${contentSource}):
         - Title: ${job.title}
         - Company: ${job.company}
         - Location: ${job.location}
         - Remote: ${job.isRemote}
-        - Description: ${job.description}
+        - Description: ${jobDescription}
         - Requirements: ${job.requirements.join(', ')}
 
         Candidate Profile:
@@ -279,6 +365,7 @@ export class OpenAIService {
         - Job title alignment with preferred roles
         - Seniority level appropriateness
         - Remote work preference (candidate focuses on React frontend, likely prefers remote)
+        - Additional requirements and details from the full job posting
 
         Return only the numeric score (e.g., 0.85)
       `;

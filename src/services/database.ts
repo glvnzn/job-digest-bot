@@ -217,6 +217,9 @@ export class DatabaseService {
     const query = `
       SELECT * FROM jobs 
       WHERE created_at >= $1 AND created_at <= $2 AND relevance_score >= 0.6
+      AND apply_url IS NOT NULL 
+      AND apply_url != '' 
+      AND apply_url != 'Unknown URL'
       ORDER BY relevance_score DESC, created_at DESC
     `;
 
@@ -260,17 +263,23 @@ export class DatabaseService {
       `Daily stats query range (Manila day converted to UTC): ${startOfDayUTC.toISOString()} to ${endOfDayUTC.toISOString()}`
     );
 
-    // Get total jobs processed today
+    // Get total jobs processed today (only with valid apply URLs)
     const totalJobsQuery = `
       SELECT COUNT(*) as count FROM jobs 
       WHERE created_at >= $1 AND created_at <= $2
+      AND apply_url IS NOT NULL 
+      AND apply_url != '' 
+      AND apply_url != 'Unknown URL'
     `;
     const totalJobsResult = await this.pool.query(totalJobsQuery, [startOfDayUTC, endOfDayUTC]);
 
-    // Get relevant jobs count
+    // Get relevant jobs count (only with valid apply URLs)
     const relevantJobsQuery = `
       SELECT COUNT(*) as count FROM jobs 
       WHERE created_at >= $1 AND created_at <= $2 AND relevance_score >= 0.6
+      AND apply_url IS NOT NULL 
+      AND apply_url != '' 
+      AND apply_url != 'Unknown URL'
     `;
     const relevantJobsResult = await this.pool.query(relevantJobsQuery, [
       startOfDayUTC,
@@ -284,10 +293,13 @@ export class DatabaseService {
     `;
     const emailsResult = await this.pool.query(emailsQuery, [startOfDayUTC, endOfDayUTC]);
 
-    // Get top sources
+    // Get top sources (only with valid apply URLs)
     const sourcesQuery = `
       SELECT source, COUNT(*) as count FROM jobs 
       WHERE created_at >= $1 AND created_at <= $2 AND relevance_score >= 0.6
+      AND apply_url IS NOT NULL 
+      AND apply_url != '' 
+      AND apply_url != 'Unknown URL'
       GROUP BY source 
       ORDER BY count DESC 
       LIMIT 5

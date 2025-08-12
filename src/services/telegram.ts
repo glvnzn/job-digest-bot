@@ -181,21 +181,21 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
 
 `;
 
-      if (jobs.length === 0) {
+      // Filter jobs with valid apply URLs
+      const jobsWithUrls = jobs.filter(job => 
+        job.applyUrl && job.applyUrl.trim() !== '' && job.applyUrl !== 'Unknown URL'
+      );
+
+      if (jobsWithUrls.length === 0) {
         summaryMessage +=
           '📝 No relevant opportunities found today.\n\n✨ Tomorrow is another day for new opportunities!';
       } else {
-        summaryMessage += `🎯 **${jobs.length} Relevant Opportunities Today:**\n\n`;
+        summaryMessage += `🎯 **${jobsWithUrls.length} Relevant Opportunities Today:**\n\n`;
 
         // Sort by relevance score (highest first)
-        const sortedJobs = jobs.sort((a, b) => b.relevanceScore - a.relevanceScore);
+        const sortedJobs = jobsWithUrls.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
         sortedJobs.forEach((job) => {
-          // Skip jobs without apply URL
-          if (!job.applyUrl || job.applyUrl.trim() === '' || job.applyUrl === 'Unknown URL') {
-            return;
-          }
-
           const relevanceEmoji = this.getRelevanceEmoji(job.relevanceScore);
           const remoteEmoji = job.isRemote ? '🏠' : '🏢';
           const scorePercentage = Math.round(job.relevanceScore * 100);
@@ -233,20 +233,25 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
   }
 
   private formatCompactJobList(jobs: JobListing[], isHourlyBatch: boolean = true): string {
-    const highRelevanceJobs = jobs.filter((job) => job.relevanceScore >= 0.8);
-    const mediumRelevanceJobs = jobs.filter(
+    // Filter jobs with valid apply URLs first
+    const jobsWithUrls = jobs.filter(job => 
+      job.applyUrl && job.applyUrl.trim() !== '' && job.applyUrl !== 'Unknown URL'
+    );
+
+    const highRelevanceJobs = jobsWithUrls.filter((job) => job.relevanceScore >= 0.8);
+    const mediumRelevanceJobs = jobsWithUrls.filter(
       (job) => job.relevanceScore >= 0.6 && job.relevanceScore < 0.8
     );
-    const remoteJobs = jobs.filter((job) => job.isRemote);
+    const remoteJobs = jobsWithUrls.filter((job) => job.isRemote);
 
     const reportType = isHourlyBatch ? '⏰ **Hourly Batch Report**' : '🎯 **Job Opportunities**';
 
-    let message = `${reportType} - ${jobs.length} Jobs
+    let message = `${reportType} - ${jobsWithUrls.length} Jobs
 
 📊 **Summary:**
 ⭐ High Relevance (≥80%): **${highRelevanceJobs.length}**
 📈 Medium Relevance (60-79%): **${mediumRelevanceJobs.length}**
-🏠 Remote: **${remoteJobs.length}** | 🏢 On-site: **${jobs.length - remoteJobs.length}**
+🏠 Remote: **${remoteJobs.length}** | 🏢 On-site: **${jobsWithUrls.length - remoteJobs.length}**
 
 📅 ${new Date().toLocaleString()}
 
@@ -255,14 +260,9 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
 `;
 
     // Sort by relevance score (highest first)
-    const sortedJobs = jobs.sort((a, b) => b.relevanceScore - a.relevanceScore);
+    const sortedJobs = jobsWithUrls.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
     sortedJobs.forEach((job) => {
-      // Skip jobs without apply URL
-      if (!job.applyUrl || job.applyUrl.trim() === '' || job.applyUrl === 'Unknown URL') {
-        return;
-      }
-
       const relevanceEmoji = this.getRelevanceEmoji(job.relevanceScore);
       const remoteEmoji = job.isRemote ? '🏠' : '🏢';
       const scorePercentage = Math.round(job.relevanceScore * 100);

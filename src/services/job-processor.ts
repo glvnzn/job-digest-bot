@@ -147,17 +147,28 @@ export class JobProcessor {
           }
 
           // Calculate relevance scores and save jobs
-          for (const job of jobs) {
-            job.emailMessageId = email.id;
-            job.relevanceScore = await this.openai.calculateJobRelevance(job, resumeAnalysis);
+          for (let jobIndex = 0; jobIndex < jobs.length; jobIndex++) {
+            const currentJob = jobs[jobIndex];
+            
+            // Update progress for URL analysis phase
+            const jobProgress = Math.round(40 + ((i + (jobIndex / jobs.length)) / jobRelatedEmails.length) * 40);
+            if (job) {
+              await job.updateProgress(jobProgress, `Analyzing job ${jobIndex + 1}/${jobs.length} from email ${i + 1}/${jobRelatedEmails.length} (fetching URL content...)`);
+            }
+            
+            currentJob.emailMessageId = email.id;
+            currentJob.relevanceScore = await this.openai.calculateJobRelevance(currentJob, resumeAnalysis);
 
-            await this.db.saveJob(job);
+            await this.db.saveJob(currentJob);
             totalJobsProcessed++;
 
             // Collect relevant jobs for notification
-            if (job.relevanceScore >= minRelevanceScore) {
-              relevantJobs.push(job);
+            if (currentJob.relevanceScore >= minRelevanceScore) {
+              relevantJobs.push(currentJob);
             }
+
+            // Brief delay between jobs to be respectful to job sites
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
 
           // Mark email as processed and archive (only archive if jobs were found)
@@ -489,16 +500,29 @@ export class JobProcessor {
   async handleStatusCommand(): Promise<void> {
     const queueStatus = await this.getQueueStatus();
 
-    let statusMessage = `✅ Active - Scans 6am-8pm Manila, Summary 9pm`;
+    let statusMessage = `✅ **Job Digest Bot Status**
+
+🕐 **Schedule**: Scans 6am-8pm Manila, Summary 9pm
+🔗 **URL Analysis**: Enhanced relevance scoring with job posting content
+⏰ **Rate Limiting**: 1s delay between jobs (respectful crawling)`;
 
     if (queueStatus.error) {
-      statusMessage += `\n❌ ${queueStatus.error}`;
+      statusMessage += `\n\n❌ **Queue Error**: ${queueStatus.error}`;
     } else {
       const { stats, currentJob } = queueStatus;
-      statusMessage += `\nQueue: ${stats.waiting} waiting, ${stats.active} active`;
+      statusMessage += `\n\n📊 **Queue Status**:
+• Waiting: ${stats.waiting} jobs
+• Active: ${stats.active} jobs
+• Completed: ${stats.completed || 0} jobs
+• Failed: ${stats.failed || 0} jobs`;
 
       if (currentJob) {
-        statusMessage += `\n🔄 Running: ${currentJob.name} (${currentJob.progress}%)`;
+        statusMessage += `\n\n🔄 **Currently Running**:
+• Job: ${currentJob.name}
+• Progress: ${currentJob.progress}%
+• Details: ${currentJob.data?.progressMessage || 'Processing...'}`;
+      } else {
+        statusMessage += `\n\n💤 **Idle**: No jobs currently running`;
       }
     }
 
