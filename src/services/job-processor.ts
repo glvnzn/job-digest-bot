@@ -219,6 +219,25 @@ export class JobProcessor {
     }
   }
 
+  async sendDailySummary(): Promise<void> {
+    try {
+      console.log('🌙 Generating daily summary...');
+      
+      const today = new Date();
+      const [dailyJobs, dailyStats] = await Promise.all([
+        this.db.getDailyJobSummary(today),
+        this.db.getDailyStats(today)
+      ]);
+      
+      await this.telegram.sendDailySummary(dailyJobs, dailyStats);
+      
+      console.log(`Daily summary sent: ${dailyJobs.length} relevant jobs, ${dailyStats.totalJobsProcessed} total processed`);
+    } catch (error) {
+      console.error('Error sending daily summary:', error);
+      await this.telegram.sendErrorMessage(`Daily summary failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   async cleanup(): Promise<void> {
     await this.db.close();
   }

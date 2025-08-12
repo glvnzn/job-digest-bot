@@ -10,15 +10,18 @@ export class TelegramService {
     this.chatId = process.env.TELEGRAM_CHAT_ID!;
   }
 
-  async sendJobNotifications(jobs: JobListing[]): Promise<void> {
+  async sendJobNotifications(jobs: JobListing[], isHourlyBatch: boolean = true): Promise<void> {
     if (jobs.length === 0) {
+      if (isHourlyBatch) {
+        await this.sendStatusMessage('📊 **Hourly Batch Complete**\n\nNo relevant jobs found in this batch.\n\n⏰ Next scan in 1 hour');
+      }
       console.log('No relevant jobs to send');
       return;
     }
 
     try {
-      // Send compact consolidated list
-      const compactList = this.formatCompactJobList(jobs);
+      // Send compact consolidated list with batch indicator
+      const compactList = this.formatCompactJobList(jobs, isHourlyBatch);
       
       // Split into chunks if too long (Telegram has a message limit)
       const chunks = this.splitMessage(compactList, 4000);
@@ -42,19 +45,87 @@ export class TelegramService {
     }
   }
 
-  private formatCompactJobList(jobs: JobListing[]): string {
+  async sendDailySummary(jobs: JobListing[], stats: {
+    totalJobsProcessed: number;
+    relevantJobs: number;
+    emailsProcessed: number;
+    topSources: Array<{source: string, count: number}>;
+  }): Promise<void> {
+    try {
+      const currentDate = new Date().toLocaleDateString();
+      
+      let summaryMessage = `🌙 **Daily Job Digest Summary - ${currentDate}**
+
+📊 **Daily Statistics:**
+✅ Total Jobs Processed: **${stats.totalJobsProcessed}**
+🎯 Relevant Jobs Found: **${stats.relevantJobs}**
+📧 Emails Processed: **${stats.emailsProcessed}**
+
+📈 **Top Job Sources:**
+${stats.topSources.map(source => `• ${source.source}: **${source.count}** jobs`).join('\n')}
+
+---
+
+`;
+
+      if (jobs.length === 0) {
+        summaryMessage += '📝 No relevant opportunities found today.\n\n✨ Tomorrow is another day for new opportunities!';
+      } else {
+        summaryMessage += `🎯 **${jobs.length} Relevant Opportunities Today:**\n\n`;
+        
+        // Sort by relevance score (highest first)
+        const sortedJobs = jobs.sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+        sortedJobs.forEach((job) => {
+          const relevanceEmoji = this.getRelevanceEmoji(job.relevanceScore);
+          const remoteEmoji = job.isRemote ? '🏠' : '🏢';
+          const scorePercentage = Math.round(job.relevanceScore * 100);
+          
+          summaryMessage += `${relevanceEmoji} **${job.title}**\n`;
+          summaryMessage += `🏢 ${job.company} ${remoteEmoji} | 📊 ${scorePercentage}%\n`;
+          summaryMessage += `🔗 [Apply](${job.applyUrl})\n\n`;
+        });
+      }
+
+      summaryMessage += '\n🌅 See you tomorrow for more opportunities!';
+
+      // Split and send the daily summary
+      const chunks = this.splitMessage(summaryMessage, 4000);
+      
+      for (let i = 0; i < chunks.length; i++) {
+        const header = i === 0 ? '' : `🌙 **Daily Summary (Part ${i + 1})**\n\n`;
+        await this.bot.sendMessage(this.chatId, header + chunks[i], { 
+          parse_mode: 'Markdown',
+          disable_web_page_preview: true 
+        });
+        
+        if (i < chunks.length - 1) {
+          await this.delay(1000);
+        }
+      }
+
+      console.log(`Sent daily summary with ${jobs.length} jobs to Telegram`);
+    } catch (error) {
+      console.error('Failed to send daily summary:', error);
+      throw error;
+    }
+  }
+
+  private formatCompactJobList(jobs: JobListing[], isHourlyBatch: boolean = true): string {
     const highRelevanceJobs = jobs.filter(job => job.relevanceScore >= 0.8);
     const mediumRelevanceJobs = jobs.filter(job => job.relevanceScore >= 0.6 && job.relevanceScore < 0.8);
     const remoteJobs = jobs.filter(job => job.isRemote);
     
-    let message = `🎯 **Job Digest - ${jobs.length} Opportunities**
+    const reportType = isHourlyBatch ? '⏰ **Hourly Batch Report**' : '🎯 **Job Opportunities**';
+    
+    let message = `${reportType} - ${jobs.length} Jobs
 
 📊 **Summary:**
 ⭐ High Relevance (≥80%): **${highRelevanceJobs.length}**
 📈 Medium Relevance (60-79%): **${mediumRelevanceJobs.length}**
 🏠 Remote: **${remoteJobs.length}** | 🏢 On-site: **${jobs.length - remoteJobs.length}**
 
-📅 Generated: ${new Date().toLocaleString()}
+📅 ${new Date().toLocaleString()}
 
 ---
 
@@ -100,48 +171,6 @@ export class TelegramService {
     return chunks;
   }
 
-  private formatSummaryMessage(jobs: JobListing[]): string {
-    const highRelevanceJobs = jobs.filter(job => job.relevanceScore >= 0.8).length;
-    const mediumRelevanceJobs = jobs.filter(job => job.relevanceScore >= 0.6 && job.relevanceScore < 0.8).length;
-    const remoteJobs = jobs.filter(job => job.isRemote).length;
-    
-    return `
-🔔 *Job Digest Summary*
-
-📊 Total Jobs Found: *${jobs.length}*
-⭐ High Relevance (≥80%): *${highRelevanceJobs}*
-📈 Medium Relevance (60-79%): *${mediumRelevanceJobs}*
-🏠 Remote Positions: *${remoteJobs}*
-
-📅 Generated: ${new Date().toLocaleString()}
-
----
-Individual job details below ⬇️
-    `.trim();
-  }
-
-  private formatJobMessage(job: JobListing): string {
-    const relevanceEmoji = this.getRelevanceEmoji(job.relevanceScore);
-    const remoteEmoji = job.isRemote ? '🏠' : '🏢';
-    const scorePercentage = Math.round(job.relevanceScore * 100);
-    
-    return `
-${relevanceEmoji} *${job.title}*
-
-🏢 Company: *${job.company}*
-📍 Location: ${job.location} ${remoteEmoji}
-📊 Relevance: *${scorePercentage}%*
-🔗 Source: ${job.source}
-💰 Salary: ${job.salary || 'Not specified'}
-
-📝 *Requirements:*
-${job.requirements.slice(0, 5).map(req => `• ${req}`).join('\n') || 'Not specified'}
-
-🔗 [Apply Here](${job.applyUrl})
-
----
-    `.trim();
-  }
 
   private getRelevanceEmoji(score: number): string {
     if (score >= 0.9) return '🎯';

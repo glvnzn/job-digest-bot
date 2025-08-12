@@ -42,7 +42,21 @@ async function initializeApp(): Promise<void> {
       timezone: "UTC"
     });
     
+    // Schedule daily summary at 9 PM UTC (adjust timezone as needed)
+    cron.schedule('0 21 * * *', async () => {
+      console.log('🌙 Running daily summary...');
+      try {
+        await jobProcessor.sendDailySummary();
+      } catch (error) {
+        console.error('❌ Daily summary failed:', error);
+      }
+    }, {
+      scheduled: true,
+      timezone: "UTC"
+    });
+    
     console.log('⏱️ Scheduled job processing every hour');
+    console.log('🌙 Scheduled daily summary at 9 PM UTC');
     
     // Run initial job processing on startup (for testing)
     if (process.env.NODE_ENV !== 'production') {
@@ -63,7 +77,7 @@ async function initializeApp(): Promise<void> {
 }
 
 // Basic health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
@@ -72,7 +86,7 @@ app.get('/health', (req, res) => {
 });
 
 // Manual trigger endpoint (for testing)
-app.post('/process', async (req, res) => {
+app.post('/process', async (_, res) => {
   try {
     console.log('📨 Manual job processing triggered via API');
     await jobProcessor.processJobAlerts();
@@ -84,11 +98,23 @@ app.post('/process', async (req, res) => {
 });
 
 // Service test endpoint
-app.get('/test-services', async (req, res) => {
+app.get('/test-services', async (_, res) => {
   try {
     const result = await jobProcessor.testServices();
     res.json({ success: result, tested: ['Gmail', 'Telegram'] });
   } catch (error) {
+    res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// Manual daily summary trigger (for testing)
+app.post('/daily-summary', async (_, res) => {
+  try {
+    console.log('🌙 Manual daily summary triggered via API');
+    await jobProcessor.sendDailySummary();
+    res.json({ success: true, message: 'Daily summary sent' });
+  } catch (error) {
+    console.error('❌ Manual daily summary failed:', error);
     res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });

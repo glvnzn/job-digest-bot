@@ -179,6 +179,94 @@ export class DatabaseService {
     await this.pool.query(query, [jobId]);
   }
 
+  async getDailyJobSummary(date: Date): Promise<JobListing[]> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const query = `
+      SELECT * FROM jobs 
+      WHERE created_at >= $1 AND created_at <= $2 AND relevance_score >= 0.6
+      ORDER BY relevance_score DESC, created_at DESC
+    `;
+
+    const result = await this.pool.query(query, [startOfDay, endOfDay]);
+    
+    return result.rows.map(row => ({
+      id: row.id,
+      title: row.title,
+      company: row.company,
+      location: row.location,
+      isRemote: row.is_remote,
+      description: row.description,
+      requirements: row.requirements,
+      applyUrl: row.apply_url,
+      salary: row.salary,
+      postedDate: row.posted_date,
+      source: row.source,
+      relevanceScore: row.relevance_score,
+      emailMessageId: row.email_message_id,
+      processed: row.processed,
+      createdAt: row.created_at
+    }));
+  }
+
+  async getDailyStats(date: Date): Promise<{
+    totalJobsProcessed: number;
+    relevantJobs: number;
+    emailsProcessed: number;
+    topSources: Array<{source: string, count: number}>;
+  }> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Get total jobs processed today
+    const totalJobsQuery = `
+      SELECT COUNT(*) as count FROM jobs 
+      WHERE created_at >= $1 AND created_at <= $2
+    `;
+    const totalJobsResult = await this.pool.query(totalJobsQuery, [startOfDay, endOfDay]);
+
+    // Get relevant jobs count
+    const relevantJobsQuery = `
+      SELECT COUNT(*) as count FROM jobs 
+      WHERE created_at >= $1 AND created_at <= $2 AND relevance_score >= 0.6
+    `;
+    const relevantJobsResult = await this.pool.query(relevantJobsQuery, [startOfDay, endOfDay]);
+
+    // Get emails processed today
+    const emailsQuery = `
+      SELECT COUNT(*) as count FROM processed_emails 
+      WHERE processed_at >= $1 AND processed_at <= $2
+    `;
+    const emailsResult = await this.pool.query(emailsQuery, [startOfDay, endOfDay]);
+
+    // Get top sources
+    const sourcesQuery = `
+      SELECT source, COUNT(*) as count FROM jobs 
+      WHERE created_at >= $1 AND created_at <= $2 AND relevance_score >= 0.6
+      GROUP BY source 
+      ORDER BY count DESC 
+      LIMIT 5
+    `;
+    const sourcesResult = await this.pool.query(sourcesQuery, [startOfDay, endOfDay]);
+
+    return {
+      totalJobsProcessed: parseInt(totalJobsResult.rows[0].count),
+      relevantJobs: parseInt(relevantJobsResult.rows[0].count),
+      emailsProcessed: parseInt(emailsResult.rows[0].count),
+      topSources: sourcesResult.rows.map(row => ({
+        source: row.source,
+        count: parseInt(row.count)
+      }))
+    };
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }
