@@ -1,6 +1,5 @@
 import OpenAI from 'openai';
 import * as fs from 'fs';
-import * as path from 'path';
 import * as pdfParse from 'pdf-parse';
 import { ResumeAnalysis, JobListing } from '../models/types';
 
@@ -9,14 +8,14 @@ export class OpenAIService {
 
   constructor() {
     this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
+      apiKey: process.env.OPENAI_API_KEY,
     });
   }
 
   async analyzeResume(resumePath: string): Promise<ResumeAnalysis> {
     try {
       const resumeText = await this.extractTextFromPDF(resumePath);
-      
+
       const prompt = `
         Analyze this resume and extract key information for job matching:
 
@@ -43,24 +42,24 @@ export class OpenAIService {
         messages: [
           {
             role: 'system',
-            content: 'You are an expert at analyzing resumes. Return only valid JSON.'
+            content: 'You are an expert at analyzing resumes. Return only valid JSON.',
           },
           {
             role: 'user',
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
-        temperature: 0.1
+        temperature: 0.1,
       });
 
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
-      
+
       return {
         skills: analysis.skills || [],
         experience: analysis.experience || [],
         preferredRoles: analysis.preferredRoles || [],
         seniority: analysis.seniority || 'mid',
-        analyzedAt: new Date()
+        analyzedAt: new Date(),
       };
     } catch (error) {
       console.error('Error analyzing resume:', error);
@@ -68,31 +67,37 @@ export class OpenAIService {
     }
   }
 
-  async classifyEmailsBatch(emails: Array<{id: string, subject: string, from: string, body: string}>): Promise<Array<{id: string, isJobRelated: boolean, confidence: number}>> {
+  async classifyEmailsBatch(
+    emails: Array<{ id: string; subject: string; from: string; body: string }>
+  ): Promise<Array<{ id: string; isJobRelated: boolean; confidence: number }>> {
     try {
       // Process emails in smaller batches for efficiency
       const batchSize = 10;
-      const results: Array<{id: string, isJobRelated: boolean, confidence: number}> = [];
-      
+      const results: Array<{ id: string; isJobRelated: boolean; confidence: number }> = [];
+
       for (let i = 0; i < emails.length; i += batchSize) {
         const batch = emails.slice(i, i + batchSize);
-        
-        const emailSummaries = batch.map(email => ({
+
+        const emailSummaries = batch.map((email) => ({
           id: email.id,
           from: email.from,
           subject: email.subject,
-          bodyPreview: email.body.substring(0, 500) // First 500 chars for efficiency
+          bodyPreview: email.body.substring(0, 500), // First 500 chars for efficiency
         }));
 
         const prompt = `
           Analyze these emails and determine which ones contain job opportunities or career-related content:
 
-          ${emailSummaries.map((email, idx) => `
+          ${emailSummaries
+            .map(
+              (email, idx) => `
           Email ${idx + 1} (ID: ${email.id}):
           From: ${email.from}
           Subject: ${email.subject}
           Body Preview: ${email.bodyPreview}...
-          `).join('\n')}
+          `
+            )
+            .join('\n')}
 
           For each email, determine if it contains:
           - Job listings or job opportunities
@@ -119,36 +124,44 @@ export class OpenAIService {
           messages: [
             {
               role: 'system',
-              content: 'You are an expert at classifying emails for job content. Return only valid JSON array.'
+              content:
+                'You are an expert at classifying emails for job content. Return only valid JSON array.',
             },
             {
               role: 'user',
-              content: prompt
-            }
+              content: prompt,
+            },
           ],
-          temperature: 0.1
+          temperature: 0.1,
         });
 
         const content = response.choices[0].message.content || '[]';
         // Clean up any markdown code blocks that might wrap the JSON
-        const cleanContent = content.replace(/```json\n?/g, '').replace(/```/g, '').trim();
+        const cleanContent = content
+          .replace(/```json\n?/g, '')
+          .replace(/```/g, '')
+          .trim();
         const batchResults = JSON.parse(cleanContent);
         results.push(...batchResults);
-        
+
         // Small delay between batches
         if (i + batchSize < emails.length) {
           await this.delay(500);
         }
       }
-      
+
       return results;
     } catch (error) {
       console.error('Error classifying emails:', error);
-      return emails.map(email => ({ id: email.id, isJobRelated: false, confidence: 0 }));
+      return emails.map((email) => ({ id: email.id, isJobRelated: false, confidence: 0 }));
     }
   }
 
-  async extractJobsFromEmail(emailContent: string, emailSubject: string, emailFrom: string): Promise<JobListing[]> {
+  async extractJobsFromEmail(
+    emailContent: string,
+    emailSubject: string,
+    emailFrom: string
+  ): Promise<JobListing[]> {
     try {
       const prompt = `
         Extract job listings from this email content. This email is from a job platform like LinkedIn, JobStreet, etc.
@@ -189,20 +202,24 @@ export class OpenAIService {
         messages: [
           {
             role: 'system',
-            content: 'You are an expert at extracting structured job data from emails. Return only valid JSON array.'
+            content:
+              'You are an expert at extracting structured job data from emails. Return only valid JSON array.',
           },
           {
             role: 'user',
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
-        temperature: 0.1
+        temperature: 0.1,
       });
 
       const content = response.choices[0].message.content || '[]';
-      const cleanContent = content.replace(/```json\n?/g, '').replace(/```/g, '').trim();
+      const cleanContent = content
+        .replace(/```json\n?/g, '')
+        .replace(/```/g, '')
+        .trim();
       const jobs = JSON.parse(cleanContent);
-      
+
       return jobs.map((job: any, index: number) => ({
         id: `job_${Date.now()}_${index}`,
         title: job.title || 'Unknown Title',
@@ -213,12 +230,12 @@ export class OpenAIService {
         requirements: job.requirements || [],
         applyUrl: job.applyUrl || '',
         salary: job.salary,
-        postedDate: job.postedDate ? new Date(job.postedDate) : new Date(),
+        postedDate: this.parseValidDate(job.postedDate),
         source: job.source || this.determineSource(emailFrom),
         relevanceScore: 0, // Will be calculated separately
         emailMessageId: '', // Will be set by caller
         processed: false,
-        createdAt: new Date()
+        createdAt: new Date(),
       }));
     } catch (error) {
       console.error('Error extracting jobs from email:', error);
@@ -266,19 +283,20 @@ export class OpenAIService {
         messages: [
           {
             role: 'system',
-            content: 'You are an expert job matching system. Return only a numeric relevance score.'
+            content:
+              'You are an expert job matching system. Return only a numeric relevance score.',
           },
           {
             role: 'user',
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
-        temperature: 0.1
+        temperature: 0.1,
       });
 
       const scoreText = response.choices[0].message.content?.trim() || '0';
       const score = parseFloat(scoreText);
-      
+
       return Math.max(0, Math.min(1, isNaN(score) ? 0 : score));
     } catch (error) {
       console.error('Error calculating job relevance:', error);
@@ -305,7 +323,21 @@ export class OpenAIService {
     return 'Unknown';
   }
 
+  private parseValidDate(dateInput: any): Date {
+    if (!dateInput) return new Date();
+
+    const date = new Date(dateInput);
+
+    // Check if the date is invalid (NaN)
+    if (isNaN(date.getTime())) {
+      console.warn(`Invalid date input: ${dateInput}, using current date`);
+      return new Date();
+    }
+
+    return date;
+  }
+
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

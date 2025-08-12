@@ -64,7 +64,6 @@ export class DatabaseService {
       );
     `;
 
-
     await this.pool.query(createJobsTable);
     await this.pool.query(createResumeAnalysisTable);
     await this.pool.query(createProcessedEmailsTable);
@@ -82,10 +81,21 @@ export class DatabaseService {
     `;
 
     const values = [
-      job.id, job.title, job.company, job.location, job.isRemote,
-      job.description, job.requirements, job.applyUrl, job.salary,
-      job.postedDate, job.source, job.relevanceScore, job.emailMessageId,
-      job.processed, job.createdAt
+      job.id,
+      job.title,
+      job.company,
+      job.location,
+      job.isRemote,
+      job.description,
+      job.requirements,
+      job.applyUrl,
+      job.salary,
+      job.postedDate,
+      job.source,
+      job.relevanceScore,
+      job.emailMessageId,
+      job.processed,
+      job.createdAt,
     ];
 
     await this.pool.query(query, values);
@@ -98,8 +108,11 @@ export class DatabaseService {
     `;
 
     const values = [
-      analysis.skills, analysis.experience, analysis.preferredRoles,
-      analysis.seniority, analysis.analyzedAt
+      analysis.skills,
+      analysis.experience,
+      analysis.preferredRoles,
+      analysis.seniority,
+      analysis.analyzedAt,
     ];
 
     await this.pool.query(query, values);
@@ -114,8 +127,12 @@ export class DatabaseService {
     `;
 
     const values = [
-      email.messageId, email.subject, email.from,
-      email.processedAt, email.jobsExtracted, email.deleted
+      email.messageId,
+      email.subject,
+      email.from,
+      email.processedAt,
+      email.jobsExtracted,
+      email.deleted,
     ];
 
     await this.pool.query(query, values);
@@ -137,7 +154,7 @@ export class DatabaseService {
       experience: row.experience,
       preferredRoles: row.preferred_roles,
       seniority: row.seniority,
-      analyzedAt: row.analyzed_at
+      analyzedAt: row.analyzed_at,
     };
   }
 
@@ -155,8 +172,8 @@ export class DatabaseService {
     `;
 
     const result = await this.pool.query(query, [minScore]);
-    
-    return result.rows.map(row => ({
+
+    return result.rows.map((row) => ({
       id: row.id,
       title: row.title,
       company: row.company,
@@ -171,7 +188,7 @@ export class DatabaseService {
       relevanceScore: row.relevance_score,
       emailMessageId: row.email_message_id,
       processed: row.processed,
-      createdAt: row.created_at
+      createdAt: row.created_at,
     }));
   }
 
@@ -183,7 +200,7 @@ export class DatabaseService {
   async getDailyJobSummary(date: Date): Promise<JobListing[]> {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
@@ -194,8 +211,8 @@ export class DatabaseService {
     `;
 
     const result = await this.pool.query(query, [startOfDay, endOfDay]);
-    
-    return result.rows.map(row => ({
+
+    return result.rows.map((row) => ({
       id: row.id,
       title: row.title,
       company: row.company,
@@ -210,7 +227,7 @@ export class DatabaseService {
       relevanceScore: row.relevance_score,
       emailMessageId: row.email_message_id,
       processed: row.processed,
-      createdAt: row.created_at
+      createdAt: row.created_at,
     }));
   }
 
@@ -218,11 +235,11 @@ export class DatabaseService {
     totalJobsProcessed: number;
     relevantJobs: number;
     emailsProcessed: number;
-    topSources: Array<{source: string, count: number}>;
+    topSources: Array<{ source: string; count: number }>;
   }> {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
@@ -261,13 +278,12 @@ export class DatabaseService {
       totalJobsProcessed: parseInt(totalJobsResult.rows[0].count),
       relevantJobs: parseInt(relevantJobsResult.rows[0].count),
       emailsProcessed: parseInt(emailsResult.rows[0].count),
-      topSources: sourcesResult.rows.map(row => ({
+      topSources: sourcesResult.rows.map((row) => ({
         source: row.source,
-        count: parseInt(row.count)
-      }))
+        count: parseInt(row.count),
+      })),
     };
   }
-
 
   async close(): Promise<void> {
     await this.pool.end();

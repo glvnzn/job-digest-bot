@@ -14,6 +14,9 @@ npm run dev              # Start development server with hot reload
 npm run build           # Build TypeScript to dist/
 npm run start           # Run production build
 npm run lint            # Run ESLint on TypeScript files  
+npm run lint:fix        # Run ESLint with auto-fix
+npm run format          # Format code with Prettier
+npm run format:check    # Check code formatting without changes
 npm run type-check      # Run TypeScript compiler without emitting files
 ```
 

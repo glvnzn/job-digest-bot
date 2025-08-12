@@ -15,52 +15,59 @@ let jobProcessor: JobProcessor;
 async function initializeApp(): Promise<void> {
   try {
     console.log('🚀 Starting Job Digest Bot...');
-    
+
     // Initialize job processor
     jobProcessor = new JobProcessor();
     await jobProcessor.initialize();
-    
+
     // Test services on startup
     const servicesOk = await jobProcessor.testServices();
     if (!servicesOk) {
       console.error('❌ Service tests failed. Check your configuration.');
       process.exit(1);
     }
-    
+
     console.log('✅ All services initialized successfully');
-    
+
     // Schedule job processing every hour
-    cron.schedule('0 * * * *', async () => {
-      console.log('⏰ Running scheduled job processing...');
-      try {
-        await jobProcessor.queueJobProcessing('cron');
-      } catch (error) {
-        console.error('❌ Scheduled job processing failed:', error);
+    cron.schedule(
+      '0 * * * *',
+      async () => {
+        console.log('⏰ Running scheduled job processing...');
+        try {
+          await jobProcessor.queueJobProcessing('cron');
+        } catch (error) {
+          console.error('❌ Scheduled job processing failed:', error);
+        }
+      },
+      {
+        scheduled: true,
+        timezone: 'UTC',
       }
-    }, {
-      scheduled: true,
-      timezone: "UTC"
-    });
-    
+    );
+
     // Schedule daily summary at 9 PM UTC (adjust timezone as needed)
-    cron.schedule('0 21 * * *', async () => {
-      console.log('🌙 Running daily summary...');
-      try {
-        await jobProcessor.queueDailySummary('cron');
-      } catch (error) {
-        console.error('❌ Daily summary failed:', error);
+    cron.schedule(
+      '0 21 * * *',
+      async () => {
+        console.log('🌙 Running daily summary...');
+        try {
+          await jobProcessor.queueDailySummary('cron');
+        } catch (error) {
+          console.error('❌ Daily summary failed:', error);
+        }
+      },
+      {
+        scheduled: true,
+        timezone: 'UTC',
       }
-    }, {
-      scheduled: true,
-      timezone: "UTC"
-    });
-    
+    );
+
     console.log('⏱️ Scheduled job processing every hour');
     console.log('🌙 Scheduled daily summary at 9 PM UTC');
-    
+
     // Don't run initial job processing in development - use Telegram commands instead
     console.log('💡 Use Telegram commands to manually trigger processing in development mode');
-    
   } catch (error) {
     console.error('❌ Failed to initialize app:', error);
     process.exit(1);
@@ -69,10 +76,10 @@ async function initializeApp(): Promise<void> {
 
 // Basic health check endpoint
 app.get('/health', (_, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
-    service: 'job-digest-bot'
+    service: 'job-digest-bot',
   });
 });
 
@@ -84,7 +91,9 @@ app.post('/process', async (_, res) => {
     res.json({ success: true, message: 'Job processing completed' });
   } catch (error) {
     console.error('❌ Manual job processing failed:', error);
-    res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    res
+      .status(500)
+      .json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 
@@ -94,7 +103,9 @@ app.get('/test-services', async (_, res) => {
     const result = await jobProcessor.testServices();
     res.json({ success: result, tested: ['Gmail', 'Telegram'] });
   } catch (error) {
-    res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    res
+      .status(500)
+      .json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 
@@ -106,10 +117,11 @@ app.post('/daily-summary', async (_, res) => {
     res.json({ success: true, message: 'Daily summary sent' });
   } catch (error) {
     console.error('❌ Manual daily summary failed:', error);
-    res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    res
+      .status(500)
+      .json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
-
 
 // Graceful shutdown
 process.on('SIGINT', async () => {

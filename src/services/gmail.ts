@@ -21,7 +21,7 @@ export class GmailService {
     );
 
     this.oauth2Client.setCredentials({
-      refresh_token: process.env.GMAIL_REFRESH_TOKEN
+      refresh_token: process.env.GMAIL_REFRESH_TOKEN,
     });
 
     this.gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
@@ -31,11 +31,11 @@ export class GmailService {
     try {
       // Get unread emails from recent days - let AI decide what's job-related
       const query = 'is:unread newer_than:3d';
-      
+
       const response = await this.gmail.users.messages.list({
         userId: 'me',
         q: query,
-        maxResults: 100 // Increased limit since we're casting a wider net
+        maxResults: 100, // Increased limit since we're casting a wider net
       });
 
       if (!response.data.messages) {
@@ -44,12 +44,12 @@ export class GmailService {
       }
 
       const emails: EmailData[] = [];
-      
+
       // Process emails in batches to avoid overwhelming the API
       const batchSize = 10;
       for (let i = 0; i < response.data.messages.length; i += batchSize) {
         const batch = response.data.messages.slice(i, i + batchSize);
-        
+
         const batchPromises = batch.map(async (message: any) => {
           try {
             const email = await this.getEmailDetails(message.id);
@@ -61,8 +61,8 @@ export class GmailService {
         });
 
         const batchResults = await Promise.all(batchPromises);
-        emails.push(...batchResults.filter(email => email !== null) as EmailData[]);
-        
+        emails.push(...(batchResults.filter((email) => email !== null) as EmailData[]));
+
         // Small delay between batches to respect rate limits
         if (i + batchSize < response.data.messages.length) {
           await this.delay(200);
@@ -77,7 +77,7 @@ export class GmailService {
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private async getEmailDetails(messageId: string): Promise<EmailData | null> {
@@ -85,12 +85,12 @@ export class GmailService {
       const response = await this.gmail.users.messages.get({
         userId: 'me',
         id: messageId,
-        format: 'full'
+        format: 'full',
       });
 
       const message = response.data;
       const headers = message.payload.headers;
-      
+
       const subjectHeader = headers.find((h: any) => h.name === 'Subject');
       const fromHeader = headers.find((h: any) => h.name === 'From');
       const dateHeader = headers.find((h: any) => h.name === 'Date');
@@ -102,7 +102,7 @@ export class GmailService {
         subject: subjectHeader?.value || '',
         from: fromHeader?.value || '',
         body: body || '',
-        date: dateHeader ? new Date(dateHeader.value) : new Date()
+        date: dateHeader ? new Date(dateHeader.value) : new Date(),
       };
     } catch (error) {
       console.error(`Error fetching email details for ${messageId}:`, error);
@@ -148,7 +148,7 @@ export class GmailService {
     try {
       await this.gmail.users.messages.delete({
         userId: 'me',
-        id: messageId
+        id: messageId,
       });
       console.log(`Email ${messageId} deleted successfully`);
     } catch (error) {
@@ -163,8 +163,8 @@ export class GmailService {
         userId: 'me',
         id: messageId,
         resource: {
-          removeLabelIds: ['UNREAD']
-        }
+          removeLabelIds: ['UNREAD'],
+        },
       });
     } catch (error) {
       console.error(`Failed to mark email ${messageId} as read:`, error);
@@ -177,8 +177,8 @@ export class GmailService {
         userId: 'me',
         id: messageId,
         resource: {
-          removeLabelIds: ['INBOX']
-        }
+          removeLabelIds: ['INBOX'],
+        },
       });
       console.log(`Email ${messageId} archived successfully`);
     } catch (error) {
@@ -193,8 +193,8 @@ export class GmailService {
         userId: 'me',
         id: messageId,
         resource: {
-          removeLabelIds: ['UNREAD', 'INBOX']
-        }
+          removeLabelIds: ['UNREAD', 'INBOX'],
+        },
       });
       console.log(`Email ${messageId} marked as read and archived successfully`);
     } catch (error) {
@@ -206,7 +206,7 @@ export class GmailService {
   async testConnection(): Promise<boolean> {
     try {
       const response = await this.gmail.users.getProfile({
-        userId: 'me'
+        userId: 'me',
       });
       console.log(`Gmail connection successful for: ${response.data.emailAddress}`);
       return true;

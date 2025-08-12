@@ -29,18 +29,18 @@ export class QueueService {
 
   constructor(jobProcessor: JobProcessor) {
     this.jobProcessor = jobProcessor;
-    
+
     // Environment-specific queue name to avoid conflicts
     const env = process.env.NODE_ENV || 'development';
     this.queueName = `job-processing-${env}`;
-    
+
     // Create job queue
     this.jobQueue = new Queue(this.queueName, {
       connection,
       defaultJobOptions: {
         removeOnComplete: 5, // Keep last 5 completed jobs
-        removeOnFail: 10,    // Keep last 10 failed jobs
-        attempts: 3,         // Retry failed jobs up to 3 times
+        removeOnFail: 10, // Keep last 10 failed jobs
+        attempts: 3, // Retry failed jobs up to 3 times
         backoff: {
           type: 'exponential',
           delay: 2000,
@@ -57,34 +57,39 @@ export class QueueService {
       return;
     }
 
-    this.worker = new Worker(this.queueName, async (job: Job) => {
-      console.log(`🔄 Processing job: ${job.name} (ID: ${job.id})`);
-      
-      try {
-        switch (job.name) {
-          case 'process-jobs':
-            const processData = job.data as ProcessJobsData;
-            await this.jobProcessor.processJobAlertsInternal(processData.minRelevanceScore, job);
-            break;
-            
-          case 'daily-summary':
-            await this.jobProcessor.sendDailySummaryInternal(job);
-            break;
-            
-          default:
-            throw new Error(`Unknown job type: ${job.name}`);
+    this.worker = new Worker(
+      this.queueName,
+      async (job: Job) => {
+        console.log(`🔄 Processing job: ${job.name} (ID: ${job.id})`);
+
+        try {
+          switch (job.name) {
+            case 'process-jobs': {
+              const processData = job.data as ProcessJobsData;
+              await this.jobProcessor.processJobAlertsInternal(processData.minRelevanceScore, job);
+              break;
+            }
+            case 'daily-summary': {
+              await this.jobProcessor.sendDailySummaryInternal(job);
+              break;
+            }
+
+            default:
+              throw new Error(`Unknown job type: ${job.name}`);
+          }
+
+          await job.updateProgress(100);
+          console.log(`✅ Job completed: ${job.name} (ID: ${job.id})`);
+        } catch (error) {
+          console.error(`❌ Job failed: ${job.name} (ID: ${job.id})`, error);
+          throw error;
         }
-        
-        await job.updateProgress(100);
-        console.log(`✅ Job completed: ${job.name} (ID: ${job.id})`);
-      } catch (error) {
-        console.error(`❌ Job failed: ${job.name} (ID: ${job.id})`, error);
-        throw error;
+      },
+      {
+        connection,
+        concurrency: 1, // Process one job at a time to prevent conflicts
       }
-    }, {
-      connection,
-      concurrency: 1, // Process one job at a time to prevent conflicts
-    });
+    );
 
     // Worker event listeners
     this.worker.on('completed', (job) => {
@@ -114,9 +119,11 @@ export class QueueService {
     // Check if there's already a job processing running
     const waitingJobs = await this.jobQueue.getWaiting();
     const activeJobs = await this.jobQueue.getActive();
-    
-    const existingJobs = [...waitingJobs, ...activeJobs].filter(job => job.name === 'process-jobs');
-    
+
+    const existingJobs = [...waitingJobs, ...activeJobs].filter(
+      (job) => job.name === 'process-jobs'
+    );
+
     if (existingJobs.length > 0) {
       throw new Error('Job processing already in queue or running');
     }
@@ -124,7 +131,7 @@ export class QueueService {
     const job = await this.jobQueue.add('process-jobs', data, {
       priority: data.triggeredBy === 'manual' ? 1 : 10, // Manual jobs get higher priority
     });
-    
+
     console.log(`📝 Added job processing job (ID: ${job.id}) triggered by: ${data.triggeredBy}`);
     return job.id!;
   }
@@ -133,15 +140,17 @@ export class QueueService {
     // Check if there's already a daily summary running
     const waitingJobs = await this.jobQueue.getWaiting();
     const activeJobs = await this.jobQueue.getActive();
-    
-    const existingJobs = [...waitingJobs, ...activeJobs].filter(job => job.name === 'daily-summary');
-    
+
+    const existingJobs = [...waitingJobs, ...activeJobs].filter(
+      (job) => job.name === 'daily-summary'
+    );
+
     if (existingJobs.length > 0) {
       throw new Error('Daily summary already in queue or running');
     }
 
     const job = await this.jobQueue.add('daily-summary', data);
-    
+
     console.log(`📝 Added daily summary job (ID: ${job.id}) triggered by: ${data.triggeredBy}`);
     return job.id!;
   }
@@ -154,7 +163,7 @@ export class QueueService {
   }> {
     const [waiting, active, completed, failed] = await Promise.all([
       this.jobQueue.getWaiting(),
-      this.jobQueue.getActive(), 
+      this.jobQueue.getActive(),
       this.jobQueue.getCompleted(),
       this.jobQueue.getFailed(),
     ]);
@@ -176,7 +185,7 @@ export class QueueService {
   } | null> {
     const activeJobs = await this.jobQueue.getActive();
     if (activeJobs.length === 0) return null;
-    
+
     const job = activeJobs[0];
     return {
       id: job.id!,
