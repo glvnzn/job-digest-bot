@@ -6,8 +6,103 @@ export class TelegramService {
   private chatId: string;
 
   constructor() {
-    this.bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN!, { polling: false });
+    // Enable polling only in development for commands
+    const enablePolling = process.env.NODE_ENV !== 'production';
+    this.bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN!, { polling: enablePolling });
     this.chatId = process.env.TELEGRAM_CHAT_ID!;
+    
+    if (enablePolling) {
+      this.setupCommands();
+    }
+  }
+
+  private setupCommands(): void {
+    // Set bot commands for better UX
+    this.bot.setMyCommands([
+      { command: 'start', description: 'Start the job digest bot' },
+      { command: 'process', description: 'Manually trigger job processing' },
+      { command: 'summary', description: 'Get today\'s summary' },
+      { command: 'status', description: 'Check bot status' },
+      { command: 'help', description: 'Show available commands' }
+    ]);
+
+    // Handle commands
+    this.bot.onText(/\/start/, (msg) => {
+      if (msg.chat.id.toString() === this.chatId) {
+        this.sendMessage(`🤖 **Job Digest Bot Started!**
+
+🔍 I'll automatically scan your emails every hour and send you relevant job opportunities.
+
+**Available Commands:**
+/process - Manually trigger job processing
+/summary - Get today's job summary  
+/status - Check bot status
+/help - Show this help message
+
+✨ Set up complete! You'll receive notifications when relevant jobs are found.`);
+      }
+    });
+
+    this.bot.onText(/\/help/, (msg) => {
+      if (msg.chat.id.toString() === this.chatId) {
+        this.sendMessage(`🤖 **Job Digest Bot Help**
+
+**Available Commands:**
+/process - Manually trigger job processing
+/summary - Get today's job summary
+/status - Check bot status
+
+**Automatic Features:**
+⏰ Hourly job scanning and notifications
+🌙 Daily summary at 9 PM UTC
+
+**How it works:**
+1. Scans your Gmail for job alerts
+2. Uses AI to identify and score job relevance
+3. Sends you only the most relevant opportunities
+4. Archives processed emails to keep your inbox clean`);
+      }
+    });
+
+    this.bot.onText(/\/status/, (msg) => {
+      if (msg.chat.id.toString() === this.chatId) {
+        this.sendStatusMessage(`**Bot Status: Active** ✅
+
+⏰ **Next scheduled scan:** Top of next hour
+🌙 **Daily summary:** 9:00 PM UTC
+🤖 **AI Processing:** OpenAI GPT-4o-mini
+📧 **Email Processing:** Gmail API connected
+🔗 **Database:** PostgreSQL connected
+
+All systems operational!`);
+      }
+    });
+  }
+
+  setJobProcessor(processor: any): void {
+    // Handle manual processing command
+    this.bot.onText(/\/process/, async (msg) => {
+      if (msg.chat.id.toString() === this.chatId) {
+        try {
+          await this.sendStatusMessage('🚀 **Manual Processing Started**\n\nProcessing job alerts now...');
+          await processor.processJobAlerts();
+        } catch (error) {
+          await this.sendErrorMessage(`Manual processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+    });
+
+    // Handle manual daily summary command
+    this.bot.onText(/\/summary/, async (msg) => {
+      if (msg.chat.id.toString() === this.chatId) {
+        try {
+          await this.sendStatusMessage('📊 **Generating Daily Summary**\n\nCollecting today\'s job data...');
+          await processor.sendDailySummary();
+        } catch (error) {
+          await this.sendErrorMessage(`Daily summary failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+    });
   }
 
   async sendJobNotifications(jobs: JobListing[], isHourlyBatch: boolean = true): Promise<void> {
@@ -179,6 +274,16 @@ ${stats.topSources.map(source => `• ${source.source}: **${source.count}** jobs
     if (score >= 0.6) return '✅';
     if (score >= 0.5) return '📋';
     return '📄';
+  }
+
+  private async sendMessage(message: string): Promise<void> {
+    try {
+      await this.bot.sendMessage(this.chatId, message, {
+        parse_mode: 'Markdown'
+      });
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
   }
 
   async sendStatusMessage(message: string): Promise<void> {

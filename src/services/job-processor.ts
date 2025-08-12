@@ -19,6 +19,10 @@ export class JobProcessor {
 
   async initialize(): Promise<void> {
     await this.db.init();
+    
+    // Connect Telegram commands to job processor
+    this.telegram.setJobProcessor(this);
+    
     console.log('Job processor initialized');
   }
 
