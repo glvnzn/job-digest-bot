@@ -220,7 +220,7 @@ export class DatabaseService {
       AND apply_url IS NOT NULL 
       AND apply_url != '' 
       AND apply_url != 'Unknown URL'
-      ORDER BY relevance_score DESC, created_at DESC
+      ORDER BY is_remote DESC, relevance_score DESC, created_at DESC
     `;
 
     const result = await this.pool.query(query, [startOfDayUTC, endOfDayUTC]);
