@@ -60,7 +60,6 @@ export class JobProcessor {
 
   // Internal method that does the actual processing (called by worker)
   async processJobAlertsInternal(minRelevanceScore: number = 0.6, job?: any): Promise<void> {
-    // eslint-disable-line @typescript-eslint/no-explicit-any
     try {
       console.log('Starting job alert processing...');
       await this.telegram.sendStatusMessage('🚀 Processing jobs...');
@@ -149,15 +148,23 @@ export class JobProcessor {
           // Calculate relevance scores and save jobs
           for (let jobIndex = 0; jobIndex < jobs.length; jobIndex++) {
             const currentJob = jobs[jobIndex];
-            
+
             // Update progress for URL analysis phase
-            const jobProgress = Math.round(40 + ((i + (jobIndex / jobs.length)) / jobRelatedEmails.length) * 40);
+            const jobProgress = Math.round(
+              40 + ((i + jobIndex / jobs.length) / jobRelatedEmails.length) * 40
+            );
             if (job) {
-              await job.updateProgress(jobProgress, `Analyzing job ${jobIndex + 1}/${jobs.length} from email ${i + 1}/${jobRelatedEmails.length} (fetching URL content...)`);
+              await job.updateProgress(
+                jobProgress,
+                `Analyzing job ${jobIndex + 1}/${jobs.length} from email ${i + 1}/${jobRelatedEmails.length} (fetching URL content...)`
+              );
             }
-            
+
             currentJob.emailMessageId = email.id;
-            currentJob.relevanceScore = await this.openai.calculateJobRelevance(currentJob, resumeAnalysis);
+            currentJob.relevanceScore = await this.openai.calculateJobRelevance(
+              currentJob,
+              resumeAnalysis
+            );
 
             await this.db.saveJob(currentJob);
             totalJobsProcessed++;
@@ -168,7 +175,7 @@ export class JobProcessor {
             }
 
             // Brief delay between jobs to be respectful to job sites
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise((resolve) => setTimeout(resolve, 1000));
           }
 
           // Mark email as processed and archive (only archive if jobs were found)
@@ -395,7 +402,6 @@ export class JobProcessor {
 
   // Internal method that does the actual summary generation (called by worker)
   async sendDailySummaryInternal(job?: any): Promise<void> {
-    // eslint-disable-line @typescript-eslint/no-explicit-any
     try {
       console.log('🌙 Generating daily summary...');
 
@@ -481,7 +487,6 @@ export class JobProcessor {
   }
 
   async getQueueStatus(): Promise<any> {
-    // eslint-disable-line @typescript-eslint/no-explicit-any
     if (!this.queue) {
       return { error: 'Queue service not initialized' };
     }

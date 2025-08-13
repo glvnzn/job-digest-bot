@@ -50,8 +50,7 @@ export class GmailService {
       for (let i = 0; i < response.data.messages.length; i += batchSize) {
         const batch = response.data.messages.slice(i, i + batchSize);
 
-        const batchPromises = batch.map(async (message: any) => {
-          // eslint-disable-line @typescript-eslint/no-explicit-any
+        const batchPromises = batch.map(async (message: { id: string }) => {
           try {
             const email = await this.getEmailDetails(message.id);
             return email;
@@ -112,7 +111,6 @@ export class GmailService {
   }
 
   private extractEmailBody(payload: any): string {
-    // eslint-disable-line @typescript-eslint/no-explicit-any
     let body = '';
 
     if (payload.body && payload.body.data) {

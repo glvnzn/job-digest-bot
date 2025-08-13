@@ -88,7 +88,6 @@ export class TelegramService {
   }
 
   setJobProcessor(processor: any): void {
-    // eslint-disable-line @typescript-eslint/no-explicit-any
     // Handle manual processing command
     this.bot.onText(/\/process/, async (msg) => {
       if (msg.chat.id.toString() === this.chatId) {
@@ -182,8 +181,8 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
 `;
 
       // Filter jobs with valid apply URLs
-      const jobsWithUrls = jobs.filter(job => 
-        job.applyUrl && job.applyUrl.trim() !== '' && job.applyUrl !== 'Unknown URL'
+      const jobsWithUrls = jobs.filter(
+        (job) => job.applyUrl && job.applyUrl.trim() !== '' && job.applyUrl !== 'Unknown URL'
       );
 
       if (jobsWithUrls.length === 0) {
@@ -234,8 +233,8 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
 
   private formatCompactJobList(jobs: JobListing[], isHourlyBatch: boolean = true): string {
     // Filter jobs with valid apply URLs first
-    const jobsWithUrls = jobs.filter(job => 
-      job.applyUrl && job.applyUrl.trim() !== '' && job.applyUrl !== 'Unknown URL'
+    const jobsWithUrls = jobs.filter(
+      (job) => job.applyUrl && job.applyUrl.trim() !== '' && job.applyUrl !== 'Unknown URL'
     );
 
     const highRelevanceJobs = jobsWithUrls.filter((job) => job.relevanceScore >= 0.8);

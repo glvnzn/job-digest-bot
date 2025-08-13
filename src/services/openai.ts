@@ -225,7 +225,6 @@ export class OpenAIService {
       const jobs = JSON.parse(cleanContent);
 
       return jobs.map((job: any, index: number) => ({
-        // eslint-disable-line @typescript-eslint/no-explicit-any
         id: `job_${Date.now()}_${index}`,
         title: job.title || 'Unknown Title',
         company: job.company || 'Unknown Company',
@@ -257,11 +256,12 @@ export class OpenAIService {
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.5',
           'Accept-Encoding': 'gzip, deflate',
-          'Connection': 'keep-alive',
+          Connection: 'keep-alive',
           'Upgrade-Insecure-Requests': '1',
         },
         signal: controller.signal,
@@ -274,7 +274,7 @@ export class OpenAIService {
       }
 
       const html = await response.text();
-      
+
       // Basic HTML text extraction - remove scripts, styles, and HTML tags
       let text = html
         .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
@@ -290,18 +290,19 @@ export class OpenAIService {
       }
 
       // Filter out common non-job-content
-      const lines = text.split('\n').filter(line => {
+      const lines = text.split('\n').filter((line) => {
         const cleanLine = line.trim().toLowerCase();
-        return cleanLine.length > 10 && 
-               !cleanLine.includes('cookie') &&
-               !cleanLine.includes('privacy policy') &&
-               !cleanLine.includes('terms of service') &&
-               !cleanLine.includes('©') &&
-               !cleanLine.includes('copyright');
+        return (
+          cleanLine.length > 10 &&
+          !cleanLine.includes('cookie') &&
+          !cleanLine.includes('privacy policy') &&
+          !cleanLine.includes('terms of service') &&
+          !cleanLine.includes('©') &&
+          !cleanLine.includes('copyright')
+        );
       });
 
       return lines.join('\n').trim();
-
     } catch (error) {
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
@@ -318,7 +319,7 @@ export class OpenAIService {
       // Try to fetch additional content from the job URL first
       let urlContent = '';
       let contentSource = 'email';
-      
+
       if (job.applyUrl && job.applyUrl !== 'Unknown URL') {
         try {
           console.log(`Fetching content from job URL: ${job.applyUrl}`);
@@ -328,13 +329,15 @@ export class OpenAIService {
             console.log(`✅ Successfully fetched URL content (${urlContent.length} chars)`);
           }
         } catch (error) {
-          console.log(`⚠️ Failed to fetch URL content, using email data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          console.log(
+            `⚠️ Failed to fetch URL content, using email data: ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
         }
       }
 
-      const jobDescription = urlContent.trim() ? 
-        `${job.description}\n\nAdditional details from job posting:\n${urlContent}` : 
-        job.description;
+      const jobDescription = urlContent.trim()
+        ? `${job.description}\n\nAdditional details from job posting:\n${urlContent}`
+        : job.description;
 
       const prompt = `
         Calculate how relevant this job is for this candidate based on their resume analysis.
@@ -465,7 +468,6 @@ export class OpenAIService {
   }
 
   private parseValidDate(dateInput: any): Date {
-    // eslint-disable-line @typescript-eslint/no-explicit-any
     if (!dateInput) return new Date();
 
     const date = new Date(dateInput);
