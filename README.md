@@ -1,111 +1,95 @@
-# Job Digest Bot
+# JobDigestWorkspace
 
-Automated job alert curation system that reads job emails from Gmail, analyzes them with AI, and sends relevant opportunities to Telegram.
+<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
-## Features
+✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
 
-- 🔍 **Smart Email Processing**: Reads job alerts from LinkedIn, JobStreet, and other platforms
-- 🧠 **AI-Powered Analysis**: Uses OpenAI to extract job details and calculate relevance scores
-- 📊 **Resume Matching**: Analyzes your resume to find the most relevant opportunities
-- 🤖 **Telegram Notifications**: Sends curated job listings to your Telegram chat
-- 🗑️ **Auto Cleanup**: Automatically deletes processed emails
-- ⏰ **Scheduled Processing**: Runs hourly to check for new opportunities
-- 📈 **PostgreSQL Storage**: Tracks processed jobs and prevents duplicates
+Run `npx nx graph` to visually explore what got created. Now, let's get you up to speed!
 
-## Setup
+## Run tasks
 
-### 1. Environment Configuration
+To run tasks with Nx use:
 
-Copy `.env.example` to `.env` and fill in your credentials:
-
-```env
-# Gmail API
-GMAIL_CLIENT_ID=your_gmail_client_id
-GMAIL_CLIENT_SECRET=your_gmail_client_secret
-GMAIL_REFRESH_TOKEN=your_gmail_refresh_token
-
-# OpenAI
-OPENAI_API_KEY=your_openai_api_key
-
-# Telegram
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-TELEGRAM_CHAT_ID=your_telegram_chat_id
-
-# Database (Railway PostgreSQL)
-DATABASE_URL=postgresql://username:password@hostname:port/database
+```sh
+npx nx <target> <project-name>
 ```
 
-### 2. Gmail API Setup
+For example:
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing one
-3. Enable Gmail API
-4. Create OAuth2 credentials
-5. Generate refresh token using the credentials
-
-### 3. Telegram Bot Setup
-
-1. Message [@BotFather](https://t.me/BotFather) on Telegram
-2. Create a new bot with `/newbot`
-3. Get your bot token
-4. Get your chat ID by messaging [@userinfobot](https://t.me/userinfobot)
-
-### 4. Resume Setup
-
-Place your resume as `resume.pdf` in the project root directory.
-
-### 5. Database Setup
-
-The app will automatically create the required PostgreSQL tables on first run.
-
-## Development
-
-```bash
-# Install dependencies
-npm install
-
-# Run in development mode
-npm run dev
-
-# Build for production
-npm run build
-
-# Run production build
-npm start
+```sh
+npx nx build myproject
 ```
 
-## Deployment
+These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
 
-### Railway
+[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
-1. Connect your GitHub repository to Railway
-2. Set up PostgreSQL database addon
-3. Configure environment variables
-4. Deploy!
+## Add new projects
 
-The app includes:
-- Health check endpoint: `/health`
-- Manual processing trigger: `POST /process`
-- Service test endpoint: `/test-services`
+While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
 
-## How It Works
+To install a new plugin you can use the `nx add` command. Here's an example of adding the React plugin:
+```sh
+npx nx add @nx/react
+```
 
-1. **Email Monitoring**: Every hour, the bot checks Gmail for job alert emails
-2. **AI Processing**: OpenAI extracts job details from email content
-3. **Resume Analysis**: Your resume is analyzed to understand your profile
-4. **Relevance Scoring**: Each job gets a relevance score (0-100%)
-5. **Filtering**: Only jobs meeting the relevance threshold are sent
-6. **Telegram Notification**: Curated jobs are sent to your Telegram chat
-7. **Cleanup**: Processed emails are deleted from Gmail
+Use the plugin's generator to create new projects. For example, to create a new React app or library:
 
-## Supported Job Platforms
+```sh
+# Generate an app
+npx nx g @nx/react:app demo
 
-- LinkedIn Job Alerts
-- JobStreet
-- Indeed
-- Glassdoor
-- Any job platform sending structured emails
+# Generate a library
+npx nx g @nx/react:lib some-lib
+```
 
-## License
+You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
 
-MIT
+[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+
+## Set up CI!
+
+### Step 1
+
+To connect to Nx Cloud, run the following command:
+
+```sh
+npx nx connect
+```
+
+Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+
+- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+
+### Step 2
+
+Use the following command to configure a CI workflow for your workspace:
+
+```sh
+npx nx g ci-workflow
+```
+
+[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+
+## Install Nx Console
+
+Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+
+[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+
+## Useful links
+
+Learn more:
+
+- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+
+And join the Nx community:
+- [Discord](https://go.nx.dev/community)
+- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
+- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
+- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)

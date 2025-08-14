@@ -4,53 +4,67 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Job Digest Bot is an automated job alert curation system that processes job emails from Gmail using AI, matches them against user resumes, and sends relevant opportunities via Telegram. It runs on Node.js/TypeScript with PostgreSQL storage and deploys to Railway.
+Job Digest Bot is an automated job alert curation system that processes job emails from Gmail using AI, matches them against user resumes, and sends relevant opportunities via Telegram. It runs on Node.js/TypeScript with NestJS framework, PostgreSQL storage and deploys to Railway. Built using Nx monorepo architecture.
 
 ## Development Commands
 
 ```bash
 # Development
-npm run dev              # Start development server with hot reload
-npm run build           # Build TypeScript to dist/
-npm run start           # Run production build
-npm run lint            # Run ESLint on TypeScript files  
-npm run lint:fix        # Run ESLint with auto-fix
-npm run format          # Format code with Prettier
-npm run format:check    # Check code formatting without changes
-npm run type-check      # Run TypeScript compiler without emitting files
+npm run start            # Start NestJS API server (nx serve api)
+npm run start:dev        # Start API server with watch mode
+npm run start:debug      # Start API server in debug mode
+npm run start:prod       # Run production build
+npm run build            # Build all applications
+npm run db:setup         # Setup database schema
+npm run db:migrate       # Run database migrations
+npm run db:seed          # Seed database with initial data
 ```
 
 ## Core Architecture
 
-### Service Layer Pattern
-The application uses a service layer architecture with five main services:
+### Nx Monorepo Structure
+The application uses Nx monorepo with the following structure:
 
-- **JobProcessor** (`src/services/job-processor.ts`) - Main orchestrator that coordinates all other services
+- **api/** - NestJS API application entry point
+- **libs/database/** - Database entities, migrations, repositories using TypeORM
+- **libs/ai/** - AI service abstractions and implementations  
+- **libs/shared/** - Shared utilities and types
+- **services/** - Core business logic services (Gmail, OpenAI, Telegram, Job Processing)
+
+### Service Layer Pattern
+The application uses a service layer architecture with main services in `services/src/lib/`:
+
+- **JobProcessor** (`services/src/lib/job-processor.service.ts`) - Main orchestrator that coordinates all other services
 - **GmailService** - OAuth2-based Gmail API integration for reading job alert emails
 - **OpenAIService** - AI-powered email classification, job extraction, and resume analysis
 - **TelegramService** - Bot notifications with command handling and message formatting
-- **DatabaseService** - PostgreSQL operations with connection pooling and mutex locks
+- **QueueService** - BullMQ-based job queue management
 
 ### Data Flow
-1. Cron jobs trigger `JobProcessor.processJobAlerts()` hourly from 6 AM to 8 PM Manila time
-2. Gmail service fetches unread emails from last 3 days
+1. Scheduled jobs or manual triggers initiate job processing via BullMQ queues
+2. Gmail service fetches unread emails from configured timeframe  
 3. OpenAI classifies emails as job-related using batch processing
-4. For each job email: extract jobs → calculate relevance scores → save to database
-5. Emails are marked as read and archived (not deleted)
-6. Relevant jobs (≥60% relevance) are sent via Telegram
-7. Daily summaries sent at 9 PM Manila time with statistics
+4. For each job email: extract jobs → calculate relevance scores → save to database via TypeORM
+5. Emails are processed and organized using database entities
+6. Relevant jobs are queued for notification via Telegram
+7. Job processing status tracked through database entities and user associations
 
-### Concurrency Control
-Uses PostgreSQL-based mutex locks to prevent concurrent job processing:
-- `job_processing` lock: Prevents multiple email processing runs
-- `daily_summary` lock: Prevents multiple summary generations
-- Automatic cleanup of expired locks
-- Clear user notifications when processes are already running
+### Queue Management
+Uses BullMQ for job queue management:
+- **Job Processing Queue**: Handles email processing and job extraction
+- **Notification Queue**: Manages Telegram message sending
+- **Retry Logic**: Built-in retry mechanisms for failed jobs
+- **Progress Tracking**: Real-time job progress monitoring
 
-### Telegram Integration
-- **Development**: Polling mode enabled for command handling (`/process`, `/summary`, `/status`)
-- **Production**: Polling disabled (webhooks preferred on Railway)
-- Commands only respond to configured `TELEGRAM_CHAT_ID` for security
+### Database Layer
+TypeORM-based data layer with entities:
+- **Job**: Core job listings with metadata
+- **User**: User management and preferences  
+- **UserJob**: Many-to-many relationship between users and jobs
+- **JobStage**: Job application pipeline stages
+- **ProcessedEmail**: Email processing tracking
+- **ResumeAnalysis**: Cached resume analysis results
+- **JobLock**: Concurrency control mechanisms
 
 ## Key Configuration
 
@@ -81,38 +95,46 @@ Place `resume.pdf` in project root - used for AI-powered job relevance scoring.
 
 ## Database Schema
 
-Auto-created PostgreSQL tables:
-- `jobs` - Job listings with relevance scores and processing status
-- `resume_analysis` - Cached resume analysis (refreshed weekly)
-- `processed_emails` - Email processing tracking (prevents duplicates)
-- `job_locks` - Mutex locks for concurrency control
+TypeORM entities define the database schema with automatic migrations:
+- **jobs** - Job listings with relevance scores and processing status
+- **users** - User accounts and preferences  
+- **user_jobs** - User-job associations with application stages
+- **job_stages** - Configurable job application pipeline stages
+- **processed_emails** - Email processing tracking (prevents duplicates)
+- **resume_analysis** - Cached resume analysis (refreshed weekly)
+- **job_locks** - Mutex locks for concurrency control
 
 ## Deployment Notes
 
-- **Railway**: Uses Procfile, includes health check endpoint at `/health`
-- **Cron Scheduling**: `node-cron` handles hourly processing and daily summaries
-- **Error Handling**: All errors sent to Telegram for monitoring
+- **Railway**: Uses Procfile, NestJS production build
+- **Queue Processing**: BullMQ with Redis for job queue management
+- **Database**: PostgreSQL with TypeORM migrations
+- **Error Handling**: Structured logging and error tracking
 - **Gmail Permissions**: Requires full Gmail scope (`https://mail.google.com/`) for archiving
 - **API Rate Limits**: Uses batch processing to minimize OpenAI API calls
 
 ## Development Behavior
 
-In development mode (`NODE_ENV=development`):
-- No automatic job processing on startup
-- Telegram command polling enabled
-- Use `/process` command to manually trigger processing
-- Use `/summary` command to generate daily summary
+The Nx workspace provides:
+- **Hot Reload**: Development server with watch mode (`npm run start:dev`)
+- **Testing**: Jest-based testing across all libraries
+- **Linting**: ESLint configuration for consistent code style
+- **Database Management**: Migration and seeding commands
+- **Queue Dashboard**: BullMQ dashboard for job monitoring
 
 ## Important Code Patterns
 
-- All database operations use connection pooling
-- AI calls include retry logic and error handling
-- Telegram messages support markdown formatting
-- Email processing uses "unread-only" queries to avoid reprocessing
-- Long-running operations provide progress updates via Telegram
+- **Nx Library Structure**: Shared code organized in publishable libraries
+- **NestJS Modules**: Dependency injection and modular architecture
+- **TypeORM Entities**: Database-first approach with decorators
+- **BullMQ Jobs**: Asynchronous processing with retry logic
+- **Service Layer**: Business logic separated from controllers
+- **Configuration**: Environment-based configuration with validation
 
-## Testing
+## Testing & Monitoring
 
-- Manual API endpoints: `POST /process`, `POST /daily-summary`, `GET /test-services`
-- Telegram commands for interactive testing in development
-- Service connection tests run on startup
+- **Unit Tests**: Jest tests for all libraries and services
+- **E2E Tests**: API endpoint testing with test database
+- **Queue Monitoring**: BullMQ dashboard for job status tracking
+- **Health Checks**: Built-in health check endpoints
+- **Database Debugging**: TypeORM query logging in development
