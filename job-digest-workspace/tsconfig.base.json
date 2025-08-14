@@ -18,6 +18,7 @@
       "@job-digest-workspace/ai": ["libs/ai/src/index.ts"],
       "@job-digest-workspace/database": ["libs/database/src/index.ts"],
       "@job-digest-workspace/libs": ["libs/src/index.ts"],
+      "@job-digest-workspace/services": ["services/src/index.ts"],
       "@job-digest-workspace/shared": ["libs/shared/src/index.ts"]
     }
   },

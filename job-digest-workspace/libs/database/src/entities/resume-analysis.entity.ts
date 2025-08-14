@@ -5,20 +5,17 @@ export class ResumeAnalysis {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column('text')
-  skills!: string;
+  @Column('json')
+  skills!: string[];
 
-  @Column('text')
-  experience!: string;
+  @Column('json')
+  experience!: string[];
 
-  @Column('text')
-  education!: string;
+  @Column('json', { name: 'preferred_roles' })
+  preferredRoles!: string[];
 
-  @Column('text', { nullable: true })
-  certifications?: string;
-
-  @Column('text', { nullable: true })
-  summary?: string;
+  @Column()
+  seniority!: string;
 
   @CreateDateColumn({ name: 'analyzed_at' })
   analyzedAt!: Date;
