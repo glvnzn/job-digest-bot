@@ -1,1 +1,1 @@
-web: npm run deploy:migrate && npm start
+web: npm start
