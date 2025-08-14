@@ -60,9 +60,12 @@ export class JobProcessor {
 
   // Internal method that does the actual processing (called by worker)
   async processJobAlertsInternal(minRelevanceScore: number = 0.6, job?: any): Promise<void> {
+    let progressMessageId: number | null = null;
+
     try {
       console.log('Starting job alert processing...');
-      await this.telegram.sendStatusMessage('🚀 Processing jobs...');
+      // Create initial progress message
+      progressMessageId = await this.telegram.createProgressMessage('🚀 Processing jobs...');
 
       // Progress: 5% - Starting
       if (job) await job.updateProgress(5, 'Initializing systems...');
@@ -72,7 +75,8 @@ export class JobProcessor {
       if (!resumeAnalysis || this.isAnalysisOld(resumeAnalysis.analyzedAt)) {
         console.log('Analyzing resume...');
         if (job) await job.updateProgress(10, 'Analyzing resume...');
-        await this.telegram.sendStatusMessage('📄 Analyzing resume...');
+        if (progressMessageId)
+          await this.telegram.updateProgressMessage(progressMessageId, '📄 Analyzing resume...');
         resumeAnalysis = await this.analyzeResume();
         await this.db.saveResumeAnalysis(resumeAnalysis);
       }
@@ -82,7 +86,8 @@ export class JobProcessor {
 
       // Fetch recent emails and let AI classify them
       console.log('Fetching recent emails...');
-      await this.telegram.sendStatusMessage('📧 Reading emails...');
+      if (progressMessageId)
+        await this.telegram.updateProgressMessage(progressMessageId, '📧 Reading emails...');
       const allEmails = await this.gmail.getRecentEmails();
       console.log(`Found ${allEmails.length} recent emails`);
 
@@ -91,7 +96,11 @@ export class JobProcessor {
 
       // Use AI to classify which emails are job-related
       console.log('Classifying emails with AI...');
-      await this.telegram.sendStatusMessage(`🤖 Analyzing ${allEmails.length} emails...`);
+      if (progressMessageId)
+        await this.telegram.updateProgressMessage(
+          progressMessageId,
+          `🤖 Analyzing ${allEmails.length} emails...`
+        );
       const classifications = await this.openai.classifyEmailsBatch(allEmails);
 
       // Filter to only job-related emails with reasonable confidence
@@ -106,7 +115,11 @@ export class JobProcessor {
       console.log(
         `AI classified ${jobRelatedEmails.length} emails as job-related (out of ${allEmails.length} total)`
       );
-      await this.telegram.sendStatusMessage(`✅ Found ${jobRelatedEmails.length} job emails`);
+      if (progressMessageId)
+        await this.telegram.updateProgressMessage(
+          progressMessageId,
+          `✅ Found ${jobRelatedEmails.length} job emails`
+        );
 
       let totalJobsProcessed = 0;
       const relevantJobs: JobListing[] = [];
@@ -199,10 +212,11 @@ export class JobProcessor {
           }
         }
 
-        // Send progress update every few emails
-        if (totalJobsProcessed % 20 === 0 && totalJobsProcessed > 0) {
-          await this.telegram.sendStatusMessage(
-            `📈 ${totalJobsProcessed} jobs, ${relevantJobs.length} relevant`
+        // Update progress every few emails
+        if (totalJobsProcessed % 10 === 0 && totalJobsProcessed > 0 && progressMessageId) {
+          await this.telegram.updateProgressMessage(
+            progressMessageId,
+            `📈 Processing... ${totalJobsProcessed} jobs, ${relevantJobs.length} relevant`
           );
         }
       }
@@ -225,9 +239,10 @@ export class JobProcessor {
         }
       } else {
         console.log('No relevant jobs found to notify');
-        if (totalJobsProcessed > 0) {
-          await this.telegram.sendStatusMessage(
-            `📊 ${totalJobsProcessed} jobs processed, 0 relevant`
+        if (totalJobsProcessed > 0 && progressMessageId) {
+          await this.telegram.updateProgressMessage(
+            progressMessageId,
+            `📊 Processed ${totalJobsProcessed} jobs, 0 relevant`
           );
         }
       }
@@ -239,10 +254,13 @@ export class JobProcessor {
         `Job processing completed. Total jobs: ${totalJobsProcessed}, Relevant: ${relevantJobs.length}`
       );
 
-      // Send completion summary
-      await this.telegram.sendStatusMessage(
-        `✅ Complete: ${totalJobsProcessed} jobs, ${relevantJobs.length} sent\n${this.getNextScanMessage()}`
-      );
+      // Send final completion update
+      const finalMessage = `✅ Complete: ${totalJobsProcessed} jobs, ${relevantJobs.length} sent\n${this.getNextScanMessage()}`;
+      if (progressMessageId) {
+        await this.telegram.updateProgressMessage(progressMessageId, finalMessage);
+      } else {
+        await this.telegram.sendStatusMessage(finalMessage);
+      }
     } catch (error) {
       console.error('Error processing job alerts:', error);
       await this.telegram.sendErrorMessage(

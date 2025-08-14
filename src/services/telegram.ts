@@ -390,6 +390,36 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
     }
   }
 
+  async createProgressMessage(initialMessage: string): Promise<number | null> {
+    try {
+      const result = await this.bot.sendMessage(
+        this.chatId,
+        `🤖 *Job Bot Status*\n\n${initialMessage}`,
+        {
+          parse_mode: 'Markdown',
+        }
+      );
+      return result.message_id;
+    } catch (error) {
+      console.error('Failed to create progress message:', error);
+      return null;
+    }
+  }
+
+  async updateProgressMessage(messageId: number, newMessage: string): Promise<void> {
+    try {
+      await this.bot.editMessageText(`🤖 *Job Bot Status*\n\n${newMessage}`, {
+        chat_id: this.chatId,
+        message_id: messageId,
+        parse_mode: 'Markdown',
+      });
+    } catch (error) {
+      console.error('Failed to update progress message:', error);
+      // If editing fails, fall back to sending a new message
+      await this.sendStatusMessage(newMessage);
+    }
+  }
+
   async sendErrorMessage(error: string): Promise<void> {
     try {
       const message = `
