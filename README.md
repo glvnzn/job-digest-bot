@@ -1,6 +1,21 @@
 # Job Digest Bot
 
-Automated job alert curation system that reads job emails from Gmail, analyzes them with AI, and sends relevant opportunities to Telegram.
+**📦 Active Implementation**: [job-digest-workspace/](./job-digest-workspace/README.md)
+
+Modern NestJS-based job alert curation system with Redis queues, TypeORM, and comprehensive error handling.
+
+## Quick Start
+
+```bash
+cd job-digest-workspace
+npm install
+npm run db:setup
+npm run dev
+```
+
+## Legacy Files
+
+Legacy Express.js implementation archived in `archive/legacy-express/` for reference.
 
 ## Features
 
