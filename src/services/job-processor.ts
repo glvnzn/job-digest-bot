@@ -267,6 +267,8 @@ export class JobProcessor {
       const finalMessage = `✅ Complete: ${totalJobsProcessed} jobs, ${relevantJobs.length} sent\n${this.getNextScanMessage()}`;
       if (progressMessageId) {
         await this.telegram.updateProgressMessage(progressMessageId, finalMessage);
+        // Clean up progress history after completion
+        this.telegram.cleanupProgressHistory(progressMessageId);
       } else {
         await this.telegram.sendStatusMessage(finalMessage);
       }

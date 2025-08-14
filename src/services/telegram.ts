@@ -5,6 +5,7 @@ export class TelegramService {
   private bot: TelegramBot;
   private chatId: string;
   private statusCallback?: () => Promise<void>;
+  private progressHistory: Map<number, string[]> = new Map();
 
   constructor() {
     // Enable polling for Railway deployment (webhooks are complex to set up)
@@ -390,13 +391,20 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
 
   async createProgressMessage(initialMessage: string): Promise<number | null> {
     try {
-      const result = await this.bot.sendMessage(
-        this.chatId,
-        `🤖 *Job Bot Status*\n\n${initialMessage}`,
-        {
-          parse_mode: 'Markdown',
-        }
-      );
+      const timestamp = new Date().toLocaleTimeString('en-US', {
+        hour12: false,
+        timeZone: 'Asia/Manila',
+      });
+      const timestampedMessage = `${initialMessage} *(${timestamp})*`;
+      const completeMessage = `🤖 *Job Bot Status*\n\n${timestampedMessage}\n\n🕐 Last updated: ${timestamp} Manila`;
+      
+      const result = await this.bot.sendMessage(this.chatId, completeMessage, {
+        parse_mode: 'Markdown',
+      });
+      
+      // Initialize history for this message
+      this.progressHistory.set(result.message_id, [timestampedMessage]);
+      
       return result.message_id;
     } catch (error) {
       console.error('Failed to create progress message:', error);
@@ -410,9 +418,17 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
         hour12: false,
         timeZone: 'Asia/Manila',
       });
-      const messageWithTimestamp = `🤖 *Job Bot Status*\n\n${newMessage}\n\n🕐 Last updated: ${timestamp} Manila`;
-
-      await this.bot.editMessageText(messageWithTimestamp, {
+      const timestampedMessage = `${newMessage} *(${timestamp})*`;
+      
+      // Get existing history or create new array
+      const history = this.progressHistory.get(messageId) || [];
+      history.push(timestampedMessage);
+      this.progressHistory.set(messageId, history);
+      
+      // Build complete message with all history
+      const completeMessage = `🤖 *Job Bot Status*\n\n${history.join('\n')}\n\n🕐 Last updated: ${timestamp} Manila`;
+      
+      await this.bot.editMessageText(completeMessage, {
         chat_id: this.chatId,
         message_id: messageId,
         parse_mode: 'Markdown',
@@ -422,6 +438,11 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
       // If editing fails, fall back to sending a new message
       await this.sendStatusMessage(newMessage);
     }
+  }
+
+  cleanupProgressHistory(messageId: number): void {
+    // Clean up history for completed jobs to prevent memory leaks
+    this.progressHistory.delete(messageId);
   }
 
   async sendErrorMessage(error: string): Promise<void> {
