@@ -5,6 +5,14 @@
   "type": "commonjs",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
+  "scripts": {
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d ./src/data-source.ts",
+    "migration:create": "typeorm-ts-node-commonjs migration:create",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d ./src/data-source.ts",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d ./src/data-source.ts",
+    "db:setup": "ts-node src/scripts/setup-database.ts",
+    "db:seed": "ts-node -e \"import('./src/seeders/default-job-stages.seeder').then(m => m.DefaultJobStagesSeeder.run(require('./src/data-source').AppDataSource))\""
+  },
   "dependencies": {
     "tslib": "^2.3.0"
   }

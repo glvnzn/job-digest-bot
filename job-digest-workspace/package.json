@@ -2,7 +2,18 @@
   "name": "@job-digest-workspace/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "build": "nx build",
+    "start": "nx serve api",
+    "start:dev": "nx serve api --watch",
+    "start:debug": "nx serve api --debug",
+    "start:prod": "node dist/api/main",
+    "db:setup": "cd libs/database && npm run db:setup",
+    "db:migrate": "cd libs/database && npm run migration:run",
+    "db:migration:create": "cd libs/database && npm run migration:create",
+    "db:migration:generate": "cd libs/database && npm run migration:generate",
+    "db:seed": "cd libs/database && npm run db:seed"
+  },
   "private": true,
   "dependencies": {
     "@nestjs/common": "^11.1.6",
@@ -14,6 +25,7 @@
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/typeorm": "^11.0.0",
     "axios": "^1.6.0",
+    "dotenv": "^17.2.1",
     "empty": "0.10.1",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
@@ -37,6 +49,7 @@
     "@swc/helpers": "~0.5.11",
     "@types/jest": "^30.0.0",
     "@types/node": "~18.16.9",
+    "@types/pg": "^8.15.5",
     "@typescript-eslint/eslint-plugin": "^7.16.0",
     "@typescript-eslint/parser": "^7.16.0",
     "eslint": "~8.57.0",
@@ -48,8 +61,9 @@
     "nx": "21.3.11",
     "prettier": "^2.6.2",
     "ts-jest": "^29.4.0",
-    "ts-node": "10.9.1",
+    "ts-node": "^10.9.1",
     "tslib": "^2.3.0",
+    "typeorm-ts-node-commonjs": "^0.3.20",
     "typescript": "~5.8.2",
     "webpack-cli": "^5.1.4"
   }
