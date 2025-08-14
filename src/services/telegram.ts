@@ -191,20 +191,45 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
       } else {
         summaryMessage += `🎯 **${jobsWithUrls.length} Relevant Opportunities Today:**\n\n`;
 
-        // Sort by relevance score (highest first)
-        const sortedJobs = jobsWithUrls.sort((a, b) => b.relevanceScore - a.relevanceScore);
+        // Separate remote and on-site jobs
+        const remoteJobs = jobsWithUrls.filter((job) => job.isRemote);
+        const onSiteJobs = jobsWithUrls.filter((job) => !job.isRemote);
 
-        sortedJobs.forEach((job) => {
-          const relevanceEmoji = this.getRelevanceEmoji(job.relevanceScore);
-          const remoteEmoji = job.isRemote ? '🏠' : '🏢';
-          const scorePercentage = Math.round(job.relevanceScore * 100);
+        // Sort each group by relevance score (highest first)
+        const sortedRemoteJobs = remoteJobs.sort((a, b) => b.relevanceScore - a.relevanceScore);
+        const sortedOnSiteJobs = onSiteJobs.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
-          summaryMessage += `${relevanceEmoji} **${job.title}**\n`;
-          summaryMessage += `🏢 ${job.company} ${remoteEmoji} | 📊 ${scorePercentage}%\n`;
+        // Display remote jobs first
+        if (sortedRemoteJobs.length > 0) {
+          summaryMessage += `🏠 **Remote Opportunities (${sortedRemoteJobs.length}):**\n\n`;
 
-          const urlWarning = this.getUrlWarning(job.applyUrl);
-          summaryMessage += `🔗 [Apply](${job.applyUrl})${urlWarning}\n\n`;
-        });
+          sortedRemoteJobs.forEach((job) => {
+            const relevanceEmoji = this.getRelevanceEmoji(job.relevanceScore);
+            const scorePercentage = Math.round(job.relevanceScore * 100);
+
+            summaryMessage += `${relevanceEmoji} **${job.title}**\n`;
+            summaryMessage += `🏢 ${job.company} | 📊 ${scorePercentage}%\n`;
+
+            const urlWarning = this.getUrlWarning(job.applyUrl);
+            summaryMessage += `🔗 [Apply](${job.applyUrl})${urlWarning}\n\n`;
+          });
+        }
+
+        // Display on-site jobs second
+        if (sortedOnSiteJobs.length > 0) {
+          summaryMessage += `🏢 **On-Site Opportunities (${sortedOnSiteJobs.length}):**\n\n`;
+
+          sortedOnSiteJobs.forEach((job) => {
+            const relevanceEmoji = this.getRelevanceEmoji(job.relevanceScore);
+            const scorePercentage = Math.round(job.relevanceScore * 100);
+
+            summaryMessage += `${relevanceEmoji} **${job.title}**\n`;
+            summaryMessage += `🏢 ${job.company} | 📊 ${scorePercentage}%\n`;
+
+            const urlWarning = this.getUrlWarning(job.applyUrl);
+            summaryMessage += `🔗 [Apply](${job.applyUrl})${urlWarning}\n\n`;
+          });
+        }
       }
 
       summaryMessage += '\n🌅 See you tomorrow for more opportunities!';
