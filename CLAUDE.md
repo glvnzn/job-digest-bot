@@ -9,12 +9,19 @@ Job Digest Bot is an automated job alert curation system that processes job emai
 ## Development Commands
 
 ```bash
-# Development
+# Development (recommended for daily use)
+npm run dev              # Start API with hot reload/watch mode (nx serve api --watch)
 npm run start            # Start NestJS API server (nx serve api)
-npm run start:dev        # Start API server with watch mode
+npm run start:dev        # Start API server with watch mode (same as dev)
 npm run start:debug      # Start API server in debug mode
 npm run start:prod       # Run production build
-npm run build            # Build all applications
+
+# Build & Testing
+npm run build            # Build all applications (nx build)
+npm run test             # Run tests (nx test)
+npm run lint             # Run linting (nx lint)
+
+# Database Management
 npm run db:setup         # Setup database schema
 npm run db:migrate       # Run database migrations
 npm run db:seed          # Seed database with initial data
@@ -130,6 +137,19 @@ The Nx workspace provides:
 - **BullMQ Jobs**: Asynchronous processing with retry logic
 - **Service Layer**: Business logic separated from controllers
 - **Configuration**: Environment-based configuration with validation
+
+## Nx Standards & Best Practices
+
+**IMPORTANT**: Always adhere to Nx conventions and standards:
+
+- **Package.json Scripts**: Keep Nx-native commands (`nx build`, `nx serve api`)
+- **Directory Structure**: Use `apps/` for applications, `libs/` for shared libraries
+- **Build Process**: Let Nx handle intelligent builds and caching
+- **Development vs Production**: 
+  - Development: Use `nx serve api` for hot reload
+  - Production: Use `node dist/apps/api/main` for direct execution
+- **Never Override**: Avoid changing Nx's core build/serve commands unless absolutely necessary
+- **Deployment**: Use production-specific scripts (`start:prod`) for Railway/production
 
 ## Testing & Monitoring
 

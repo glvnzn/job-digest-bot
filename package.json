@@ -4,15 +4,22 @@
   "license": "MIT",
   "scripts": {
     "build": "nx build",
+    "dev": "nx serve api --watch",
     "start": "nx serve api",
     "start:dev": "nx serve api --watch",
     "start:debug": "nx serve api --debug",
-    "start:prod": "node dist/api/main",
-    "db:setup": "cd libs/database && npm run db:setup",
-    "db:migrate": "cd libs/database && npm run migration:run",
-    "db:migration:create": "cd libs/database && npm run migration:create",
-    "db:migration:generate": "cd libs/database && npm run migration:generate",
-    "db:seed": "cd libs/database && npm run db:seed"
+    "start:prod": "node dist/apps/api/main",
+    "test": "nx test",
+    "lint": "nx lint",
+    "affected:build": "nx affected:build",
+    "affected:test": "nx affected:test",
+    "affected:lint": "nx affected:lint",
+    "db:setup": "nx run database:db:setup",
+    "db:migrate": "nx run database:migration:run",
+    "db:migration:create": "nx run database:migration:create",
+    "db:migration:generate": "nx run database:migration:generate",
+    "db:migration:revert": "nx run database:migration:revert",
+    "db:seed": "nx run database:db:seed"
   },
   "private": true,
   "dependencies": {

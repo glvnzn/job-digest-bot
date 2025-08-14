@@ -235,9 +235,9 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
             summaryMessage += `🔗 [Apply](${job.applyUrl})${urlWarning}\n\n`;
           });
         }
+        
+        summaryMessage += '\n🌟 Best of luck with your applications!';
       }
-
-      summaryMessage += '\n🌅 See you tomorrow for more opportunities!';
 
       // Split and send the daily summary
       const chunks = this.splitMessage(summaryMessage, 4000);

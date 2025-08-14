@@ -129,12 +129,16 @@ export class JobProcessorService {
         this.logger.log(`Processing email: ${email.subject}`);
 
         try {
+          this.logger.log(`Processing email ${i + 1}/${totalEmailsToProcess}: "${email.subject}" from ${email.from}`);
+          
           // Extract jobs from email
           const jobs = await this.openaiService.extractJobsFromEmail(
             email.body,
             email.subject,
             email.from
           );
+          
+          this.logger.log(`Extracted ${jobs.length} jobs from email "${email.subject}"`);
 
           if (jobs.length === 0) {
             this.logger.log('No jobs found in email, marking as processed but NOT archiving');
@@ -168,7 +172,13 @@ export class JobProcessorService {
           await this.markEmailProcessedAndArchive(email.id, jobs.length);
           this.logger.log(`Processed ${jobs.length} jobs from email ${email.id}`);
         } catch (emailError) {
-          this.logger.error(`Error processing email ${email.id}:`, emailError);
+          this.logger.error(`Error processing email ${email.id} ("${email.subject}"):`, emailError);
+          this.logger.error('Error details:', {
+            message: emailError instanceof Error ? emailError.message : String(emailError),
+            stack: emailError instanceof Error ? emailError.stack : undefined,
+            emailFrom: email.from,
+            emailSubject: email.subject
+          });
 
           // Even if processing fails, we should mark the email as read to avoid reprocessing
           try {
@@ -365,7 +375,7 @@ export class JobProcessorService {
         location: job.location,
         isRemote: job.isRemote,
         description: job.description,
-        requirements: job.requirements.join('\n'), // Convert array to string
+        requirements: Array.isArray(job.requirements) ? job.requirements.join('\n') : job.requirements || '',
         applyUrl: job.applyUrl,
         source: job.source,
         relevanceScore: job.relevanceScore,
@@ -374,8 +384,9 @@ export class JobProcessorService {
       });
 
       await this.jobRepository.save(entity);
+      this.logger.log(`Successfully saved job: ${job.title} at ${job.company}`);
     } catch (error) {
-      console.log('Failed to save job to database (table schema issue), continuing without database save:', error);
+      this.logger.error('Failed to save job to database:', error);
       // Continue processing without saving - this is not critical for notifications
     }
   }
@@ -522,7 +533,7 @@ export class JobProcessorService {
         createdAt: job.createdAt,
       }));
     } catch (error) {
-      console.log('Failed to get daily job summary (table schema issue), returning empty array:', error);
+      this.logger.error('Failed to get daily job summary from database:', error);
       return [];
     }
   }
@@ -584,7 +595,7 @@ export class JobProcessorService {
         topSources,
       };
     } catch (error) {
-      console.log('Failed to get daily stats (table schema issue), returning default values:', error);
+      this.logger.error('Failed to get daily stats from database:', error);
       return {
         totalJobsProcessed: 0,
         relevantJobs: 0,
