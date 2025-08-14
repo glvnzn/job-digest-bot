@@ -14,6 +14,7 @@ export interface ProcessJobsData {
   minRelevanceScore?: number;
   triggeredBy: 'cron' | 'manual' | 'telegram';
   chatId?: string;
+  progressMessageId?: number;
 }
 
 export interface DailySummaryData {

@@ -406,7 +406,13 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
 
   async updateProgressMessage(messageId: number, newMessage: string): Promise<void> {
     try {
-      await this.bot.editMessageText(`🤖 *Job Bot Status*\n\n${newMessage}`, {
+      const timestamp = new Date().toLocaleTimeString('en-US', {
+        hour12: false,
+        timeZone: 'Asia/Manila',
+      });
+      const messageWithTimestamp = `🤖 *Job Bot Status*\n\n${newMessage}\n\n🕐 Last updated: ${timestamp} Manila`;
+
+      await this.bot.editMessageText(messageWithTimestamp, {
         chat_id: this.chatId,
         message_id: messageId,
         parse_mode: 'Markdown',

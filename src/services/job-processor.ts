@@ -40,12 +40,14 @@ export class JobProcessor {
     }
 
     try {
+      // Create initial progress message
+      const progressMessageId = await this.telegram.createProgressMessage('🚀 Jobs queued');
+
       await this.queue.addProcessJobsJob({
         minRelevanceScore,
         triggeredBy: 'manual',
+        progressMessageId: progressMessageId || undefined,
       });
-
-      await this.telegram.sendStatusMessage('🚀 Jobs queued');
     } catch (error) {
       if (error instanceof Error && error.message.includes('already in queue')) {
         await this.telegram.sendStatusMessage('⏳ Already processing');
@@ -60,12 +62,19 @@ export class JobProcessor {
 
   // Internal method that does the actual processing (called by worker)
   async processJobAlertsInternal(minRelevanceScore: number = 0.6, job?: any): Promise<void> {
-    let progressMessageId: number | null = null;
+    // Get progress message ID from job data (if provided) or create a new one
+    let progressMessageId: number | null = job?.data?.progressMessageId || null;
 
     try {
       console.log('Starting job alert processing...');
-      // Create initial progress message
-      progressMessageId = await this.telegram.createProgressMessage('🚀 Processing jobs...');
+
+      // If we don't have a progress message ID, create initial progress message
+      if (!progressMessageId) {
+        progressMessageId = await this.telegram.createProgressMessage('🚀 Processing jobs...');
+      } else {
+        // Update existing message to show processing started
+        await this.telegram.updateProgressMessage(progressMessageId, '🚀 Processing jobs...');
+      }
 
       // Progress: 5% - Starting
       if (job) await job.updateProgress(5, 'Initializing systems...');
