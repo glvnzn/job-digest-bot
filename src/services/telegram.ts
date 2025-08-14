@@ -92,7 +92,6 @@ export class TelegramService {
     this.bot.onText(/\/process/, async (msg) => {
       if (msg.chat.id.toString() === this.chatId) {
         try {
-          await this.sendStatusMessage('🚀 Processing jobs...');
           await processor.processJobAlerts();
         } catch (error) {
           await this.sendErrorMessage(
@@ -106,7 +105,6 @@ export class TelegramService {
     this.bot.onText(/\/summary/, async (msg) => {
       if (msg.chat.id.toString() === this.chatId) {
         try {
-          await this.sendStatusMessage('📊 Generating summary...');
           await processor.sendDailySummary();
         } catch (error) {
           await this.sendErrorMessage(
