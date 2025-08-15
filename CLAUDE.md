@@ -148,3 +148,4 @@ In development mode (`NODE_ENV=development`):
 - Manual API endpoints: `POST /process`, `POST /daily-summary`, `GET /test-services`
 - Telegram commands for interactive testing in development
 - Service connection tests run on startup
+- Add to memory. I would prefer to be given suggestion on popular and widely used libraries when there is an oppurtunity to use one during development.
