@@ -1,0 +1,144 @@
+// Job Digest Bot - Prisma Schema
+// This schema models the entire application with full type safety
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== EXISTING TABLES (Legacy Bot Functionality) =====
+
+model Job {
+  id               String    @id // Unique job identifier
+  title            String
+  company          String
+  location         String?
+  isRemote         Boolean   @default(false) @map("is_remote")
+  description      String?
+  requirements     String[]  // PostgreSQL text array
+  applyUrl         String    @map("apply_url")
+  salary           String?
+  postedDate       DateTime? @map("posted_date")
+  source           String    // "LinkedIn", "Indeed", etc.
+  relevanceScore   Float?    @map("relevance_score")
+  emailMessageId   String    @map("email_message_id")
+  processed        Boolean   @default(false)
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  // Relations to new multi-user features
+  userJobs UserJob[]
+
+  @@map("jobs")
+}
+
+model ResumeAnalysis {
+  id             Int      @id @default(autoincrement())
+  skills         String[]
+  experience     String[]
+  preferredRoles String[] @map("preferred_roles")
+  seniority      String?
+  analyzedAt     DateTime @default(now()) @map("analyzed_at")
+
+  @@map("resume_analysis")
+}
+
+model ProcessedEmail {
+  messageId      String    @id @map("message_id")
+  subject        String?
+  fromEmail      String?   @map("from_email")
+  processedAt    DateTime  @default(now()) @map("processed_at")
+  jobsExtracted  Int       @default(0) @map("jobs_extracted")
+  deleted        Boolean   @default(false)
+
+  @@map("processed_emails")
+}
+
+model JobLock {
+  lockName  String   @id @map("lock_name")
+  lockedAt  DateTime @default(now()) @map("locked_at")
+  lockedBy  String   @default("system") @map("locked_by")
+  expiresAt DateTime @map("expires_at")
+
+  @@map("job_locks")
+}
+
+// ===== NEW TABLES (Multi-User Web Interface) =====
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  googleId  String   @unique @map("google_id")
+  name      String?
+  avatarUrl String?  @map("avatar_url")
+  isAdmin   Boolean  @default(false) @map("is_admin")
+  settings  Json     @default("{}") // User preferences as JSON
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  customJobStages JobStage[] // Custom kanban stages
+  userJobs        UserJob[]  // Tracked jobs
+
+  @@map("users")
+}
+
+model JobStage {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id") // NULL for system stages
+  name      String
+  color     String   @default("#3B82F6") // Hex color
+  sortOrder Int      @map("sort_order")
+  isSystem  Boolean  @default(false) @map("is_system")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userJobs UserJob[]
+
+  // Constraints
+  @@unique([name, isSystem]) // Unique system stage names
+  @@map("job_stages")
+}
+
+model UserJob {
+  id                Int       @id @default(autoincrement())
+  userId            Int       @map("user_id")
+  jobId             String    @map("job_id")
+  stageId           Int       @map("stage_id")
+  isTracked         Boolean   @default(true) @map("is_tracked")
+  appliedDate       DateTime? @map("applied_date")
+  interviewDate     DateTime? @map("interview_date")
+  notes             String?
+  applicationUrl    String?   @map("application_url")
+  contactPerson     String?   @map("contact_person")
+  salaryExpectation Int?      @map("salary_expectation")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job   Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  stage JobStage @relation(fields: [stageId], references: [id])
+
+  // Constraints
+  @@unique([userId, jobId]) // One entry per user per job
+  @@map("user_jobs")
+}
+
+// ===== INDEXES FOR PERFORMANCE =====
+
+// Job search performance
+// @@index([relevanceScore, createdAt]) on Job - handled by Prisma automatically
+
+// User lookup performance  
+// @@index([email]) on User - unique constraint creates index
+// @@index([googleId]) on User - unique constraint creates index
+
+// Job tracking queries
+// @@index([userId]) on UserJob - foreign key creates index
+// @@index([jobId]) on UserJob - foreign key creates index
+// @@index([stageId]) on UserJob - foreign key creates index
