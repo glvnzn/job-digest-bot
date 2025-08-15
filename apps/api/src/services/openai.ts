@@ -78,7 +78,7 @@ export class OpenAIService {
       for (let i = 0; i < emails.length; i += batchSize) {
         const batch = emails.slice(i, i + batchSize);
 
-        const emailSummaries = batch.map((email) => ({
+        const emailSummaries = batch.map(email => ({
           id: email.id,
           from: email.from,
           subject: email.subject,
@@ -153,7 +153,7 @@ export class OpenAIService {
       return results;
     } catch (error) {
       console.error('Error classifying emails:', error);
-      return emails.map((email) => ({ id: email.id, isJobRelated: false, confidence: 0 }));
+      return emails.map(email => ({ id: email.id, isJobRelated: false, confidence: 0 }));
     }
   }
 
@@ -290,7 +290,7 @@ export class OpenAIService {
       }
 
       // Filter out common non-job-content
-      const lines = text.split('\n').filter((line) => {
+      const lines = text.split('\n').filter(line => {
         const cleanLine = line.trim().toLowerCase();
         return (
           cleanLine.length > 10 &&
@@ -482,6 +482,6 @@ export class OpenAIService {
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }

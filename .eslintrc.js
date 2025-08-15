@@ -1,36 +1,33 @@
 module.exports = {
+  root: true,
+  ignorePatterns: ['**/*'],
   env: {
     node: true,
-    es2021: true,
-  },
-  extends: [
-    'eslint:recommended',
-    'prettier',
-  ],
-  parser: '@typescript-eslint/parser',
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: './tsconfig.json',
-  },
-  plugins: [
-    '@typescript-eslint',
-    'prettier',
-  ],
-  rules: {
-    'no-console': 'off',
-    'no-unused-vars': 'off',
-    '@typescript-eslint/no-unused-vars': ['error', { 'argsIgnorePattern': '^_' }],
-    '@typescript-eslint/no-explicit-any': 'warn',
-    'prettier/prettier': 'error',
+    es2022: true,
   },
   overrides: [
     {
-      files: ['*.ts'],
-      extends: [
-        'plugin:@typescript-eslint/recommended',
-        'prettier',
-      ],
+      files: ['*.ts', '*.tsx'],
+      extends: ['eslint:recommended'],
+      parser: '@typescript-eslint/parser',
+      plugins: ['@typescript-eslint'],
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      },
+      rules: {
+        'no-console': 'off',
+        'no-unused-vars': 'off',
+        '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+        '@typescript-eslint/no-explicit-any': 'warn',
+      },
+    },
+    {
+      files: ['*.js', '*.jsx'],
+      extends: ['eslint:recommended'],
+      rules: {
+        'no-console': 'off',
+      },
     },
   ],
 };

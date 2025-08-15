@@ -113,8 +113,8 @@ export class JobProcessor {
       const classifications = await this.openai.classifyEmailsBatch(allEmails);
 
       // Filter to only job-related emails with reasonable confidence
-      const jobRelatedEmails = allEmails.filter((email) => {
-        const classification = classifications.find((c) => c.id === email.id);
+      const jobRelatedEmails = allEmails.filter(email => {
+        const classification = classifications.find(c => c.id === email.id);
         return classification && classification.isJobRelated && classification.confidence >= 0.5;
       });
 
@@ -197,7 +197,7 @@ export class JobProcessor {
             }
 
             // Brief delay between jobs to be respectful to job sites
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
 
           // Mark email as processed and archive (only archive if jobs were found)

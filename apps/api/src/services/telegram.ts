@@ -19,7 +19,7 @@ export class TelegramService {
     this.setupCommands();
 
     // Add error handling for polling
-    this.bot.on('polling_error', (error) => {
+    this.bot.on('polling_error', error => {
       console.error('🚨 Telegram polling error:', error);
     });
   }
@@ -35,7 +35,7 @@ export class TelegramService {
     ]);
 
     // Handle commands
-    this.bot.onText(/\/start/, (msg) => {
+    this.bot.onText(/\/start/, msg => {
       if (msg.chat.id.toString() === this.chatId) {
         this.sendMessage(`🤖 **Job Digest Bot Started!**
 
@@ -51,7 +51,7 @@ export class TelegramService {
       }
     });
 
-    this.bot.onText(/\/help/, (msg) => {
+    this.bot.onText(/\/help/, msg => {
       if (msg.chat.id.toString() === this.chatId) {
         this.sendMessage(`🤖 **Job Digest Bot Help**
 
@@ -72,7 +72,7 @@ export class TelegramService {
       }
     });
 
-    this.bot.onText(/\/status/, async (msg) => {
+    this.bot.onText(/\/status/, async msg => {
       if (msg.chat.id.toString() === this.chatId) {
         // This will be set by the job processor
         if (this.statusCallback) {
@@ -90,7 +90,7 @@ export class TelegramService {
 
   setJobProcessor(processor: any): void {
     // Handle manual processing command
-    this.bot.onText(/\/process/, async (msg) => {
+    this.bot.onText(/\/process/, async msg => {
       if (msg.chat.id.toString() === this.chatId) {
         try {
           await processor.processJobAlerts();
@@ -103,7 +103,7 @@ export class TelegramService {
     });
 
     // Handle manual daily summary command
-    this.bot.onText(/\/summary/, async (msg) => {
+    this.bot.onText(/\/summary/, async msg => {
       if (msg.chat.id.toString() === this.chatId) {
         try {
           await processor.sendDailySummary();
@@ -173,7 +173,7 @@ export class TelegramService {
 📧 Emails Processed: **${stats.emailsProcessed}**
 
 📈 **Top Job Sources:**
-${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jobs`).join('\n')}
+${stats.topSources.map(source => `• ${source.source}: **${source.count}** jobs`).join('\n')}
 
 ---
 
@@ -181,7 +181,7 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
 
       // Filter jobs with valid apply URLs
       const jobsWithUrls = jobs.filter(
-        (job) => job.applyUrl && job.applyUrl.trim() !== '' && job.applyUrl !== 'Unknown URL'
+        job => job.applyUrl && job.applyUrl.trim() !== '' && job.applyUrl !== 'Unknown URL'
       );
 
       if (jobsWithUrls.length === 0) {
@@ -190,8 +190,8 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
         summaryMessage += `🎯 **${jobsWithUrls.length} Relevant Opportunities Today:**\n\n`;
 
         // Separate remote and on-site jobs
-        const remoteJobs = jobsWithUrls.filter((job) => job.isRemote);
-        const onSiteJobs = jobsWithUrls.filter((job) => !job.isRemote);
+        const remoteJobs = jobsWithUrls.filter(job => job.isRemote);
+        const onSiteJobs = jobsWithUrls.filter(job => !job.isRemote);
 
         // Sort each group by relevance score (highest first)
         const sortedRemoteJobs = remoteJobs.sort((a, b) => b.relevanceScore - a.relevanceScore);
@@ -201,7 +201,7 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
         if (sortedRemoteJobs.length > 0) {
           summaryMessage += `🏠 **Remote Opportunities (${sortedRemoteJobs.length}):**\n\n`;
 
-          sortedRemoteJobs.forEach((job) => {
+          sortedRemoteJobs.forEach(job => {
             const relevanceEmoji = this.getRelevanceEmoji(job.relevanceScore);
             const scorePercentage = Math.round(job.relevanceScore * 100);
 
@@ -217,7 +217,7 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
         if (sortedOnSiteJobs.length > 0) {
           summaryMessage += `🏢 **On-Site Opportunities (${sortedOnSiteJobs.length}):**\n\n`;
 
-          sortedOnSiteJobs.forEach((job) => {
+          sortedOnSiteJobs.forEach(job => {
             const relevanceEmoji = this.getRelevanceEmoji(job.relevanceScore);
             const scorePercentage = Math.round(job.relevanceScore * 100);
 
@@ -257,14 +257,14 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
   private formatCompactJobList(jobs: JobListing[], isHourlyBatch: boolean = true): string {
     // Filter jobs with valid apply URLs first
     const jobsWithUrls = jobs.filter(
-      (job) => job.applyUrl && job.applyUrl.trim() !== '' && job.applyUrl !== 'Unknown URL'
+      job => job.applyUrl && job.applyUrl.trim() !== '' && job.applyUrl !== 'Unknown URL'
     );
 
-    const highRelevanceJobs = jobsWithUrls.filter((job) => job.relevanceScore >= 0.8);
+    const highRelevanceJobs = jobsWithUrls.filter(job => job.relevanceScore >= 0.8);
     const mediumRelevanceJobs = jobsWithUrls.filter(
-      (job) => job.relevanceScore >= 0.6 && job.relevanceScore < 0.8
+      job => job.relevanceScore >= 0.6 && job.relevanceScore < 0.8
     );
-    const remoteJobs = jobsWithUrls.filter((job) => job.isRemote);
+    const remoteJobs = jobsWithUrls.filter(job => job.isRemote);
 
     const reportType = isHourlyBatch ? '⏰ **Hourly Batch Report**' : '🎯 **Job Opportunities**';
 
@@ -284,7 +284,7 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
     // Sort by relevance score (highest first)
     const sortedJobs = jobsWithUrls.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
-    sortedJobs.forEach((job) => {
+    sortedJobs.forEach(job => {
       const relevanceEmoji = this.getRelevanceEmoji(job.relevanceScore);
       const remoteEmoji = job.isRemote ? '🏠' : '🏢';
       const scorePercentage = Math.round(job.relevanceScore * 100);
@@ -475,6 +475,6 @@ ${error}
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }

@@ -93,7 +93,7 @@ export class QueueService {
     );
 
     // Worker event listeners
-    this.worker.on('completed', (job) => {
+    this.worker.on('completed', job => {
       console.log(`🎉 Job ${job.id} completed successfully`);
     });
 
@@ -101,7 +101,7 @@ export class QueueService {
       console.error(`💥 Job ${job?.id} failed:`, err);
     });
 
-    this.worker.on('error', (err) => {
+    this.worker.on('error', err => {
       console.error('🚨 Worker error:', err);
     });
 
@@ -121,9 +121,7 @@ export class QueueService {
     const waitingJobs = await this.jobQueue.getWaiting();
     const activeJobs = await this.jobQueue.getActive();
 
-    const existingJobs = [...waitingJobs, ...activeJobs].filter(
-      (job) => job.name === 'process-jobs'
-    );
+    const existingJobs = [...waitingJobs, ...activeJobs].filter(job => job.name === 'process-jobs');
 
     if (existingJobs.length > 0) {
       throw new Error('Job processing already in queue or running');
@@ -143,7 +141,7 @@ export class QueueService {
     const activeJobs = await this.jobQueue.getActive();
 
     const existingJobs = [...waitingJobs, ...activeJobs].filter(
-      (job) => job.name === 'daily-summary'
+      job => job.name === 'daily-summary'
     );
 
     if (existingJobs.length > 0) {

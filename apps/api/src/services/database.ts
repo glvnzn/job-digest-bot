@@ -173,7 +173,7 @@ export class DatabaseService {
 
     const result = await this.pool.query(query, [minScore]);
 
-    return result.rows.map((row) => ({
+    return result.rows.map(row => ({
       id: row.id,
       title: row.title,
       company: row.company,
@@ -225,7 +225,7 @@ export class DatabaseService {
 
     const result = await this.pool.query(query, [startOfDayUTC, endOfDayUTC]);
 
-    return result.rows.map((row) => ({
+    return result.rows.map(row => ({
       id: row.id,
       title: row.title,
       company: row.company,
@@ -310,7 +310,7 @@ export class DatabaseService {
       totalJobsProcessed: parseInt(totalJobsResult.rows[0].count),
       relevantJobs: parseInt(relevantJobsResult.rows[0].count),
       emailsProcessed: parseInt(emailsResult.rows[0].count),
-      topSources: sourcesResult.rows.map((row) => ({
+      topSources: sourcesResult.rows.map(row => ({
         source: row.source,
         count: parseInt(row.count),
       })),

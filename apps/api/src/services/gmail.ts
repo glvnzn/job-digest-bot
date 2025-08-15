@@ -61,7 +61,7 @@ export class GmailService {
         });
 
         const batchResults = await Promise.all(batchPromises);
-        emails.push(...(batchResults.filter((email) => email !== null) as EmailData[]));
+        emails.push(...(batchResults.filter(email => email !== null) as EmailData[]));
 
         // Small delay between batches to respect rate limits
         if (i + batchSize < response.data.messages.length) {
@@ -77,7 +77,7 @@ export class GmailService {
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   private async getEmailDetails(messageId: string): Promise<EmailData | null> {
