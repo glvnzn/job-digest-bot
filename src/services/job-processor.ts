@@ -366,7 +366,11 @@ export class JobProcessor {
     // Convert to Manila time (UTC+8)
     const manilaTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
     // Create a new Date object representing "today" in Manila time zone
-    return new Date(manilaTime.getUTCFullYear(), manilaTime.getUTCMonth(), manilaTime.getUTCDate());
+    // Use UTC methods to create midnight Manila time, then convert back to UTC for storage
+    const manilaDateAtMidnight = new Date(
+      Date.UTC(manilaTime.getUTCFullYear(), manilaTime.getUTCMonth(), manilaTime.getUTCDate())
+    );
+    return manilaDateAtMidnight;
   }
 
   private getNextScanMessage(): string {

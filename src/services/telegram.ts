@@ -396,14 +396,14 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
       });
       const timestampedMessage = `${initialMessage} *(${timestamp})*`;
       const completeMessage = `🤖 *Job Bot Status*\n\n${timestampedMessage}\n\n🕐 Last updated: ${timestamp} Manila`;
-      
+
       const result = await this.bot.sendMessage(this.chatId, completeMessage, {
         parse_mode: 'Markdown',
       });
-      
+
       // Initialize history for this message
       this.progressHistory.set(result.message_id, [timestampedMessage]);
-      
+
       return result.message_id;
     } catch (error) {
       console.error('Failed to create progress message:', error);
@@ -418,15 +418,15 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
         timeZone: 'Asia/Manila',
       });
       const timestampedMessage = `${newMessage} *(${timestamp})*`;
-      
+
       // Get existing history or create new array
       const history = this.progressHistory.get(messageId) || [];
       history.push(timestampedMessage);
       this.progressHistory.set(messageId, history);
-      
+
       // Build complete message with all history
       const completeMessage = `🤖 *Job Bot Status*\n\n${history.join('\n')}\n\n🕐 Last updated: ${timestamp} Manila`;
-      
+
       await this.bot.editMessageText(completeMessage, {
         chat_id: this.chatId,
         message_id: messageId,
