@@ -1,5 +1,6 @@
 [build]
 builder = "nixpacks"
+buildCommand = "npx nx build api"
 
 [deploy]
 startCommand = "npm start"
