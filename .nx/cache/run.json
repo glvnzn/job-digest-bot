@@ -1,9 +1,0 @@
-{
-  "run": {
-    "command": "nx run-many --target=type-check --all",
-    "startTime": "2025-08-15T06:14:52.512Z",
-    "endTime": "2025-08-15T06:14:52.558Z",
-    "inner": false
-  },
-  "tasks": []
-}
