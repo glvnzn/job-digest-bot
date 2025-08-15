@@ -72,6 +72,13 @@
           "buildTarget": "api:build:production"
         }
       }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node dist/api/main.js"
+      },
+      "dependsOn": ["build"]
     }
   },
   "tags": []

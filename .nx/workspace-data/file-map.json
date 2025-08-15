@@ -37,148 +37,91 @@
   "fileMap": {
     "nonProjectFiles": [
       {
-        "file": ".claude/agents/legacy-modernizer.md",
-        "hash": "1150055258445536445"
-      },
-      {
-        "file": "railway.toml",
-        "hash": "9514912353402876824"
-      },
-      {
         "file": ".env.example",
         "hash": "1623107061505294485"
-      },
-      {
-        "file": ".eslintrc.js",
-        "hash": "13047549049592432825"
-      },
-      {
-        "file": ".prettierrc.js",
-        "hash": "18156845722403072174"
-      },
-      {
-        "file": "docs/README.md",
-        "hash": "15352063263831961571"
-      },
-      {
-        "file": ".claude/agents/frontend-developer.md",
-        "hash": "122816733260084238"
-      },
-      {
-        "file": "resume.pdf",
-        "hash": "579179813447383155"
-      },
-      {
-        "file": "tsconfig.json",
-        "hash": "7190700142823016803"
-      },
-      {
-        "file": ".gitignore",
-        "hash": "15804646342234223063"
-      },
-      {
-        "file": ".claude/agents/backend-architect.md",
-        "hash": "17428253875713910121"
-      },
-      {
-        "file": "CLAUDE.md",
-        "hash": "13993176756632272705"
-      },
-      {
-        "file": ".claude/agents/dx-optimizer.md",
-        "hash": "1997519796375235324"
-      },
-      {
-        "file": "Procfile",
-        "hash": "6325249257876005686"
-      },
-      {
-        "file": "docs/web-frontend-plan.md",
-        "hash": "6274301979701337356"
-      },
-      {
-        "file": "nx.json",
-        "hash": "16327209036055284909"
-      },
-      {
-        "file": "README.md",
-        "hash": "4691607279307393369"
-      },
-      {
-        "file": "package.json",
-        "hash": "3989610958463593405"
       },
       {
         "file": "test-telegram.js",
         "hash": "4367088858420308023"
       },
       {
-        "file": "package-lock.json",
-        "hash": "14208307447094411148"
+        "file": "README.md",
+        "hash": "2537563910222111722"
+      },
+      {
+        "file": ".eslintrc.js",
+        "hash": "13047549049592432825"
+      },
+      {
+        "file": "Procfile",
+        "hash": "4148929746979736619"
+      },
+      {
+        "file": ".claude/agents/dx-optimizer.md",
+        "hash": "1997519796375235324"
       },
       {
         "file": ".prettierignore",
         "hash": "14688272390704683536"
+      },
+      {
+        "file": ".prettierrc.js",
+        "hash": "18156845722403072174"
+      },
+      {
+        "file": "railway.toml",
+        "hash": "7906230701309193078"
+      },
+      {
+        "file": ".claude/agents/frontend-developer.md",
+        "hash": "122816733260084238"
+      },
+      {
+        "file": ".gitignore",
+        "hash": "15804646342234223063"
+      },
+      {
+        "file": "resume.pdf",
+        "hash": "579179813447383155"
+      },
+      {
+        "file": "package.json",
+        "hash": "493168153873021604"
+      },
+      {
+        "file": "tsconfig.json",
+        "hash": "7190700142823016803"
+      },
+      {
+        "file": "docs/web-frontend-plan.md",
+        "hash": "6274301979701337356"
+      },
+      {
+        "file": ".claude/agents/legacy-modernizer.md",
+        "hash": "1150055258445536445"
+      },
+      {
+        "file": "docs/README.md",
+        "hash": "15352063263831961571"
+      },
+      {
+        "file": "package-lock.json",
+        "hash": "14208307447094411148"
+      },
+      {
+        "file": ".claude/agents/backend-architect.md",
+        "hash": "17428253875713910121"
+      },
+      {
+        "file": "nx.json",
+        "hash": "16327209036055284909"
+      },
+      {
+        "file": "CLAUDE.md",
+        "hash": "12003674443636023243"
       }
     ],
     "projectFileMap": {
-      "web": [
-        {
-          "file": "apps/web/.swcrc",
-          "hash": "2742566327615098680"
-        },
-        {
-          "file": "apps/web/index.d.ts",
-          "hash": "5498222895072842432"
-        },
-        {
-          "file": "apps/web/next-env.d.ts",
-          "hash": "1320675027584673186"
-        },
-        {
-          "file": "apps/web/next.config.js",
-          "hash": "2451670485871500942",
-          "deps": [
-            "npm:@nx/next"
-          ]
-        },
-        {
-          "file": "apps/web/project.json",
-          "hash": "6459185465558533543"
-        },
-        {
-          "file": "apps/web/public/.gitkeep",
-          "hash": "3244421341483603138"
-        },
-        {
-          "file": "apps/web/public/favicon.ico",
-          "hash": "9303420814833116677"
-        },
-        {
-          "file": "apps/web/src/app/api/hello/route.ts",
-          "hash": "495073956729887886"
-        },
-        {
-          "file": "apps/web/src/app/global.css",
-          "hash": "5221762088766465567"
-        },
-        {
-          "file": "apps/web/src/app/layout.tsx",
-          "hash": "7610935076777315525"
-        },
-        {
-          "file": "apps/web/src/app/page.module.css",
-          "hash": "4786619528779355986"
-        },
-        {
-          "file": "apps/web/src/app/page.tsx",
-          "hash": "6129683042191643019"
-        },
-        {
-          "file": "apps/web/tsconfig.json",
-          "hash": "11976984308092366850"
-        }
-      ],
       "api": [
         {
           "file": "apps/api/.eslintrc.json",
@@ -186,7 +129,7 @@
         },
         {
           "file": "apps/api/project.json",
-          "hash": "2538166032407100962"
+          "hash": "14607680980967076244"
         },
         {
           "file": "apps/api/src/assets/.gitkeep",
@@ -242,7 +185,7 @@
         },
         {
           "file": "apps/api/src/services/telegram.ts",
-          "hash": "6710613465252647869",
+          "hash": "13807173596113859130",
           "deps": [
             "npm:node-telegram-bot-api"
           ]
@@ -261,6 +204,63 @@
         {
           "file": "apps/api/tsconfig.json",
           "hash": "5470471867710154092"
+        }
+      ],
+      "web": [
+        {
+          "file": "apps/web/.swcrc",
+          "hash": "2742566327615098680"
+        },
+        {
+          "file": "apps/web/index.d.ts",
+          "hash": "5498222895072842432"
+        },
+        {
+          "file": "apps/web/next-env.d.ts",
+          "hash": "1320675027584673186"
+        },
+        {
+          "file": "apps/web/next.config.js",
+          "hash": "2451670485871500942",
+          "deps": [
+            "npm:@nx/next"
+          ]
+        },
+        {
+          "file": "apps/web/project.json",
+          "hash": "6459185465558533543"
+        },
+        {
+          "file": "apps/web/public/.gitkeep",
+          "hash": "3244421341483603138"
+        },
+        {
+          "file": "apps/web/public/favicon.ico",
+          "hash": "9303420814833116677"
+        },
+        {
+          "file": "apps/web/src/app/api/hello/route.ts",
+          "hash": "495073956729887886"
+        },
+        {
+          "file": "apps/web/src/app/global.css",
+          "hash": "5221762088766465567"
+        },
+        {
+          "file": "apps/web/src/app/layout.tsx",
+          "hash": "7610935076777315525"
+        },
+        {
+          "file": "apps/web/src/app/page.module.css",
+          "hash": "4786619528779355986"
+        },
+        {
+          "file": "apps/web/src/app/page.tsx",
+          "hash": "6129683042191643019"
+        },
+        {
+          "file": "apps/web/tsconfig.json",
+          "hash": "11976984308092366850"
         }
       ]
     }

@@ -268,6 +268,26 @@
       "apps/api/project.json",
       "nx/core/project-json"
     ],
+    "targets.start": [
+      "apps/api/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.start.executor": [
+      "apps/api/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.start.options": [
+      "apps/api/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.start.dependsOn": [
+      "apps/api/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.start.options.command": [
+      "apps/api/project.json",
+      "nx/core/project-json"
+    ],
     "targets.lint.parallelism": [
       "nx.json",
       "nx/target-defaults"

@@ -4,32 +4,59 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Job Digest Bot is an automated job alert curation system that processes job emails from Gmail using AI, matches them against user resumes, and sends relevant opportunities via Telegram. It runs on Node.js/TypeScript with PostgreSQL storage and deploys to Railway.
+Job Digest Bot is an automated job alert curation system that processes job emails from Gmail using AI, matches them against user resumes, and sends relevant opportunities via Telegram. Built as an Nx monorepo with Node.js/TypeScript, PostgreSQL storage, and deploys to Railway.
 
 ## Development Commands
 
 ```bash
-# Development
-npm run dev              # Start development server with hot reload
-npm run build           # Build TypeScript to dist/
-npm run start           # Run production build
-npm run lint            # Run ESLint on TypeScript files  
-npm run lint:fix        # Run ESLint with auto-fix
-npm run format          # Format code with Prettier
-npm run format:check    # Check code formatting without changes
-npm run type-check      # Run TypeScript compiler without emitting files
+# Monorepo Development (Nx workspace)
+npm run dev              # Start both API and web in parallel
+npm run dev:api          # Start API development server only
+npm run dev:web          # Start web development server only (port 3000)
+
+# Building
+npm run build            # Build all projects
+npm run build:api        # Build API only (production deployment)
+npm run build:web        # Build web app only
+
+# Production
+npm run start            # Run production API (node dist/api/main.js)
+npm run start:api        # Run API via Nx serve
+npm run start:web        # Run web app in production mode
+
+# Quality & Testing
+npm run lint             # Run ESLint on all projects
+npm run lint:api         # Lint API only
+npm run lint:web         # Lint web only
+npm run lint:fix         # Auto-fix linting issues
+npm run format           # Format code with Prettier
+npm run format:check     # Check code formatting
+npm run type-check       # TypeScript check all projects
+npm run type-check:api   # TypeScript check API only
+npm run type-check:web   # TypeScript check web only
+
+# Utilities
+npm run generate-gmail-token  # Generate Gmail OAuth tokens
+npm run nx:graph         # View Nx dependency graph
+npm run nx:reset         # Reset Nx cache
 ```
 
 ## Core Architecture
 
-### Service Layer Pattern
-The application uses a service layer architecture with five main services:
+### Nx Monorepo Structure
+The application is organized as an Nx monorepo with two main applications:
 
-- **JobProcessor** (`src/services/job-processor.ts`) - Main orchestrator that coordinates all other services
-- **GmailService** - OAuth2-based Gmail API integration for reading job alert emails
-- **OpenAIService** - AI-powered email classification, job extraction, and resume analysis
-- **TelegramService** - Bot notifications with command handling and message formatting
-- **DatabaseService** - PostgreSQL operations with connection pooling and mutex locks
+- **API** (`apps/api/`) - Node.js/TypeScript backend with service layer architecture
+- **Web** (`apps/web/`) - Next.js 15 frontend (future dashboard/UI)
+
+### Service Layer Pattern (API)
+The API uses a service layer architecture with five main services:
+
+- **JobProcessor** (`apps/api/src/services/job-processor.ts`) - Main orchestrator
+- **GmailService** - OAuth2-based Gmail API integration
+- **OpenAIService** - AI-powered email classification and job extraction
+- **TelegramService** - Bot notifications with enhanced /help command
+- **DatabaseService** - PostgreSQL operations with connection pooling
 
 ### Data Flow
 1. Cron jobs trigger `JobProcessor.processJobAlerts()` hourly from 6 AM to 8 PM Manila time
@@ -79,6 +106,9 @@ PORT=3333
 ### Resume Requirement
 Place `resume.pdf` in project root - used for AI-powered job relevance scoring.
 
+### Gmail Token Generation
+Use the consolidated utility: `npm run generate-gmail-token` (located at `apps/api/src/utils/gmail-token-generator.js`)
+
 ## Database Schema
 
 Auto-created PostgreSQL tables:
@@ -89,7 +119,9 @@ Auto-created PostgreSQL tables:
 
 ## Deployment Notes
 
-- **Railway**: Uses Procfile, includes health check endpoint at `/health`
+- **Railway**: Uses railway.toml with `buildCommand = "npx nx build api"` for API-only builds
+- **Build Output**: Clean bundled structure (`dist/api/main.js`) with esbuild
+- **Procfile**: `web: node dist/api/main.js` points to bundled API
 - **Cron Scheduling**: `node-cron` handles hourly processing and daily summaries
 - **Error Handling**: All errors sent to Telegram for monitoring
 - **Gmail Permissions**: Requires full Gmail scope (`https://mail.google.com/`) for archiving

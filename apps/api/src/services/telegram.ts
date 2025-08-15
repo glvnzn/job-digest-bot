@@ -59,16 +59,28 @@ export class TelegramService {
 /process - Manually trigger job processing
 /summary - Get today's job summary
 /status - Check bot status
+/help - Show this help message
 
 **Automatic Features:**
-⏰ Hourly job scanning and notifications
-🌙 Daily summary at 9 PM UTC
+⏰ Hourly job scanning (6 AM - 8 PM Manila time)
+🌙 Daily summary at 9 PM Manila time
+🔒 Concurrency protection (prevents duplicate processing)
+🧠 AI-powered job relevance scoring (≥60% threshold)
+
+**Technical Details:**
+📧 Gmail OAuth2 integration with auto-archiving
+🤖 OpenAI GPT-4 for job extraction and analysis
+🗄️ PostgreSQL database with connection pooling
+⚡ Nx monorepo architecture for scalability
 
 **How it works:**
-1. Scans your Gmail for job alerts
-2. Uses AI to identify and score job relevance
-3. Sends you only the most relevant opportunities
-4. Archives processed emails to keep your inbox clean`);
+1. Scans Gmail for unread job alerts (last 3 days)
+2. AI classifies emails and extracts job details
+3. Analyzes job relevance against your resume
+4. Sends notifications for relevant jobs (≥60% match)
+5. Archives processed emails to keep inbox clean
+
+Built with Node.js/TypeScript • Deployed on Railway`);
       }
     });
 

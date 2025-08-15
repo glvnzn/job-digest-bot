@@ -43,8 +43,6 @@ Thumbs.db
 credentials.json
 token.json
 
-# Nx cache
-.nx/cache
 
 # TypeScript
 *.tsbuildinfo

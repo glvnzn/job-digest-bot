@@ -1,6 +1,6 @@
 # Job Digest Bot
 
-Automated job alert curation system that reads job emails from Gmail, analyzes them with AI, and sends relevant opportunities to Telegram.
+Automated job alert curation system built with Nx monorepo that reads job emails from Gmail, analyzes them with AI, and sends relevant opportunities to Telegram.
 
 ## Features
 
@@ -8,7 +8,7 @@ Automated job alert curation system that reads job emails from Gmail, analyzes t
 - 🧠 **AI-Powered Analysis**: Uses OpenAI to extract job details and calculate relevance scores
 - 📊 **Resume Matching**: Analyzes your resume to find the most relevant opportunities
 - 🤖 **Telegram Notifications**: Sends curated job listings to your Telegram chat
-- 🗑️ **Auto Cleanup**: Automatically deletes processed emails
+- 📁 **Auto Archiving**: Automatically archives processed emails (not deleted)
 - ⏰ **Scheduled Processing**: Runs hourly to check for new opportunities
 - 📈 **PostgreSQL Storage**: Tracks processed jobs and prevents duplicates
 
@@ -64,14 +64,27 @@ The app will automatically create the required PostgreSQL tables on first run.
 # Install dependencies
 npm install
 
-# Run in development mode
-npm run dev
+# Development (Nx monorepo)
+npm run dev              # Start both API and web
+npm run dev:api          # Start API only
+npm run dev:web          # Start web only (port 3000)
 
-# Build for production
-npm run build
+# Building
+npm run build            # Build all projects
+npm run build:api        # Build API only
+npm run build:web        # Build web only
 
-# Run production build
-npm start
+# Production
+npm start                # Run production API
+
+# Quality checks
+npm run lint             # Lint all projects
+npm run type-check       # TypeScript check
+npm run format           # Format code
+
+# Utilities
+npm run generate-gmail-token  # Gmail OAuth setup
+npm run nx:graph         # View project dependencies
 ```
 
 ## Deployment
@@ -83,10 +96,22 @@ npm start
 3. Configure environment variables
 4. Deploy!
 
-The app includes:
-- Health check endpoint: `/health`
-- Manual processing trigger: `POST /process`
-- Service test endpoint: `/test-services`
+**Deployment Configuration:**
+- Uses `railway.toml` with API-only builds
+- Clean bundled output: `dist/api/main.js`
+- Procfile: `web: node dist/api/main.js`
+
+**Available Endpoints:**
+- Health check: `GET /health`
+- Manual processing: `POST /process`
+- Daily summary: `POST /daily-summary`
+- Service test: `GET /test-services`
+
+**Telegram Commands:**
+- `/process` - Manual job processing
+- `/summary` - Get daily summary
+- `/status` - Check bot status
+- `/help` - Show detailed help
 
 ## How It Works
 
@@ -96,7 +121,7 @@ The app includes:
 4. **Relevance Scoring**: Each job gets a relevance score (0-100%)
 5. **Filtering**: Only jobs meeting the relevance threshold are sent
 6. **Telegram Notification**: Curated jobs are sent to your Telegram chat
-7. **Cleanup**: Processed emails are deleted from Gmail
+7. **Archiving**: Processed emails are archived (not deleted) from Gmail
 
 ## Supported Job Platforms
 
