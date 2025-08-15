@@ -1,13 +1,31 @@
 import express from 'express';
+import cors from 'cors';
 import * as cron from 'node-cron';
 import * as dotenv from 'dotenv';
 import { JobProcessor } from './services/job-processor';
+import apiRoutes from './routes/index';
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// CORS configuration for web interface
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://your-web-app.vercel.app'] // Update with actual domain
+    : ['http://localhost:3000', 'http://localhost:4200'], // Local development
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+};
+
+app.use(cors(corsOptions));
 
 // Global job processor instance
 let jobProcessor: JobProcessor;
@@ -77,16 +95,10 @@ async function initializeApp(): Promise<void> {
   }
 }
 
-// Basic health check endpoint
-app.get('/health', (_, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    service: 'job-digest-bot',
-  });
-});
+// Mount API routes
+app.use('/', apiRoutes);
 
-// Manual trigger endpoint (for testing)
+// Legacy endpoints (for backward compatibility)
 app.post('/process', async (_, res) => {
   try {
     console.log('📨 Manual job processing triggered via API');
@@ -100,19 +112,6 @@ app.post('/process', async (_, res) => {
   }
 });
 
-// Service test endpoint
-app.get('/test-services', async (_, res) => {
-  try {
-    const result = await jobProcessor.testServices();
-    res.json({ success: result, tested: ['Gmail', 'Telegram'] });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
-  }
-});
-
-// Manual daily summary trigger (for testing)
 app.post('/daily-summary', async (_, res) => {
   try {
     console.log('🌙 Manual daily summary triggered via API');
@@ -124,6 +123,25 @@ app.post('/daily-summary', async (_, res) => {
       .status(500)
       .json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
+});
+
+// Global error handler
+app.use((error: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('❌ Unhandled API error:', error);
+  res.status(error.status || 500).json({
+    success: false,
+    error: error.message || 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+  });
+});
+
+// 404 handler
+app.use('*', (req: express.Request, res: express.Response) => {
+  res.status(404).json({
+    success: false,
+    error: 'Endpoint not found',
+    path: req.originalUrl
+  });
 });
 
 // Graceful shutdown
