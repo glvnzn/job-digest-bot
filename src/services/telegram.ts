@@ -185,8 +185,7 @@ ${stats.topSources.map((source) => `• ${source.source}: **${source.count}** jo
       );
 
       if (jobsWithUrls.length === 0) {
-        summaryMessage +=
-          '📝 No relevant opportunities found today.\n\n✨ Tomorrow is another day for new opportunities!';
+        summaryMessage += '📝 No relevant opportunities found today.';
       } else {
         summaryMessage += `🎯 **${jobsWithUrls.length} Relevant Opportunities Today:**\n\n`;
 
