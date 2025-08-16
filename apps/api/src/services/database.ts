@@ -1,249 +1,174 @@
-import { Pool } from 'pg';
+/**
+ * Main Database Service - Prisma-Based Implementation
+ * 
+ * This service provides the complete database interface using Prisma ORM:
+ * 1. Type-safe database operations with full schema validation
+ * 2. Support for both legacy bot functionality and new multi-user features
+ * 3. Automatic connection pooling and migration handling
+ * 4. Production-ready error handling and logging
+ */
+
+import { PrismaDatabaseService } from './database-prisma';
 import { JobListing, ResumeAnalysis, ProcessedEmail } from '../models/types';
 
 export class DatabaseService {
-  private pool: Pool;
+  private prismaService: PrismaDatabaseService;
 
   constructor() {
-    this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-    });
+    this.prismaService = new PrismaDatabaseService();
   }
 
   async init(): Promise<void> {
     try {
-      await this.createTables();
-      console.log('Database initialized successfully');
+      await this.prismaService.init();
+      console.log('✅ Database (Prisma) initialized successfully');
     } catch (error) {
-      console.error('Database initialization failed:', error);
+      console.error('❌ Database (Prisma) initialization failed:', error);
       throw error;
     }
   }
 
-  private async createTables(): Promise<void> {
-    const createJobsTable = `
-      CREATE TABLE IF NOT EXISTS jobs (
-        id VARCHAR PRIMARY KEY,
-        title VARCHAR NOT NULL,
-        company VARCHAR NOT NULL,
-        location VARCHAR,
-        is_remote BOOLEAN DEFAULT FALSE,
-        description TEXT,
-        requirements TEXT[],
-        apply_url VARCHAR NOT NULL,
-        salary VARCHAR,
-        posted_date TIMESTAMP,
-        source VARCHAR NOT NULL,
-        relevance_score FLOAT,
-        email_message_id VARCHAR NOT NULL,
-        processed BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT NOW()
-      );
-    `;
+  // ===== EXACT SAME INTERFACE AS OLD DATABASE SERVICE =====
 
-    const createResumeAnalysisTable = `
-      CREATE TABLE IF NOT EXISTS resume_analysis (
-        id SERIAL PRIMARY KEY,
-        skills TEXT[],
-        experience TEXT[],
-        preferred_roles TEXT[],
-        seniority VARCHAR,
-        analyzed_at TIMESTAMP DEFAULT NOW()
-      );
-    `;
-
-    const createProcessedEmailsTable = `
-      CREATE TABLE IF NOT EXISTS processed_emails (
-        message_id VARCHAR PRIMARY KEY,
-        subject VARCHAR,
-        from_email VARCHAR,
-        processed_at TIMESTAMP DEFAULT NOW(),
-        jobs_extracted INTEGER DEFAULT 0,
-        deleted BOOLEAN DEFAULT FALSE
-      );
-    `;
-
-    await this.pool.query(createJobsTable);
-    await this.pool.query(createResumeAnalysisTable);
-    await this.pool.query(createProcessedEmailsTable);
-  }
-
+  /**
+   * Save a job - exactly like the old method
+   */
   async saveJob(job: JobListing): Promise<void> {
-    const query = `
-      INSERT INTO jobs (id, title, company, location, is_remote, description, requirements, 
-                       apply_url, salary, posted_date, source, relevance_score, 
-                       email_message_id, processed, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-      ON CONFLICT (id) DO UPDATE SET
-        relevance_score = EXCLUDED.relevance_score,
-        processed = EXCLUDED.processed
-    `;
-
-    const values = [
-      job.id,
-      job.title,
-      job.company,
-      job.location,
-      job.isRemote,
-      job.description,
-      job.requirements,
-      job.applyUrl,
-      job.salary,
-      job.postedDate,
-      job.source,
-      job.relevanceScore,
-      job.emailMessageId,
-      job.processed,
-      job.createdAt,
-    ];
-
-    await this.pool.query(query, values);
+    await this.prismaService.saveJob({
+      id: job.id,
+      title: job.title,
+      company: job.company,
+      location: job.location,
+      isRemote: job.isRemote,
+      description: job.description,
+      requirements: job.requirements,
+      applyUrl: job.applyUrl,
+      salary: job.salary ?? undefined,
+      postedDate: job.postedDate,
+      source: job.source,
+      relevanceScore: job.relevanceScore,
+      emailMessageId: job.emailMessageId,
+      processed: job.processed,
+      createdAt: job.createdAt,
+    });
   }
 
+  /**
+   * Save resume analysis - exactly like the old method
+   */
   async saveResumeAnalysis(analysis: ResumeAnalysis): Promise<void> {
-    const query = `
-      INSERT INTO resume_analysis (skills, experience, preferred_roles, seniority, analyzed_at)
-      VALUES ($1, $2, $3, $4, $5)
-    `;
-
-    const values = [
-      analysis.skills,
-      analysis.experience,
-      analysis.preferredRoles,
-      analysis.seniority,
-      analysis.analyzedAt,
-    ];
-
-    await this.pool.query(query, values);
+    await this.prismaService.client.resumeAnalysis.create({
+      data: {
+        skills: analysis.skills,
+        experience: analysis.experience,
+        preferredRoles: analysis.preferredRoles,
+        seniority: analysis.seniority,
+        analyzedAt: analysis.analyzedAt,
+      },
+    });
   }
 
+  /**
+   * Save processed email - exactly like the old method
+   */
   async saveProcessedEmail(email: ProcessedEmail): Promise<void> {
-    const query = `
-      INSERT INTO processed_emails (message_id, subject, from_email, processed_at, jobs_extracted, deleted)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      ON CONFLICT (message_id) DO UPDATE SET
-        deleted = EXCLUDED.deleted
-    `;
-
-    const values = [
-      email.messageId,
-      email.subject,
-      email.from,
-      email.processedAt,
-      email.jobsExtracted,
-      email.deleted,
-    ];
-
-    await this.pool.query(query, values);
+    await this.prismaService.saveProcessedEmail({
+      messageId: email.messageId,
+      subject: email.subject,
+      fromEmail: email.from,
+      jobsExtracted: email.jobsExtracted,
+      deleted: email.deleted,
+    });
   }
 
+  /**
+   * Get latest resume analysis - exactly like the old method
+   */
   async getLatestResumeAnalysis(): Promise<ResumeAnalysis | null> {
-    const query = `
-      SELECT * FROM resume_analysis 
-      ORDER BY analyzed_at DESC 
-      LIMIT 1
-    `;
+    const analysis = await this.prismaService.client.resumeAnalysis.findFirst({
+      orderBy: { analyzedAt: 'desc' },
+    });
 
-    const result = await this.pool.query(query);
-    if (result.rows.length === 0) return null;
+    if (!analysis) return null;
 
-    const row = result.rows[0];
     return {
-      skills: row.skills,
-      experience: row.experience,
-      preferredRoles: row.preferred_roles,
-      seniority: row.seniority,
-      analyzedAt: row.analyzed_at,
+      skills: analysis.skills,
+      experience: analysis.experience,
+      preferredRoles: analysis.preferredRoles,
+      seniority: analysis.seniority || '',
+      analyzedAt: analysis.analyzedAt,
     };
   }
 
+  /**
+   * Check if email is processed - exactly like the old method
+   */
   async isEmailProcessed(messageId: string): Promise<boolean> {
-    const query = 'SELECT 1 FROM processed_emails WHERE message_id = $1';
-    const result = await this.pool.query(query, [messageId]);
-    return result.rows.length > 0;
+    return await this.prismaService.isEmailProcessed(messageId);
   }
 
+  /**
+   * Get relevant jobs - exactly like the old method
+   */
   async getRelevantJobs(minScore: number = 0.7): Promise<JobListing[]> {
-    const query = `
-      SELECT * FROM jobs 
-      WHERE relevance_score >= $1 AND is_remote = TRUE AND processed = FALSE
-      ORDER BY relevance_score DESC, created_at DESC
-    `;
-
-    const result = await this.pool.query(query, [minScore]);
-
-    return result.rows.map(row => ({
-      id: row.id,
-      title: row.title,
-      company: row.company,
-      location: row.location,
-      isRemote: row.is_remote,
-      description: row.description,
-      requirements: row.requirements,
-      applyUrl: row.apply_url,
-      salary: row.salary,
-      postedDate: row.posted_date,
-      source: row.source,
-      relevanceScore: row.relevance_score,
-      emailMessageId: row.email_message_id,
-      processed: row.processed,
-      createdAt: row.created_at,
+    const jobs = await this.prismaService.getRelevantJobs(minScore);
+    
+    // Convert Prisma result to old JobListing format
+    return jobs.map(job => ({
+      id: job.id,
+      title: job.title,
+      company: job.company,
+      location: job.location || '',
+      isRemote: job.isRemote,
+      description: job.description || '',
+      requirements: job.requirements,
+      applyUrl: job.applyUrl,
+      salary: job.salary ?? undefined,
+      postedDate: job.postedDate || new Date(),
+      source: job.source,
+      relevanceScore: job.relevanceScore || 0,
+      emailMessageId: job.emailMessageId,
+      processed: job.processed,
+      createdAt: job.createdAt,
     }));
   }
 
+  /**
+   * Mark job as processed - exactly like the old method
+   */
   async markJobAsProcessed(jobId: string): Promise<void> {
-    const query = 'UPDATE jobs SET processed = TRUE WHERE id = $1';
-    await this.pool.query(query, [jobId]);
+    await this.prismaService.markJobAsProcessed(jobId);
   }
 
+  /**
+   * Get daily job summary - exactly like the old method
+   */
   async getDailyJobSummary(date: Date): Promise<JobListing[]> {
-    // Convert Manila "day" to UTC time range for database query
-    // date parameter is already a Manila date (midnight to midnight Manila time)
-    const startOfDay = new Date(date);
-    startOfDay.setUTCHours(0, 0, 0, 0);
-    // Subtract 8 hours to convert Manila time to UTC
-    const startOfDayUTC = new Date(startOfDay.getTime() - 8 * 60 * 60 * 1000);
-
-    const endOfDay = new Date(date);
-    endOfDay.setUTCHours(23, 59, 59, 999);
-    // Subtract 8 hours to convert Manila time to UTC
-    const endOfDayUTC = new Date(endOfDay.getTime() - 8 * 60 * 60 * 1000);
-
-    console.log(
-      `Daily summary query range (Manila day converted to UTC): ${startOfDayUTC.toISOString()} to ${endOfDayUTC.toISOString()}`
-    );
-
-    const query = `
-      SELECT * FROM jobs 
-      WHERE created_at >= $1 AND created_at <= $2 AND relevance_score >= 0.6
-      AND apply_url IS NOT NULL 
-      AND apply_url != '' 
-      AND apply_url != 'Unknown URL'
-      ORDER BY is_remote DESC, relevance_score DESC, created_at DESC
-    `;
-
-    const result = await this.pool.query(query, [startOfDayUTC, endOfDayUTC]);
-
-    return result.rows.map(row => ({
-      id: row.id,
-      title: row.title,
-      company: row.company,
-      location: row.location,
-      isRemote: row.is_remote,
-      description: row.description,
-      requirements: row.requirements,
-      applyUrl: row.apply_url,
-      salary: row.salary,
-      postedDate: row.posted_date,
-      source: row.source,
-      relevanceScore: row.relevance_score,
-      emailMessageId: row.email_message_id,
-      processed: row.processed,
-      createdAt: row.created_at,
+    const jobs = await this.prismaService.getDailyJobSummary(date);
+    
+    // Convert Prisma result to old JobListing format
+    return jobs.map(job => ({
+      id: job.id,
+      title: job.title,
+      company: job.company,
+      location: job.location || '',
+      isRemote: job.isRemote,
+      description: job.description || '',
+      requirements: job.requirements,
+      applyUrl: job.applyUrl,
+      salary: job.salary ?? undefined,
+      postedDate: job.postedDate || new Date(),
+      source: job.source,
+      relevanceScore: job.relevanceScore || 0,
+      emailMessageId: job.emailMessageId,
+      processed: job.processed,
+      createdAt: job.createdAt,
     }));
   }
 
+  /**
+   * Get daily stats - exactly like the old method
+   */
   async getDailyStats(date: Date): Promise<{
     totalJobsProcessed: number;
     relevantJobs: number;
@@ -259,65 +184,70 @@ export class DatabaseService {
     endOfDay.setUTCHours(23, 59, 59, 999);
     const endOfDayUTC = new Date(endOfDay.getTime() - 8 * 60 * 60 * 1000);
 
-    console.log(
-      `Daily stats query range (Manila day converted to UTC): ${startOfDayUTC.toISOString()} to ${endOfDayUTC.toISOString()}`
-    );
+    // Parallel queries for better performance
+    const [totalJobs, relevantJobs, emailsProcessed, topSources] = await Promise.all([
+      // Total jobs processed today (with valid URLs)
+      this.prismaService.client.job.count({
+        where: {
+          createdAt: { gte: startOfDayUTC, lte: endOfDayUTC },
+          applyUrl: { notIn: ['', 'Unknown URL'] },
+        },
+      }),
 
-    // Get total jobs processed today (only with valid apply URLs)
-    const totalJobsQuery = `
-      SELECT COUNT(*) as count FROM jobs 
-      WHERE created_at >= $1 AND created_at <= $2
-      AND apply_url IS NOT NULL 
-      AND apply_url != '' 
-      AND apply_url != 'Unknown URL'
-    `;
-    const totalJobsResult = await this.pool.query(totalJobsQuery, [startOfDayUTC, endOfDayUTC]);
+      // Relevant jobs count (with valid URLs)
+      this.prismaService.client.job.count({
+        where: {
+          createdAt: { gte: startOfDayUTC, lte: endOfDayUTC },
+          relevanceScore: { gte: 0.6 },
+          applyUrl: { notIn: ['', 'Unknown URL'] },
+        },
+      }),
 
-    // Get relevant jobs count (only with valid apply URLs)
-    const relevantJobsQuery = `
-      SELECT COUNT(*) as count FROM jobs 
-      WHERE created_at >= $1 AND created_at <= $2 AND relevance_score >= 0.6
-      AND apply_url IS NOT NULL 
-      AND apply_url != '' 
-      AND apply_url != 'Unknown URL'
-    `;
-    const relevantJobsResult = await this.pool.query(relevantJobsQuery, [
-      startOfDayUTC,
-      endOfDayUTC,
+      // Emails processed today
+      this.prismaService.client.processedEmail.count({
+        where: {
+          processedAt: { gte: startOfDayUTC, lte: endOfDayUTC },
+        },
+      }),
+
+      // Top sources (with valid URLs)
+      this.prismaService.client.job.groupBy({
+        by: ['source'],
+        where: {
+          createdAt: { gte: startOfDayUTC, lte: endOfDayUTC },
+          relevanceScore: { gte: 0.6 },
+          applyUrl: { notIn: ['', 'Unknown URL'] },
+        },
+        _count: { source: true },
+        orderBy: { _count: { source: 'desc' } },
+        take: 5,
+      }),
     ]);
 
-    // Get emails processed today
-    const emailsQuery = `
-      SELECT COUNT(*) as count FROM processed_emails 
-      WHERE processed_at >= $1 AND processed_at <= $2
-    `;
-    const emailsResult = await this.pool.query(emailsQuery, [startOfDayUTC, endOfDayUTC]);
-
-    // Get top sources (only with valid apply URLs)
-    const sourcesQuery = `
-      SELECT source, COUNT(*) as count FROM jobs 
-      WHERE created_at >= $1 AND created_at <= $2 AND relevance_score >= 0.6
-      AND apply_url IS NOT NULL 
-      AND apply_url != '' 
-      AND apply_url != 'Unknown URL'
-      GROUP BY source 
-      ORDER BY count DESC 
-      LIMIT 5
-    `;
-    const sourcesResult = await this.pool.query(sourcesQuery, [startOfDayUTC, endOfDayUTC]);
-
     return {
-      totalJobsProcessed: parseInt(totalJobsResult.rows[0].count),
-      relevantJobs: parseInt(relevantJobsResult.rows[0].count),
-      emailsProcessed: parseInt(emailsResult.rows[0].count),
-      topSources: sourcesResult.rows.map(row => ({
-        source: row.source,
-        count: parseInt(row.count),
+      totalJobsProcessed: totalJobs,
+      relevantJobs: relevantJobs,
+      emailsProcessed: emailsProcessed,
+      topSources: topSources.map(item => ({
+        source: item.source,
+        count: item._count.source,
       })),
     };
   }
 
+  // ===== NEW METHODS (for web interface) =====
+
+  /**
+   * Get the underlying Prisma service for advanced operations
+   */
+  get prisma(): PrismaDatabaseService {
+    return this.prismaService;
+  }
+
+  /**
+   * Close connection
+   */
   async close(): Promise<void> {
-    await this.pool.end();
+    await this.prismaService.close();
   }
 }

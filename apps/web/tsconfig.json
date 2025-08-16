@@ -16,13 +16,19 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "incremental": true,
-    "plugins": [{ "name": "next" }]
+    "plugins": [{ "name": "next" }],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@job-digest/shared-types/*": ["../../libs/shared-types/src/*"]
+    }
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     "**/*.js",
     "**/*.jsx",
+    "types/**/*.d.ts",
 
     ".next/types/**/*.ts",
     "../../dist/apps/web/.next/types/**/*.ts",

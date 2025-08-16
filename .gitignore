@@ -53,3 +53,21 @@ coverage/
 
 # Misc
 .eslintcache
+
+# Generated files
+/generated/prisma
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+
+# Screenshot files
+*.png
+*.jpg
+*.jpeg
+screenshot.*
+
+# Temp script files
+test-*.js
+generate-*.js
