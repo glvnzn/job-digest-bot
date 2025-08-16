@@ -113,6 +113,19 @@ DATABASE_URL=postgresql://user:pass@host:port/db
 # Application
 NODE_ENV=development|production
 PORT=3333
+
+# API URLs (for production deployment)
+API_BASE_URL=https://job-digest-bot-production.up.railway.app
+NEXT_PUBLIC_API_BASE=https://job-digest-bot-production.up.railway.app
+NEXT_PUBLIC_API_URL=https://job-digest-bot-production.up.railway.app
+
+# NextAuth (for web interface)
+NEXTAUTH_URL=https://your-web-app-url.vercel.app
+NEXTAUTH_SECRET=your-nextauth-secret-key
+
+# Google OAuth (for web interface authentication)
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
+GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
 ```
 
 ### Resume Requirement

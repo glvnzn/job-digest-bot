@@ -53,7 +53,8 @@ export default function JobDetailPage() {
   const fetchJobDetails = async (jobId: string) => {
     try {
       setIsLoading(true);
-      const response = await fetch(`http://localhost:3333/api/v1/jobs/${jobId}`);
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
+      const response = await fetch(`${apiBase}/api/v1/jobs/${jobId}`);
       const data: JobResponse = await response.json();
 
       if (data.success) {

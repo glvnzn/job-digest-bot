@@ -21,9 +21,7 @@ async function generateTypes() {
         },
         servers: [
           {
-            url: process.env.NODE_ENV === 'production' 
-              ? 'https://job-digest-api.railway.app' 
-              : 'http://localhost:3333',
+            url: process.env.API_BASE_URL || 'http://localhost:3333',
             description: process.env.NODE_ENV === 'production' ? 'Production' : 'Development',
           },
         ],
