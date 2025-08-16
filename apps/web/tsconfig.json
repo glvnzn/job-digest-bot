@@ -19,7 +19,8 @@
     "plugins": [{ "name": "next" }],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@job-digest/shared-types/*": ["../../libs/shared-types/src/*"]
     }
   },
   "include": [

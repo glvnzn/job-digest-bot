@@ -1,58 +1,14 @@
-// Simple API client with basic types for initial implementation
+// API client using auto-generated OpenAPI types
+import { components } from '@job-digest/shared-types/api';
 
-// Basic types for initial implementation
-export interface Job {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  isRemote: boolean;
-  description: string;
-  requirements: string[];
-  applyUrl: string;
-  salary: string | null;
-  postedDate: string;
-  source: string;
-  relevanceScore: number;
-  emailMessageId: string;
-  processed: boolean;
-  createdAt: string;
-}
+// Export types from generated schema
+export type Job = components['schemas']['Job'];
+export type User = components['schemas']['User'];
+export type JobStage = components['schemas']['JobStage'];
+export type UserJob = components['schemas']['UserJob'];
+export type PaginationMeta = components['schemas']['PaginationMeta'];
 
-export interface User {
-  id: number;
-  email: string;
-  googleId: string;
-  name?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface JobStage {
-  id: number;
-  name: string;
-  color: string;
-  sortOrder: number;
-  isSystem: boolean;
-  userId?: number;
-  createdAt: string;
-}
-
-export interface UserJob {
-  id: number;
-  userId: number;
-  jobId: string;
-  stageId: number;
-  notes?: string;
-  appliedDate?: string;
-  interviewDate?: string;
-  applicationUrl?: string;
-  contactPerson?: string;
-  salaryExpectation?: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
+// Custom interfaces for API client usage
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -84,9 +40,15 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3333';
 
 class ApiClient {
   private baseUrl: string;
+  private authToken: string | null = null;
 
   constructor(baseUrl: string = API_BASE) {
     this.baseUrl = baseUrl;
+  }
+
+  // Set authentication token (called by hooks)
+  setAuthToken(token: string | null) {
+    this.authToken = token;
   }
 
   private async request<T>(
@@ -95,11 +57,18 @@ class ApiClient {
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
     
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+
+    // Add authorization header if token is available
+    if (this.authToken) {
+      headers['Authorization'] = `Bearer ${this.authToken}`;
+    }
+    
     const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
       ...options,
     };
 
@@ -116,7 +85,7 @@ class ApiClient {
 
       return {
         success: true,
-        data,
+        data: data.data || data, // Handle both wrapped and direct responses
       };
     } catch (error) {
       return {
@@ -128,7 +97,7 @@ class ApiClient {
 
   // Jobs API - fully typed
   jobs = {
-    // GET /api/jobs - Get all jobs with optional filters
+    // GET /api/v1/jobs - Get all jobs with optional filters
     getAll: async (filters?: JobFilters): Promise<PaginatedResponse<Job>> => {
       const params = new URLSearchParams();
       if (filters?.search) params.append('search', filters.search);
@@ -140,40 +109,73 @@ class ApiClient {
       if (filters?.offset) params.append('offset', String(filters.offset));
 
       const queryString = params.toString();
-      const endpoint = `/api/jobs${queryString ? `?${queryString}` : ''}`;
+      const endpoint = `/api/v1/jobs${queryString ? `?${queryString}` : ''}`;
       
-      const result = await this.request<{ jobs: Job[]; meta: any }>(endpoint);
-      
-      if (result.success && result.data) {
+      // Make the request directly to get the full response structure
+      const url = `${this.baseUrl}${endpoint}`;
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.authToken) {
+        headers['Authorization'] = `Bearer ${this.authToken}`;
+      }
+
+      try {
+        const response = await fetch(url, { headers });
+        const data = await response.json();
+
+        if (!response.ok) {
+          return {
+            success: false,
+            data: [],
+            meta: { page: 1, limit: 20, total: 0, totalPages: 0 },
+          };
+        }
+
+        if (data.success && data.data && data.meta) {
+          return {
+            success: true,
+            data: data.data,
+            meta: {
+              page: Math.floor((data.meta.offset || 0) / (data.meta.limit || 20)) + 1,
+              limit: data.meta.limit || 20,
+              total: data.meta.total || 0,
+              totalPages: Math.ceil((data.meta.total || 0) / (data.meta.limit || 20))
+            },
+          };
+        }
+
         return {
-          success: true,
-          data: result.data.jobs,
-          meta: result.data.meta,
+          success: false,
+          data: [],
+          meta: { page: 1, limit: 20, total: 0, totalPages: 0 },
+        };
+      } catch (error) {
+        console.error('Error fetching jobs:', error);
+        return {
+          success: false,
+          data: [],
+          meta: { page: 1, limit: 20, total: 0, totalPages: 0 },
         };
       }
-      
-      return {
-        success: false,
-        data: [],
-        meta: { page: 1, limit: 20, total: 0, totalPages: 0 },
-      };
     },
 
-    // GET /api/jobs/:id - Get specific job
+    // GET /api/v1/jobs/:id - Get specific job
     getById: async (id: string): Promise<ApiResponse<Job>> => {
-      return this.request<Job>(`/api/jobs/${id}`);
+      return this.request<Job>(`/api/v1/jobs/${id}`);
     },
 
-    // POST /api/jobs/:id/track - Track a job
+    // POST /api/v1/jobs/:id/track - Track a job
     track: async (id: string): Promise<ApiResponse<UserJob>> => {
-      return this.request<UserJob>(`/api/jobs/${id}/track`, {
+      return this.request<UserJob>(`/api/v1/jobs/${id}/track`, {
         method: 'POST',
       });
     },
 
-    // DELETE /api/jobs/:id/track - Untrack a job
+    // DELETE /api/v1/jobs/:id/track - Untrack a job
     untrack: async (id: string): Promise<ApiResponse<void>> => {
-      return this.request<void>(`/api/jobs/${id}/track`, {
+      return this.request<void>(`/api/v1/jobs/${id}/track`, {
         method: 'DELETE',
       });
     },
@@ -181,22 +183,22 @@ class ApiClient {
 
   // User Jobs API
   userJobs = {
-    // GET /api/user-jobs - Get user's tracked jobs
+    // GET /api/v1/user-jobs - Get user's tracked jobs
     getAll: async (): Promise<ApiResponse<UserJob[]>> => {
-      return this.request<UserJob[]>('/api/user-jobs');
+      return this.request<UserJob[]>('/api/v1/user-jobs');
     },
 
-    // PUT /api/user-jobs/:id/stage - Update job stage
+    // PUT /api/v1/user-jobs/:id/stage - Update job stage
     updateStage: async (id: number, stageId: number): Promise<ApiResponse<UserJob>> => {
-      return this.request<UserJob>(`/api/user-jobs/${id}/stage`, {
+      return this.request<UserJob>(`/api/v1/user-jobs/${id}/stage`, {
         method: 'PUT',
         body: JSON.stringify({ stageId }),
       });
     },
 
-    // PUT /api/user-jobs/:id/notes - Update job notes
+    // PUT /api/v1/user-jobs/:id/notes - Update job notes
     updateNotes: async (id: number, notes: string): Promise<ApiResponse<UserJob>> => {
-      return this.request<UserJob>(`/api/user-jobs/${id}/notes`, {
+      return this.request<UserJob>(`/api/v1/user-jobs/${id}/notes`, {
         method: 'PUT',
         body: JSON.stringify({ notes }),
       });
@@ -205,30 +207,30 @@ class ApiClient {
 
   // Job Stages API
   stages = {
-    // GET /api/stages - Get user's stages (system + custom)
+    // GET /api/v1/stages - Get user's stages (system + custom)
     getAll: async (): Promise<ApiResponse<JobStage[]>> => {
-      return this.request<JobStage[]>('/api/stages');
+      return this.request<JobStage[]>('/api/v1/stages');
     },
 
-    // POST /api/stages - Create custom stage
+    // POST /api/v1/stages - Create custom stage
     create: async (stage: Omit<JobStage, 'id' | 'userId' | 'createdAt' | 'isSystem'>): Promise<ApiResponse<JobStage>> => {
-      return this.request<JobStage>('/api/stages', {
+      return this.request<JobStage>('/api/v1/stages', {
         method: 'POST',
         body: JSON.stringify({ ...stage, isSystem: false }),
       });
     },
 
-    // PUT /api/stages/:id - Update custom stage
+    // PUT /api/v1/stages/:id - Update custom stage
     update: async (id: number, updates: Partial<JobStage>): Promise<ApiResponse<JobStage>> => {
-      return this.request<JobStage>(`/api/stages/${id}`, {
+      return this.request<JobStage>(`/api/v1/stages/${id}`, {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
     },
 
-    // DELETE /api/stages/:id - Delete custom stage
+    // DELETE /api/v1/stages/:id - Delete custom stage
     delete: async (id: number): Promise<ApiResponse<void>> => {
-      return this.request<void>(`/api/stages/${id}`, {
+      return this.request<void>(`/api/v1/stages/${id}`, {
         method: 'DELETE',
       });
     },
@@ -236,9 +238,9 @@ class ApiClient {
 
   // Auth API
   auth = {
-    // GET /api/auth/me - Get current user
+    // GET /api/v1/auth/me - Get current user
     me: async (): Promise<ApiResponse<User>> => {
-      return this.request<User>('/api/auth/me');
+      return this.request<User>('/api/v1/auth/me');
     },
   };
 }

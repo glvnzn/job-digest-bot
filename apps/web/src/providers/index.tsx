@@ -2,6 +2,7 @@
 
 import { SessionProvider } from 'next-auth/react'
 import { QueryProvider } from './query-provider'
+import { AuthProvider } from './auth-provider'
 
 export function AppProviders({
   children,
@@ -12,9 +13,11 @@ export function AppProviders({
 }) {
   return (
     <SessionProvider session={session}>
-      <QueryProvider>
-        {children}
-      </QueryProvider>
+      <AuthProvider>
+        <QueryProvider>
+          {children}
+        </QueryProvider>
+      </AuthProvider>
     </SessionProvider>
   )
 }
