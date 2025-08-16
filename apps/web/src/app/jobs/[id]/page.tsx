@@ -6,29 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { components } from '@job-digest/shared-types/api';
 
-interface Job {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  isRemote: boolean;
-  description: string;
-  requirements: string[];
-  applyUrl: string;
-  salary: string | null;
-  postedDate: string;
-  source: string;
-  relevanceScore: number;
-  emailMessageId: string;
-  processed: boolean;
-  createdAt: string;
-}
+type Job = components['schemas']['Job'] & {
+  requirements?: string[];
+  emailMessageId?: string;
+};
 
-interface JobResponse {
-  success: boolean;
+type JobResponse = components['schemas']['ApiResponse'] & {
   data: Job;
-}
+};
 
 export default function JobDetailPage() {
   const params = useParams();
@@ -53,7 +40,7 @@ export default function JobDetailPage() {
   const fetchJobDetails = async (jobId: string) => {
     try {
       setIsLoading(true);
-      const apiBase = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
       const response = await fetch(`${apiBase}/api/v1/jobs/${jobId}`);
       const data: JobResponse = await response.json();
 
@@ -70,17 +57,8 @@ export default function JobDetailPage() {
     }
   };
 
-  const formatScore = (score: number) => {
-    return Math.round(score * 100);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
+  // Note: Date formatting and score calculations should be moved to backend API
+  // Frontend should receive pre-formatted data to remain "dumb"
 
   if (isLoading) {
     return (
@@ -132,10 +110,10 @@ export default function JobDetailPage() {
                   </CardDescription>
                 </div>
                 <Badge 
-                  variant={formatScore(job.relevanceScore) >= 80 ? "default" : "secondary"}
+                  variant={job.relevanceBadgeVariant || "secondary"}
                   className="text-sm"
                 >
-                  {formatScore(job.relevanceScore)}% Match
+                  {job.relevancePercentage}% Match
                 </Badge>
               </div>
             </CardHeader>
@@ -143,7 +121,7 @@ export default function JobDetailPage() {
               <div className="flex flex-wrap gap-4 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Location:</span>
-                  <span>{job.location}</span>
+                  <span>{job.location || 'Not specified'}</span>
                   {job.isRemote && (
                     <Badge variant="secondary">Remote</Badge>
                   )}
@@ -163,7 +141,7 @@ export default function JobDetailPage() {
 
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Posted:</span>
-                  <span>{formatDate(job.postedDate)}</span>
+                  <span>{job.formattedPostedDate}</span>
                 </div>
               </div>
 
@@ -242,7 +220,7 @@ export default function JobDetailPage() {
                 <div>
                   <span className="font-medium">Added to system:</span>
                   <span className="ml-2">
-                    {formatDate(job.createdAt)}
+                    {job.formattedCreatedAt}
                   </span>
                 </div>
                 {job.emailMessageId && (

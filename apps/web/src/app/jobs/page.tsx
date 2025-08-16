@@ -95,14 +95,7 @@ export default function JobsPage() {
     await signOut({ callbackUrl: '/login' });
   };
 
-  const formatScore = (score: number | null | undefined) => {
-    if (!score) return 0;
-    return Math.round(score * 100);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
+  // Note: Calculations moved to backend API - frontend now receives pre-computed values
 
   if (status === 'loading' || isLoading) {
     return (
@@ -218,7 +211,7 @@ export default function JobsPage() {
         <div className="space-y-3">
           {jobs.map((job) => (
             <Card key={job.id} className="hover:shadow-sm transition-all duration-200 border-l-4" 
-                  style={{ borderLeftColor: formatScore(job.relevanceScore) >= 80 ? '#10b981' : formatScore(job.relevanceScore) >= 60 ? '#f59e0b' : '#6b7280' }}>
+                  style={{ borderLeftColor: job.relevancePercentage >= 80 ? '#10b981' : job.relevancePercentage >= 60 ? '#f59e0b' : '#6b7280' }}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-4">
                   {/* Main Content */}
@@ -248,13 +241,13 @@ export default function JobsPage() {
                       {/* Match Score */}
                       <div className="flex flex-col items-end gap-1">
                         <Badge 
-                          variant={formatScore(job.relevanceScore) >= 80 ? "default" : "secondary"}
+                          variant={job.relevanceBadgeVariant || "secondary"}
                           className="text-xs font-medium"
                         >
-                          {formatScore(job.relevanceScore)}%
+                          {job.relevancePercentage}%
                         </Badge>
                         <div className="text-xs text-muted-foreground">
-                          {formatDate(job.createdAt)}
+                          {job.formattedCreatedAt}
                         </div>
                       </div>
                     </div>

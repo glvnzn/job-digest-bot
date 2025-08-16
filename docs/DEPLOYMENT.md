@@ -39,7 +39,9 @@ PORT=3333
 
 ## Web Application Deployment
 
-### Option 1: Vercel (Recommended)
+### Option 1: Vercel (Recommended for NextAuth.js)
+
+**Important**: NextAuth.js requires a Node.js runtime, not static hosting.
 
 1. **Connect Repository**
    ```bash
@@ -51,6 +53,7 @@ PORT=3333
    - Build Command: `npm run build:web`
    - Output Directory: `apps/web/.next`
    - Install Command: `npm install`
+   - **Framework Preset**: Next.js (automatically configured for Node.js runtime)
 
 3. **Environment Variables**
    ```env
@@ -73,16 +76,9 @@ PORT=3333
    # Or manual deploy from Vercel dashboard
    ```
 
-### Option 2: Netlify
+### Option 2: Railway (Node.js Support)
 
-1. **Build Settings**
-   - Build command: `npm run build:web`
-   - Publish directory: `apps/web/.next`
-
-2. **Environment Variables**
-   Same as Vercel configuration above.
-
-### Option 3: Railway (Alternative)
+**Note**: Netlify static hosting is not compatible with NextAuth.js. Use Railway for Node.js support.
 
 1. **Connect Repository**
    ```bash
@@ -95,12 +91,25 @@ PORT=3333
    # Build command
    npm run build:web
    
-   # Start command  
+   # Start command (Railway auto-detects Next.js)
    npm run start:web
    ```
 
+### Option 3: Other Node.js Hosting Platforms
+
+**Compatible Platforms** (require Node.js runtime):
+- **Heroku**: Node.js buildpack
+- **DigitalOcean App Platform**: Node.js runtime
+- **AWS Amplify**: Server-side rendering support
+- **Render**: Node.js service
+
+**Incompatible Platforms** (static hosting only):
+- ❌ Netlify (static hosting)
+- ❌ GitHub Pages (static hosting)  
+- ❌ AWS S3 + CloudFront (static hosting)
+
 3. **Environment Variables**
-   Same as above, but `NEXTAUTH_URL` should be your Railway web app URL.
+   Same as Vercel configuration, but adjust `NEXTAUTH_URL` to your hosting platform's URL.
 
 ## Google OAuth Setup
 

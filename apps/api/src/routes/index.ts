@@ -7,21 +7,17 @@ import authRoutes from './auth';
 import jobRoutes from './jobs';
 import stageRoutes from './stages';
 import dashboardRoutes from './dashboard';
-import simpleApiRoutes from './simple-api';
 
 const router = Router();
 
 // API versioning
 const API_VERSION = '/api/v1';
 
-// Mount full API route modules with authentication and multi-user support
+// Mount API route modules with authentication and multi-user support
 router.use(`${API_VERSION}/auth`, authRoutes);
 router.use(`${API_VERSION}/jobs`, jobRoutes);
 router.use(`${API_VERSION}/stages`, stageRoutes);
 router.use(`${API_VERSION}/dashboard`, dashboardRoutes);
-
-// Keep simple API as fallback/backup
-router.use(`${API_VERSION}/simple`, simpleApiRoutes);
 
 // Health check endpoint (keep existing)
 router.get('/health', (_, res) => {

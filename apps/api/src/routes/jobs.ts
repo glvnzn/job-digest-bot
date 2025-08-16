@@ -15,6 +15,33 @@ import { optionalAuth, authenticateToken } from '../middleware/auth';
 const router = Router();
 const db = new DatabaseService();
 
+/**
+ * Helper function to add computed fields to job objects
+ * Keeps frontend "dumb" by providing pre-formatted data
+ */
+function addComputedFields(job: any) {
+  const formatDate = (date: Date | string | null) => {
+    if (!date) return 'Not specified';
+    const d = new Date(date);
+    return d.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
+  const relevanceScore = job.relevanceScore || 0;
+  const relevancePercentage = Math.round(relevanceScore * 100);
+  
+  return {
+    ...job,
+    formattedPostedDate: formatDate(job.postedDate),
+    formattedCreatedAt: formatDate(job.createdAt),
+    relevancePercentage,
+    relevanceBadgeVariant: relevancePercentage >= 80 ? 'default' : 'secondary'
+  };
+}
+
 // Initialize database connection
 db.init().catch(console.error);
 
@@ -131,9 +158,12 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       db.prisma.client.job.count({ where })
     ]);
 
+    // Add computed fields to each job
+    const jobsWithComputedFields = jobs.map(addComputedFields);
+
     res.json({
       success: true,
-      data: jobs,
+      data: jobsWithComputedFields,
       meta: {
         total,
         limit: filters.limit,
@@ -186,9 +216,12 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
       });
     }
 
+    // Add computed fields to job
+    const jobWithComputedFields = addComputedFields(job);
+
     res.json({
       success: true,
-      data: job
+      data: jobWithComputedFields
     });
   } catch (error) {
     console.error('Error fetching job:', error);
@@ -249,9 +282,15 @@ router.get('/user/saved', authenticateToken, async (req: Request, res: Response)
       db.prisma.client.userJob.count({ where })
     ]);
 
+    // Add computed fields to job data within userJobs
+    const userJobsWithComputedFields = userJobs.map(userJob => ({
+      ...userJob,
+      job: addComputedFields(userJob.job)
+    }));
+
     res.json({
       success: true,
-      data: userJobs,
+      data: userJobsWithComputedFields,
       meta: {
         total,
         limit,

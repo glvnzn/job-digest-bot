@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://job-digest-bot-production.up.railway.app",
+      "url": "http://localhost:3333",
       "description": "Development"
     }
   ],

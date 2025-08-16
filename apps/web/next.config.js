@@ -14,9 +14,8 @@ const nextConfig = {
   },
   // Environment variables for build time
   env: {
-    NEXT_PUBLIC_API_BASE: process.env.NEXT_PUBLIC_API_BASE,
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-    API_BASE_URL: process.env.API_BASE_URL,
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333',
+    API_BASE_URL: process.env.API_BASE_URL || 'http://localhost:3333',
   },
   // Build configuration
   eslint: {
@@ -25,6 +24,8 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  // Server-side rendering required for NextAuth.js
+  // No static export - requires Node.js runtime
 };
 
 const plugins = [
