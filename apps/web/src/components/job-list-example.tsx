@@ -94,13 +94,13 @@ export function JobListExample() {
                   <div className="flex items-center gap-3">
                     <h3 className="font-semibold text-lg">{job.title}</h3>
                     <span className={`px-2 py-1 text-xs rounded-full ${
-                      job.relevanceScore >= 80 
+                      (job.relevanceScore || 0) >= 80 
                         ? 'bg-green-100 text-green-800' 
-                        : job.relevanceScore >= 60
+                        : (job.relevanceScore || 0) >= 60
                         ? 'bg-yellow-100 text-yellow-800'
                         : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {job.relevanceScore}% match
+                      {Math.round((job.relevanceScore || 0) * 100)}% match
                     </span>
                   </div>
                   

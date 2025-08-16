@@ -28,6 +28,7 @@
     "**/*.tsx",
     "**/*.js",
     "**/*.jsx",
+    "types/**/*.d.ts",
 
     ".next/types/**/*.ts",
     "../../dist/apps/web/.next/types/**/*.ts",

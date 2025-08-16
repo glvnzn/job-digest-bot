@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+
+// Force dynamic rendering to avoid build-time env issues
+export const dynamic = 'force-dynamic';
 import { useSession, signOut } from 'next-auth/react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,14 +59,11 @@ export default function JobsPage() {
       setIsLoading(true);
       setError(null);
       
-      console.log('Fetching jobs with filters:', filters);
       const result = await apiClient.jobs.getAll(filters);
-      console.log('API result:', result);
       
       if (result.success) {
         setJobs(result.data);
         setTotalJobs(result.meta.total);
-        console.log('Jobs loaded:', result.data.length, 'Total:', result.meta.total);
       } else {
         const errorMsg = 'Failed to fetch jobs: ' + (result.error || 'Unknown error');
         console.error(errorMsg);

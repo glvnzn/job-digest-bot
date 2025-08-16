@@ -28,6 +28,7 @@ export interface JobFilters {
 export interface PaginatedResponse<T> {
   success: boolean;
   data: T[];
+  error?: string;
   meta: {
     page: number;
     limit: number;
@@ -57,9 +58,9 @@ class ApiClient {
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
     
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     };
 
     // Add authorization header if token is available
@@ -113,7 +114,7 @@ class ApiClient {
       
       // Make the request directly to get the full response structure
       const url = `${this.baseUrl}${endpoint}`;
-      const headers: HeadersInit = {
+      const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
 
@@ -149,6 +150,7 @@ class ApiClient {
         return {
           success: false,
           data: [],
+          error: 'Invalid response from server',
           meta: { page: 1, limit: 20, total: 0, totalPages: 0 },
         };
       } catch (error) {
@@ -156,6 +158,7 @@ class ApiClient {
         return {
           success: false,
           data: [],
+          error: error instanceof Error ? error.message : 'Network error',
           meta: { page: 1, limit: 20, total: 0, totalPages: 0 },
         };
       }

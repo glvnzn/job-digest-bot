@@ -104,8 +104,8 @@ const handler = NextAuth({
     async session({ session, token }) {
       // Add API token and user ID to session
       if (token.apiToken) {
-        session.apiToken = token.apiToken;
-        session.userId = token.userId;
+        session.apiToken = token.apiToken as string;
+        session.userId = token.userId as string | number;
       }
       return session
     },
