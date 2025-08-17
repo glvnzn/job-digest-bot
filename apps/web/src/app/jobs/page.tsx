@@ -207,6 +207,9 @@ export default function JobsPage() {
               <Button asChild variant="ghost" size="sm">
                 <Link href="/kanban">Kanban</Link>
               </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/insights">Career Insights</Link>
+              </Button>
             </nav>
           </div>
           <div className="flex items-center gap-2">

@@ -380,6 +380,9 @@ export default function KanbanPage() {
               <Button asChild variant="ghost" size="sm" className="bg-muted">
                 <Link href="/kanban">Kanban</Link>
               </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/insights">Career Insights</Link>
+              </Button>
             </nav>
           </div>
           <Button variant="outline" size="sm" onClick={() => signOut({ callbackUrl: '/login' })}>

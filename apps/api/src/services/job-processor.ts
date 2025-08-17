@@ -3,6 +3,8 @@ import { OpenAIService } from './openai';
 import { TelegramService } from './telegram';
 import { DatabaseService } from './database';
 import { QueueService } from './queue';
+import { MarketIntelligenceService } from './market-intelligence';
+import { InsightAutomationService } from './insight-automation';
 import { JobListing, ResumeAnalysis } from '../models/types';
 
 export class JobProcessor {
@@ -10,6 +12,8 @@ export class JobProcessor {
   private openai: OpenAIService;
   private telegram: TelegramService;
   private db: DatabaseService;
+  private marketIntelligence: MarketIntelligenceService;
+  private insightAutomation: InsightAutomationService;
   private queue: QueueService | null = null;
 
   constructor() {
@@ -17,10 +21,14 @@ export class JobProcessor {
     this.openai = new OpenAIService();
     this.telegram = new TelegramService();
     this.db = new DatabaseService();
+    this.marketIntelligence = new MarketIntelligenceService();
+    this.insightAutomation = new InsightAutomationService();
   }
 
   async initialize(): Promise<void> {
     await this.db.init();
+    await this.marketIntelligence.initialize();
+    await this.insightAutomation.initialize();
 
     // Initialize queue service
     this.queue = new QueueService(this);
@@ -190,6 +198,11 @@ export class JobProcessor {
 
             await this.db.saveJob(currentJob);
             totalJobsProcessed++;
+
+            // Analyze job for market intelligence (don't wait for completion to avoid slowing down pipeline)
+            this.marketIntelligence.analyzeJobDescription(currentJob).catch(error => {
+              console.error(`Market intelligence analysis failed for job ${currentJob.id}:`, error);
+            });
 
             // Collect relevant jobs for notification
             if (currentJob.relevanceScore >= minRelevanceScore) {
@@ -626,10 +639,29 @@ export class JobProcessor {
     }
   }
 
+  // Method to trigger daily insight generation
+  async generateDailyInsights(): Promise<void> {
+    try {
+      console.log('🔄 Starting daily insight generation...');
+      await this.insightAutomation.generateDailyInsights();
+      console.log('✅ Daily insight generation completed');
+      
+      // Send notification
+      await this.telegram.sendStatusMessage('📊 Daily market insights generated');
+    } catch (error) {
+      console.error('❌ Daily insight generation failed:', error);
+      await this.telegram.sendErrorMessage(
+        `Daily insight generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
   async cleanup(): Promise<void> {
     if (this.queue) {
       await this.queue.close();
     }
     await this.db.close();
+    await this.marketIntelligence.cleanup();
+    await this.insightAutomation.cleanup();
   }
 }

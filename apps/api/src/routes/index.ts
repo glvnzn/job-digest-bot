@@ -7,6 +7,7 @@ import authRoutes from './auth';
 import jobRoutes from './jobs';
 import stageRoutes from './stages';
 import dashboardRoutes from './dashboard';
+import insightsRoutes from './insights';
 
 const router = Router();
 
@@ -18,6 +19,7 @@ router.use(`${API_VERSION}/auth`, authRoutes);
 router.use(`${API_VERSION}/jobs`, jobRoutes);
 router.use(`${API_VERSION}/stages`, stageRoutes);
 router.use(`${API_VERSION}/dashboard`, dashboardRoutes);
+router.use(`${API_VERSION}/insights`, insightsRoutes);
 
 // Health check endpoint (keep existing)
 router.get('/health', (_, res) => {

@@ -246,6 +246,19 @@ class ApiClient {
       return this.request<User>('/api/v1/auth/me');
     },
   };
+
+  // Career Insights API
+  insights = {
+    // GET /api/v1/insights/career - Get career development insights
+    getCareerInsights: async (): Promise<ApiResponse<any>> => {
+      return this.request('/api/v1/insights/career');
+    },
+
+    // GET /api/v1/insights/tech-trends - Get technology trend analysis
+    getTechTrends: async (): Promise<ApiResponse<any>> => {
+      return this.request('/api/v1/insights/tech-trends');
+    },
+  };
 }
 
 // Export a singleton instance

@@ -27,7 +27,12 @@ import {
   ExternalLink,
   Eye,
   Loader2,
-  X
+  X,
+  Brain,
+  Target,
+  Code,
+  Lightbulb,
+  CheckCircle
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -423,6 +428,9 @@ export default function DashboardPage() {
               <Button asChild variant="ghost" size="sm">
                 <Link href="/kanban">Kanban</Link>
               </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/insights">Career Insights</Link>
+              </Button>
             </nav>
           </div>
           <div className="flex items-center gap-2">
@@ -652,6 +660,87 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Career Insights Preview */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Brain className="h-5 w-5" />
+                  Career Insights & Advisory
+                </CardTitle>
+                <CardDescription>
+                  AI-powered market analysis and personalized career recommendations
+                </CardDescription>
+              </div>
+              <Button asChild>
+                <Link href="/insights">
+                  View Full Analysis
+                  <ArrowRight className="h-4 w-4 ml-1" />
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Code className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium text-sm">Tech Stack Analysis</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Discover the most in-demand technologies and frameworks in your field
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  <Badge variant="secondary" className="text-xs">React 85%</Badge>
+                  <Badge variant="secondary" className="text-xs">TypeScript 78%</Badge>
+                  <Badge variant="secondary" className="text-xs">Node.js 72%</Badge>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-orange-600" />
+                  <span className="font-medium text-sm">Skill Gap Analysis</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Identify critical skills to focus on for better opportunities
+                </p>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <span>Kubernetes - High Priority</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <span>GraphQL - Medium Priority</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-green-600" />
+                  <span className="font-medium text-sm">Career Roadmap</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Strategic timeline for advancing your career with actionable steps
+                </p>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-xs">
+                    <CheckCircle className="h-3 w-3 text-green-600" />
+                    <span>Cloud architecture mastery</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <Clock className="h-3 w-3 text-muted-foreground" />
+                    <span>AI/ML integration skills</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

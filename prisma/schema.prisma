@@ -31,6 +31,9 @@ model Job {
 
   // Relations to new multi-user features
   userJobs UserJob[]
+  
+  // Market intelligence relation
+  insights JobInsight?
 
   @@map("jobs")
 }
@@ -82,6 +85,7 @@ model User {
   // Relations
   customJobStages JobStage[] // Custom kanban stages
   userJobs        UserJob[]  // Tracked jobs
+  insights        UserInsight[] // Career insights and progress
 
   @@map("users")
 }
@@ -127,6 +131,131 @@ model UserJob {
   // Constraints
   @@unique([userId, jobId]) // One entry per user per job
   @@map("user_jobs")
+}
+
+// ===== MARKET INTELLIGENCE & ANALYTICS =====
+
+model TechTrend {
+  id           Int      @id @default(autoincrement())
+  technology   String   @unique
+  category     String   // Frontend, Backend, DevOps, etc.
+  description  String?
+  
+  // Historical tracking
+  weeklyStats  TechTrendWeekly[]
+  
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("tech_trends")
+}
+
+model TechTrendWeekly {
+  id           Int      @id @default(autoincrement())
+  trendId      Int      @map("trend_id")
+  weekStart    DateTime @map("week_start") // Monday of the week
+  
+  // Metrics
+  mentions     Int      @default(0)
+  jobCount     Int      @default(0) @map("job_count")
+  percentage   Float    @default(0)
+  avgSalary    Int?     @map("avg_salary")
+  
+  // Growth indicators
+  growthRate   Float    @default(0) @map("growth_rate") // Percentage growth from previous week
+  trendStatus  String   @default("stable") @map("trend_status") // rising, falling, stable, emerging
+  
+  // Relations
+  techTrend    TechTrend @relation(fields: [trendId], references: [id], onDelete: Cascade)
+  
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([trendId, weekStart])
+  @@map("tech_trend_weekly")
+}
+
+model JobInsight {
+  id                Int      @id @default(autoincrement())
+  jobId             String   @unique @map("job_id")
+  
+  // Extracted insights
+  technologies      Json     // Array of detected technologies with confidence scores
+  skillRequirements Json     // Parsed skill requirements
+  experienceLevel   String?  @map("experience_level") // junior, mid, senior, lead
+  salaryRange       Json?    @map("salary_range") // {min, max, currency}
+  
+  // AI Analysis results
+  keySkills         Json     @map("key_skills") // Top skills extracted
+  niceToHave        Json     @map("nice_to_have") // Optional skills
+  responsibilities  Json     // Key responsibilities
+  benefits          Json?    // Parsed benefits
+  
+  // Market context
+  competitiveness   Float    @default(0) // How competitive this role is
+  rarityScore       Float    @default(0) @map("rarity_score") // How rare these skills are
+  
+  // Relations
+  job               Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("job_insights")
+}
+
+model MarketSnapshot {
+  id              Int      @id @default(autoincrement())
+  snapshotDate    DateTime @unique @map("snapshot_date")
+  
+  // Market metrics
+  totalJobs       Int      @map("total_jobs")
+  avgSalaryRange  Json     @map("avg_salary_range")
+  topTechnologies Json     @map("top_technologies")
+  emergingSkills  Json     @map("emerging_skills")
+  
+  // Trend analysis
+  marketTrends    Json     @map("market_trends")
+  salaryTrends    Json     @map("salary_trends")
+  skillDemand     Json     @map("skill_demand")
+  
+  // User-specific insights
+  recommendations Json?    // Global recommendations for the market
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("market_snapshots")
+}
+
+model UserInsight {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @map("user_id")
+  
+  // Personal analysis
+  currentSkills   Json     @map("current_skills") // Skills from tracked jobs
+  skillGaps       Json     @map("skill_gaps")
+  recommendations Json     // Personalized recommendations
+  
+  // Progress tracking
+  learningPath    Json     @map("learning_path")
+  achievements    Json?    // Completed milestones
+  goals           Json?    // Set learning goals
+  
+  // Market fit
+  marketPosition  Json     @map("market_position") // How user compares to market
+  competitiveness Float    @default(0) // User's market competitiveness score
+  
+  // Relations
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Versioning
+  version         Int      @default(1) // For historical tracking
+  isActive        Boolean  @default(true) @map("is_active")
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, version])
+  @@map("user_insights")
 }
 
 // ===== INDEXES FOR PERFORMANCE =====
