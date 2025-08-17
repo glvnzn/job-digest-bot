@@ -54,7 +54,10 @@ export default function Index() {
           <div className="p-6 border rounded-lg bg-card text-card-foreground">
             <h3 className="text-lg font-semibold mb-2">🔒 Secure Authentication</h3>
             <p className="text-sm text-muted-foreground">
-              Sign in securely with Google OAuth or use development login for quick testing.
+              {process.env.NODE_ENV === 'development' 
+                ? 'Sign in securely with Google OAuth or use development login for quick testing.'
+                : 'Sign in securely with Google OAuth for full authentication.'
+              }
             </p>
           </div>
         </div>

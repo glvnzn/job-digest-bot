@@ -33,33 +33,6 @@ router.get('/test-services', async (req, res) => {
   res.json({ success: true, tested: ['Gmail', 'Telegram', 'Database', 'Prisma'] });
 });
 
-// Development helper: Generate test JWT token
-router.post('/auth/dev-token', async (req, res) => {
-  if (process.env.NODE_ENV === 'production') {
-    return res.status(404).json({ success: false, error: 'Not available in production' });
-  }
-
-  const { generateTestToken } = await import('../middleware/auth');
-  const { userId, email } = req.body;
-
-  if (!userId || !email) {
-    return res.status(400).json({
-      success: false,
-      error: 'Missing userId or email'
-    });
-  }
-
-  const token = generateTestToken(parseInt(userId), email);
-  res.json({
-    success: true,
-    data: { 
-      token,
-      userId: parseInt(userId),
-      email,
-      expiresIn: '24h'
-    },
-    message: 'Development token generated'
-  });
-});
+// Development helper moved to /api/v1/auth/dev-token
 
 export default router;

@@ -6,16 +6,17 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_BASE_URL
 
 const handler = NextAuth({
   providers: [
-    // Development credentials provider
-    CredentialsProvider({
-      id: "dev-login",
-      name: "Development Login",
-      credentials: {
-        email: { label: "Email", type: "email" }
-      },
-      async authorize(credentials) {
-        // In development, allow any email and create/login user via API
-        if (process.env.NODE_ENV === 'development' && credentials?.email) {
+    // Development credentials provider - only in development
+    ...(process.env.NODE_ENV === 'development' ? [
+      CredentialsProvider({
+        id: "dev-login",
+        name: "Development Login",
+        credentials: {
+          email: { label: "Email", type: "email" }
+        },
+        async authorize(credentials) {
+          // In development, allow any email and create/login user via API
+          if (credentials?.email) {
           try {
             // Try to register/login the user via our API
             const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
@@ -52,7 +53,8 @@ const handler = NextAuth({
         }
         return null
       }
-    }),
+    })
+  ] : []),
     // Google OAuth (when properly configured)
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
       GoogleProvider({

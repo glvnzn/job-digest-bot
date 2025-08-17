@@ -126,7 +126,7 @@ app.post('/daily-summary', async (_, res) => {
 });
 
 // Global error handler
-app.use((error: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('❌ Unhandled API error:', error);
   res.status(error.status || 500).json({
     success: false,
