@@ -18,11 +18,11 @@ app.use(express.urlencoded({ extended: true }));
 // CORS configuration for web interface
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-web-app.vercel.app'] // Update with actual domain
-    : ['http://localhost:3000', 'http://localhost:4200'], // Local development
+    ? (process.env.WEB_APP_URL || '').split(',').filter(Boolean)
+    : true, // Allow all origins in development
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 
 app.use(cors(corsOptions));

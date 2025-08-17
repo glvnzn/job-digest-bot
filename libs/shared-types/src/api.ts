@@ -37,6 +37,17 @@ export interface components {
             processed: boolean;
             /** Format: date-time */
             createdAt: string;
+            /** @example Jan 15, 2024 */
+            formattedPostedDate?: string | null;
+            /** @example Jan 15, 2024 */
+            formattedCreatedAt: string;
+            /** @example 85 */
+            relevancePercentage: number;
+            /**
+             * @example default
+             * @enum {string}
+             */
+            relevanceBadgeVariant: "default" | "secondary";
         };
         User: {
             /** @example 1 */

@@ -75,6 +75,29 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "formattedPostedDate": {
+            "type": "string",
+            "example": "Jan 15, 2024",
+            "nullable": true
+          },
+          "formattedCreatedAt": {
+            "type": "string",
+            "example": "Jan 15, 2024"
+          },
+          "relevancePercentage": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 85
+          },
+          "relevanceBadgeVariant": {
+            "type": "string",
+            "enum": [
+              "default",
+              "secondary"
+            ],
+            "example": "default"
           }
         },
         "required": [
@@ -85,7 +108,10 @@
           "applyUrl",
           "source",
           "processed",
-          "createdAt"
+          "createdAt",
+          "formattedCreatedAt",
+          "relevancePercentage",
+          "relevanceBadgeVariant"
         ]
       },
       "User": {

@@ -9,7 +9,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/web",
-        "command": "next dev --port=3000"
+        "command": "next dev"
       },
       "configurations": {}
     },
@@ -28,7 +28,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/web",
-        "command": "next start --port=3000"
+        "command": "next start"
       },
       "dependsOn": ["build"]
     }

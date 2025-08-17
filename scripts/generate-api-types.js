@@ -43,8 +43,13 @@ async function generateTypes() {
                 relevanceScore: { type: 'number', minimum: 0, maximum: 1, example: 0.85, nullable: true },
                 processed: { type: 'boolean', example: true },
                 createdAt: { type: 'string', format: 'date-time' },
+                // Computed fields returned by API
+                formattedPostedDate: { type: 'string', example: 'Jan 15, 2024', nullable: true },
+                formattedCreatedAt: { type: 'string', example: 'Jan 15, 2024' },
+                relevancePercentage: { type: 'integer', minimum: 0, maximum: 100, example: 85 },
+                relevanceBadgeVariant: { type: 'string', enum: ['default', 'secondary'], example: 'default' },
               },
-              required: ['id', 'title', 'company', 'isRemote', 'applyUrl', 'source', 'processed', 'createdAt'],
+              required: ['id', 'title', 'company', 'isRemote', 'applyUrl', 'source', 'processed', 'createdAt', 'formattedCreatedAt', 'relevancePercentage', 'relevanceBadgeVariant'],
             },
             User: {
               type: 'object',
