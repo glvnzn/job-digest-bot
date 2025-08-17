@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -37,6 +37,7 @@ import {
   GripVertical
 } from 'lucide-react';
 import { apiClient, type Job, type UserJob, type JobStage } from '@/lib/api-client';
+import { JobDetailsDrawer } from '@/components/job-details-drawer';
 
 // Force dynamic rendering to avoid build-time env issues
 export const dynamic = 'force-dynamic';
@@ -47,7 +48,15 @@ interface KanbanData {
 }
 
 // Draggable job card component
-function DraggableJobCard({ userJob, isDragging }: { userJob: UserJob & { job: Job }; isDragging?: boolean }) {
+function DraggableJobCard({ 
+  userJob, 
+  isDragging, 
+  onViewJob 
+}: { 
+  userJob: UserJob & { job: Job }; 
+  isDragging?: boolean;
+  onViewJob: (jobId: string) => void;
+}) {
   const {
     attributes,
     listeners,
@@ -123,10 +132,14 @@ function DraggableJobCard({ userJob, isDragging }: { userJob: UserJob & { job: J
               {job.formattedCreatedAt}
             </div>
             <div className="flex items-center gap-1">
-              <Button asChild variant="ghost" size="sm" className="h-7 w-7 p-0">
-                <Link href={`/jobs/${job.id}`} title="View details">
-                  <Eye className="h-3 w-3" />
-                </Link>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-7 w-7 p-0"
+                onClick={() => onViewJob(job.id)}
+                title="View details"
+              >
+                <Eye className="h-3 w-3" />
               </Button>
               <Button asChild variant="ghost" size="sm" className="h-7 w-7 p-0">
                 <a href={job.applyUrl} target="_blank" rel="noopener noreferrer" title="Apply">
@@ -142,7 +155,7 @@ function DraggableJobCard({ userJob, isDragging }: { userJob: UserJob & { job: J
 }
 
 // Droppable stage column component
-function StageColumn({ kanbanData }: { kanbanData: KanbanData }) {
+function StageColumn({ kanbanData, onViewJob }: { kanbanData: KanbanData; onViewJob: (jobId: string) => void }) {
   const { stage, userJobs } = kanbanData;
   const { setNodeRef, isOver } = useDroppable({
     id: stage.id,
@@ -171,7 +184,7 @@ function StageColumn({ kanbanData }: { kanbanData: KanbanData }) {
       <SortableContext items={userJobs.map(uj => uj.id)} strategy={verticalListSortingStrategy}>
         <div className="space-y-3 flex-1 overflow-y-auto max-h-[calc(100vh-300px)]">
           {userJobs.map((userJob) => (
-            <DraggableJobCard key={userJob.id} userJob={userJob} />
+            <DraggableJobCard key={userJob.id} userJob={userJob} onViewJob={onViewJob} />
           ))}
           {userJobs.length === 0 && (
             <div className="text-center py-12 text-muted-foreground text-sm border-2 border-dashed border-muted-foreground/20 rounded-lg">
@@ -196,6 +209,8 @@ export default function KanbanPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeJob, setActiveJob] = useState<(UserJob & { job: Job }) | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -312,6 +327,16 @@ export default function KanbanPage() {
     }
   };
 
+  const handleViewJob = (jobId: string) => {
+    setSelectedJobId(jobId);
+    setIsDrawerOpen(true);
+  };
+
+  const handleDrawerUpdate = () => {
+    // Refresh kanban data when drawer updates something
+    fetchKanbanData();
+  };
+
   if (status === 'loading' || isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -357,11 +382,8 @@ export default function KanbanPage() {
               </Button>
             </nav>
           </div>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Dashboard
-            </Link>
+          <Button variant="outline" size="sm" onClick={() => signOut({ callbackUrl: '/login' })}>
+            Sign Out
           </Button>
         </div>
       </header>
@@ -382,13 +404,13 @@ export default function KanbanPage() {
         >
           <div className="flex gap-6 overflow-x-auto pb-4 min-h-[calc(100vh-200px)]">
             {kanbanData.map((kanban) => (
-              <StageColumn key={kanban.stage.id} kanbanData={kanban} />
+              <StageColumn key={kanban.stage.id} kanbanData={kanban} onViewJob={handleViewJob} />
             ))}
           </div>
 
           <DragOverlay>
             {activeJob ? (
-              <DraggableJobCard userJob={activeJob} isDragging />
+              <DraggableJobCard userJob={activeJob} isDragging onViewJob={handleViewJob} />
             ) : null}
           </DragOverlay>
         </DndContext>
@@ -407,6 +429,14 @@ export default function KanbanPage() {
             </Button>
           </div>
         )}
+
+        {/* Job Details Drawer */}
+        <JobDetailsDrawer
+          jobId={selectedJobId}
+          isOpen={isDrawerOpen}
+          onOpenChange={setIsDrawerOpen}
+          onJobUpdate={handleDrawerUpdate}
+        />
       </main>
     </div>
   );

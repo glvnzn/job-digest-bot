@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient, Job, JobFilters } from '@/lib/api-client';
+import { JobDetailsDrawer } from '@/components/job-details-drawer';
 import { Search, ExternalLink, Eye, Star, Building2, MapPin, Briefcase, RefreshCw, Loader2 } from 'lucide-react';
 
 export default function JobsPage() {
@@ -24,6 +25,8 @@ export default function JobsPage() {
   const [totalJobs, setTotalJobs] = useState(0);
   const [trackingJobs, setTrackingJobs] = useState<Set<string>>(new Set());
   const [trackedJobs, setTrackedJobs] = useState<Set<string>>(new Set());
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -149,6 +152,17 @@ export default function JobsPage() {
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: '/login' });
+  };
+
+  const handleViewJob = (jobId: string) => {
+    setSelectedJobId(jobId);
+    setIsDrawerOpen(true);
+  };
+
+  const handleDrawerUpdate = () => {
+    // Refresh data when drawer updates something
+    fetchJobs();
+    fetchTrackedJobs();
   };
 
   // Note: Calculations moved to backend API - frontend now receives pre-computed values
@@ -347,10 +361,13 @@ export default function JobsPage() {
                             <Star className={`h-3 w-3 ${trackedJobs.has(job.id) ? 'fill-current' : ''}`} />
                           )}
                         </Button>
-                        <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                          <Link href={`/jobs/${job.id}`}>
-                            <Eye className="h-3 w-3" />
-                          </Link>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-7 px-2 text-xs"
+                          onClick={() => handleViewJob(job.id)}
+                        >
+                          <Eye className="h-3 w-3" />
                         </Button>
                         <Button asChild size="sm" className="h-7 px-2 text-xs">
                           <a 
@@ -434,6 +451,14 @@ export default function JobsPage() {
             </div>
           </div>
         )}
+
+        {/* Job Details Drawer */}
+        <JobDetailsDrawer
+          jobId={selectedJobId}
+          isOpen={isDrawerOpen}
+          onOpenChange={setIsDrawerOpen}
+          onJobUpdate={handleDrawerUpdate}
+        />
       </main>
     </div>
   );

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api-client';
+import { JobDetailsDrawer } from '@/components/job-details-drawer';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -79,6 +80,8 @@ function TrackedJobsList() {
   const [stages, setStages] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [untrackingJobs, setUntrackingJobs] = useState<Set<string>>(new Set());
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   useEffect(() => {
     fetchTrackedJobs();
@@ -122,6 +125,16 @@ function TrackedJobsList() {
         return newSet;
       });
     }
+  };
+
+  const handleViewJob = (jobId: string) => {
+    setSelectedJobId(jobId);
+    setIsDrawerOpen(true);
+  };
+
+  const handleDrawerUpdate = () => {
+    // Refresh data when drawer updates something
+    fetchTrackedJobs();
   };
 
   if (isLoading) {
@@ -192,10 +205,14 @@ function TrackedJobsList() {
             </div>
             
             <div className="flex items-center gap-1 ml-3">
-              <Button asChild variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <Link href={`/jobs/${job.id}`} title="View job details">
-                  <Eye className="h-3 w-3" />
-                </Link>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 w-8 p-0"
+                onClick={() => handleViewJob(job.id)}
+                title="View job details"
+              >
+                <Eye className="h-3 w-3" />
               </Button>
               <Button asChild variant="ghost" size="sm" className="h-8 w-8 p-0">
                 <a href={job.applyUrl} target="_blank" rel="noopener noreferrer" title="Apply">
@@ -220,6 +237,14 @@ function TrackedJobsList() {
           </div>
         );
       })}
+      
+      {/* Job Details Drawer */}
+      <JobDetailsDrawer
+        jobId={selectedJobId}
+        isOpen={isDrawerOpen}
+        onOpenChange={setIsDrawerOpen}
+        onJobUpdate={handleDrawerUpdate}
+      />
     </div>
   );
 }
