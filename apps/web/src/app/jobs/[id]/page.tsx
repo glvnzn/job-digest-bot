@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { apiClient } from '@/lib/api-client';
 import { components } from '@job-digest/shared-types/api';
 
 type Job = components['schemas']['Job'] & {
@@ -13,41 +15,36 @@ type Job = components['schemas']['Job'] & {
   emailMessageId?: string;
 };
 
-type JobResponse = components['schemas']['ApiResponse'] & {
-  data: Job;
-};
-
 export default function JobDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { status } = useSession();
   const [job, setJob] = useState<Job | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if user is logged in
-    const authToken = localStorage.getItem('auth_token');
-    if (!authToken) {
+    if (status === 'loading') return; // Still loading
+    
+    if (status === 'unauthenticated') {
       router.push('/login');
       return;
     }
 
-    if (params.id) {
+    if (status === 'authenticated' && params.id) {
       fetchJobDetails(params.id as string);
     }
-  }, [params.id, router]);
+  }, [params.id, router, status]);
 
   const fetchJobDetails = async (jobId: string) => {
     try {
       setIsLoading(true);
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
-      const response = await fetch(`${apiBase}/api/v1/jobs/${jobId}`);
-      const data: JobResponse = await response.json();
+      const result = await apiClient.jobs.getById(jobId);
 
-      if (data.success) {
-        setJob(data.data);
+      if (result.success && result.data) {
+        setJob(result.data);
       } else {
-        setError('Job not found');
+        setError(result.error || 'Job not found');
       }
     } catch (err) {
       console.error('Error fetching job details:', err);
@@ -60,7 +57,7 @@ export default function JobDetailPage() {
   // Note: Date formatting and score calculations should be moved to backend API
   // Frontend should receive pre-formatted data to remain "dumb"
 
-  if (isLoading) {
+  if (status === 'loading' || isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div>Loading job details...</div>

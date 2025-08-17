@@ -198,7 +198,7 @@ export default function JobsPage() {
                 size="sm"
                 onClick={() => setFilters(prev => ({ 
                   ...prev, 
-                  minRelevanceScore: prev.minRelevanceScore ? undefined : 70,
+                  minRelevanceScore: prev.minRelevanceScore ? undefined : 0.7,
                   offset: 0 
                 }))}
               >

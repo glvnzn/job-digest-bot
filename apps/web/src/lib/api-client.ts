@@ -169,16 +169,16 @@ class ApiClient {
       return this.request<Job>(`/api/v1/jobs/${id}`);
     },
 
-    // POST /api/v1/jobs/:id/track - Track a job
+    // POST /api/v1/jobs/:id/save - Save/track a job
     track: async (id: string): Promise<ApiResponse<UserJob>> => {
-      return this.request<UserJob>(`/api/v1/jobs/${id}/track`, {
+      return this.request<UserJob>(`/api/v1/jobs/${id}/save`, {
         method: 'POST',
       });
     },
 
-    // DELETE /api/v1/jobs/:id/track - Untrack a job
+    // DELETE /api/v1/jobs/:id/unsave - Untrack a job
     untrack: async (id: string): Promise<ApiResponse<void>> => {
-      return this.request<void>(`/api/v1/jobs/${id}/track`, {
+      return this.request<void>(`/api/v1/jobs/${id}/unsave`, {
         method: 'DELETE',
       });
     },
@@ -186,22 +186,22 @@ class ApiClient {
 
   // User Jobs API
   userJobs = {
-    // GET /api/v1/user-jobs - Get user's tracked jobs
+    // GET /api/v1/jobs/user/saved - Get user's tracked jobs
     getAll: async (): Promise<ApiResponse<UserJob[]>> => {
-      return this.request<UserJob[]>('/api/v1/user-jobs');
+      return this.request<UserJob[]>('/api/v1/jobs/user/saved');
     },
 
-    // PUT /api/v1/user-jobs/:id/stage - Update job stage
-    updateStage: async (id: number, stageId: number): Promise<ApiResponse<UserJob>> => {
-      return this.request<UserJob>(`/api/v1/user-jobs/${id}/stage`, {
+    // PUT /api/v1/jobs/:id/stage - Update job stage
+    updateStage: async (jobId: string, stageId: string): Promise<ApiResponse<UserJob>> => {
+      return this.request<UserJob>(`/api/v1/jobs/${jobId}/stage`, {
         method: 'PUT',
         body: JSON.stringify({ stageId }),
       });
     },
 
-    // PUT /api/v1/user-jobs/:id/notes - Update job notes
-    updateNotes: async (id: number, notes: string): Promise<ApiResponse<UserJob>> => {
-      return this.request<UserJob>(`/api/v1/user-jobs/${id}/notes`, {
+    // PUT /api/v1/jobs/:id/stage - Update job notes (uses same endpoint)
+    updateNotes: async (jobId: string, notes: string): Promise<ApiResponse<UserJob>> => {
+      return this.request<UserJob>(`/api/v1/jobs/${jobId}/stage`, {
         method: 'PUT',
         body: JSON.stringify({ notes }),
       });

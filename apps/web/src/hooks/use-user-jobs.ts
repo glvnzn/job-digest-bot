@@ -22,9 +22,9 @@ export function useJobStageUpdate() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ userJobId, stageId }: { userJobId: number; stageId: number }) =>
-      apiClient.userJobs.updateStage(userJobId, stageId),
-    onMutate: async ({ userJobId, stageId }) => {
+    mutationFn: ({ jobId, stageId }: { jobId: string; stageId: string }) =>
+      apiClient.userJobs.updateStage(jobId, stageId),
+    onMutate: async ({ jobId, stageId }) => {
       // Cancel outgoing refetches (React Query feature)
       await queryClient.cancelQueries({ queryKey: ['user-jobs'] });
 
@@ -38,8 +38,8 @@ export function useJobStageUpdate() {
         return {
           ...old,
           data: old.data.map((userJob: UserJob) =>
-            userJob.id === userJobId 
-              ? { ...userJob, stageId, updatedAt: new Date().toISOString() }
+            userJob.jobId === jobId 
+              ? { ...userJob, stageId: parseInt(stageId), updatedAt: new Date().toISOString() }
               : userJob
           ),
         };
@@ -70,9 +70,9 @@ export function useJobNotesUpdate() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ userJobId, notes }: { userJobId: number; notes: string }) =>
-      apiClient.userJobs.updateNotes(userJobId, notes),
-    onMutate: async ({ userJobId, notes }) => {
+    mutationFn: ({ jobId, notes }: { jobId: string; notes: string }) =>
+      apiClient.userJobs.updateNotes(jobId, notes),
+    onMutate: async ({ jobId, notes }) => {
       await queryClient.cancelQueries({ queryKey: ['user-jobs'] });
       
       const previousUserJobs = queryClient.getQueryData(['user-jobs']);
@@ -84,7 +84,7 @@ export function useJobNotesUpdate() {
         return {
           ...old,
           data: old.data.map((userJob: UserJob) =>
-            userJob.id === userJobId 
+            userJob.jobId === jobId 
               ? { ...userJob, notes, updatedAt: new Date().toISOString() }
               : userJob
           ),
