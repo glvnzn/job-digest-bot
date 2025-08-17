@@ -420,6 +420,15 @@ router.put('/:id/stage', authenticateToken, async (req: Request, res: Response) 
       });
     }
 
+    // Parse stageId to integer
+    const parsedStageId = parseInt(stageId, 10);
+    if (isNaN(parsedStageId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'stageId must be a valid number'
+      });
+    }
+
     // Update user job stage
     const userJob = await db.prisma.client.userJob.update({
       where: {
@@ -429,7 +438,7 @@ router.put('/:id/stage', authenticateToken, async (req: Request, res: Response) 
         }
       },
       data: {
-        stageId,
+        stageId: parsedStageId,
         notes,
         updatedAt: new Date()
       },

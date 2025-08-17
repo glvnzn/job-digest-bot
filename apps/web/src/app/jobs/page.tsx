@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient, Job, JobFilters } from '@/lib/api-client';
-import { Search, ExternalLink, Eye, Star, Building2, MapPin, Briefcase, RefreshCw } from 'lucide-react';
+import { Search, ExternalLink, Eye, Star, Building2, MapPin, Briefcase, RefreshCw, Loader2 } from 'lucide-react';
 
 export default function JobsPage() {
   const { data: session, status } = useSession();
@@ -22,6 +22,8 @@ export default function JobsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<JobFilters>({ limit: 20 });
   const [totalJobs, setTotalJobs] = useState(0);
+  const [trackingJobs, setTrackingJobs] = useState<Set<string>>(new Set());
+  const [trackedJobs, setTrackedJobs] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   useEffect(() => {
@@ -51,8 +53,21 @@ export default function JobsPage() {
   useEffect(() => {
     if (status === 'authenticated') {
       fetchJobs();
+      fetchTrackedJobs();
     }
   }, [filters, status]);
+
+  const fetchTrackedJobs = async () => {
+    try {
+      const result = await apiClient.userJobs.getAll();
+      if (result.success && result.data) {
+        const trackedJobIds = new Set(result.data.map(userJob => userJob.jobId));
+        setTrackedJobs(trackedJobIds);
+      }
+    } catch (err) {
+      console.error('Error fetching tracked jobs:', err);
+    }
+  };
 
   const fetchJobs = async () => {
     try {
@@ -78,16 +93,57 @@ export default function JobsPage() {
   };
 
   const handleTrackJob = async (jobId: string) => {
+    // Prevent multiple clicks
+    if (trackingJobs.has(jobId)) return;
+    
     try {
+      setTrackingJobs(prev => new Set(prev).add(jobId));
+      
       const result = await apiClient.jobs.track(jobId);
       if (result.success) {
-        // Optionally show success message or update UI
-        console.log('Job tracked successfully');
+        setTrackedJobs(prev => new Set(prev).add(jobId));
+        // You could add a toast notification here
+        console.log('✅ Job tracked successfully');
       } else {
-        console.error('Failed to track job:', result.error);
+        console.error('❌ Failed to track job:', result.error);
+        // You could show an error toast here
       }
     } catch (err) {
-      console.error('Error tracking job:', err);
+      console.error('❌ Error tracking job:', err);
+    } finally {
+      setTrackingJobs(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(jobId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleUntrackJob = async (jobId: string) => {
+    if (trackingJobs.has(jobId)) return;
+    
+    try {
+      setTrackingJobs(prev => new Set(prev).add(jobId));
+      
+      const result = await apiClient.jobs.untrack(jobId);
+      if (result.success) {
+        setTrackedJobs(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(jobId);
+          return newSet;
+        });
+        console.log('✅ Job untracked successfully');
+      } else {
+        console.error('❌ Failed to untrack job:', result.error);
+      }
+    } catch (err) {
+      console.error('❌ Error untracking job:', err);
+    } finally {
+      setTrackingJobs(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(jobId);
+        return newSet;
+      });
     }
   };
 
@@ -133,6 +189,9 @@ export default function JobsPage() {
               </Button>
               <Button asChild variant="ghost" size="sm" className="bg-muted">
                 <Link href="/jobs">Jobs</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/kanban">Kanban</Link>
               </Button>
             </nav>
           </div>
@@ -212,7 +271,7 @@ export default function JobsPage() {
         {/* Compact Job List */}
         <div className="space-y-2">
           {jobs.map((job) => (
-            <Card key={job.id} className="hover:shadow-sm transition-all duration-200 border-l-4" 
+            <Card key={job.id} className={`hover:shadow-sm transition-all duration-200 border-l-4 ${trackedJobs.has(job.id) ? 'ring-1 ring-primary/20 bg-primary/5' : ''}`} 
                   style={{ borderLeftColor: job.relevancePercentage >= 80 ? '#10b981' : job.relevancePercentage >= 60 ? '#f59e0b' : '#6b7280' }}>
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-3">
@@ -275,12 +334,18 @@ export default function JobsPage() {
                       {/* Action Buttons */}
                       <div className="flex items-center gap-1">
                         <Button 
-                          variant="ghost" 
+                          variant={trackedJobs.has(job.id) ? "default" : "ghost"}
                           size="sm"
-                          onClick={() => handleTrackJob(job.id)}
+                          onClick={() => trackedJobs.has(job.id) ? handleUntrackJob(job.id) : handleTrackJob(job.id)}
+                          disabled={trackingJobs.has(job.id)}
                           className="h-7 px-2 text-xs"
+                          title={trackedJobs.has(job.id) ? "Untrack job" : "Track job"}
                         >
-                          <Star className="h-3 w-3" />
+                          {trackingJobs.has(job.id) ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Star className={`h-3 w-3 ${trackedJobs.has(job.id) ? 'fill-current' : ''}`} />
+                          )}
                         </Button>
                         <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
                           <Link href={`/jobs/${job.id}`}>
