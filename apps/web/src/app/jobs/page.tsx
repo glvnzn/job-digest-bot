@@ -6,13 +6,13 @@ import { useEffect, useState } from 'react';
 export const dynamic = 'force-dynamic';
 import { useSession, signOut } from 'next-auth/react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient, Job, JobFilters } from '@/lib/api-client';
-import { Search, Filter, ExternalLink, Eye, Star, Building2, MapPin, Briefcase, RefreshCw } from 'lucide-react';
+import { Search, ExternalLink, Eye, Star, Building2, MapPin, Briefcase, RefreshCw } from 'lucide-react';
 
 export default function JobsPage() {
   const { data: session, status } = useSession();
@@ -150,9 +150,9 @@ export default function JobsPage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+      <main className="container mx-auto px-4 py-4">
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold">Available Jobs</h2>
               <p className="text-muted-foreground">
@@ -170,17 +170,18 @@ export default function JobsPage() {
           </div>
 
           {/* Search and filters */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search jobs by title, company, or keywords..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex gap-2">
+          <div className="bg-muted/30 rounded-lg py-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search jobs by title, company, or keywords..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-background"
+                />
+              </div>
+              <div className="flex gap-2 flex-wrap sm:flex-nowrap">
               <Button
                 variant={filters.remote ? "default" : "outline"}
                 size="sm"
@@ -203,23 +204,24 @@ export default function JobsPage() {
               >
                 High Match (70%+)
               </Button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Compact Job List */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           {jobs.map((job) => (
             <Card key={job.id} className="hover:shadow-sm transition-all duration-200 border-l-4" 
                   style={{ borderLeftColor: job.relevancePercentage >= 80 ? '#10b981' : job.relevancePercentage >= 60 ? '#f59e0b' : '#6b7280' }}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
+              <CardContent className="p-3">
+                <div className="flex items-start justify-between gap-3">
                   {/* Main Content */}
-                  <div className="flex-1 space-y-2">
+                  <div className="flex-1 space-y-1">
                     <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <h3 className="font-semibold text-base leading-tight">{job.title}</h3>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div>
+                        <h3 className="font-semibold text-sm leading-tight">{job.title}</h3>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                           <Building2 className="h-3 w-3" />
                           <span className="font-medium text-foreground">{job.company}</span>
                           {job.location && (
@@ -239,10 +241,10 @@ export default function JobsPage() {
                       </div>
                       
                       {/* Match Score */}
-                      <div className="flex flex-col items-end gap-1">
+                      <div className="flex flex-col items-end">
                         <Badge 
                           variant={job.relevanceBadgeVariant || "secondary"}
-                          className="text-xs font-medium"
+                          className="text-xs font-medium mb-1"
                         >
                           {job.relevancePercentage}%
                         </Badge>
@@ -254,50 +256,44 @@ export default function JobsPage() {
                     
                     {/* Description */}
                     {job.description && (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {job.description.slice(0, 150)}
-                        {job.description.length > 150 ? '...' : ''}
+                      <p className="text-xs text-muted-foreground line-clamp-1">
+                        {job.description.slice(0, 120)}
+                        {job.description.length > 120 ? '...' : ''}
                       </p>
                     )}
                     
                     {/* Bottom Row */}
-                    <div className="flex items-center justify-between pt-2">
-                      <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex items-center gap-3">
                         {job.salary && (
-                          <div className="text-sm font-medium text-green-700 dark:text-green-400">
+                          <div className="text-xs font-medium text-green-700 dark:text-green-400">
                             {job.salary}
                           </div>
                         )}
-                        <div className="text-xs text-muted-foreground">
-                          {job.source}
-                        </div>
                       </div>
                       
                       {/* Action Buttons */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <Button 
                           variant="ghost" 
                           size="sm"
                           onClick={() => handleTrackJob(job.id)}
-                          className="h-8 px-2 text-xs"
+                          className="h-7 px-2 text-xs"
                         >
-                          <Star className="h-3 w-3 mr-1" />
-                          Track
+                          <Star className="h-3 w-3" />
                         </Button>
-                        <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-xs">
+                        <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
                           <Link href={`/jobs/${job.id}`}>
-                            <Eye className="h-3 w-3 mr-1" />
-                            View
+                            <Eye className="h-3 w-3" />
                           </Link>
                         </Button>
-                        <Button asChild size="sm" className="h-8 px-3 text-xs">
+                        <Button asChild size="sm" className="h-7 px-2 text-xs">
                           <a 
                             href={job.applyUrl} 
                             target="_blank" 
                             rel="noopener noreferrer"
                           >
-                            <ExternalLink className="h-3 w-3 mr-1" />
-                            Apply
+                            <ExternalLink className="h-3 w-3" />
                           </a>
                         </Button>
                       </div>
@@ -343,8 +339,8 @@ export default function JobsPage() {
 
         {/* Pagination */}
         {jobs.length > 0 && (
-          <div className="flex items-center justify-between py-6">
-            <div className="text-sm text-muted-foreground">
+          <div className="flex items-center justify-between py-4 mt-4 border-t">
+            <div className="text-xs text-muted-foreground">
               Showing {(filters.offset || 0) + 1} - {Math.min((filters.offset || 0) + jobs.length, totalJobs)} of {totalJobs} jobs
             </div>
             <div className="flex gap-2">
