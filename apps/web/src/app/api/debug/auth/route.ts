@@ -11,8 +11,10 @@ export async function GET(request: NextRequest) {
         hasSession: !!session,
         sessionKeys: session ? Object.keys(session) : [],
         hasApiToken: !!(session as any)?.apiToken,
+        apiToken: (session as any)?.apiToken ? `${(session as any).apiToken.substring(0, 20)}...` : null, // Show first 20 chars
         userId: (session as any)?.userId,
         user: session?.user,
+        fullSession: session, // Include full session for debugging
         environment: {
           NODE_ENV: process.env.NODE_ENV,
           NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
