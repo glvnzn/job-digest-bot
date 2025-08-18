@@ -26,7 +26,9 @@ router.get('/health', (_, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    service: 'job-digest-bot'
+    service: 'job-digest-bot',
+    version: '1.0.1', // Added for deployment trigger
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
