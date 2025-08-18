@@ -4,7 +4,6 @@ import CredentialsProvider from "next-auth/providers/credentials"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
 
-console.log('🔧 NextAuth API_BASE_URL:', API_BASE_URL);
 
 const handler = NextAuth({
   providers: [
@@ -75,14 +74,6 @@ const handler = NextAuth({
         if (account.provider === 'google') {
           // For Google OAuth, register/login via our API
           try {
-            console.log('🔄 Attempting API registration with URL:', `${API_BASE_URL}/api/v1/auth/register`);
-            console.log('📝 Registration data:', {
-              email: user.email,
-              googleId: account.providerAccountId,
-              name: user.name,
-              avatarUrl: user.image
-            });
-            
             const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -93,30 +84,16 @@ const handler = NextAuth({
                 avatarUrl: user.image
               })
             });
-
-            console.log('📡 API response status:', response.status);
             
             if (response.ok) {
               const data = await response.json();
-              console.log('✅ API registration successful:', { success: data.success, hasToken: !!data.data?.token });
               if (data.success && data.data.token) {
                 token.apiToken = data.data.token;
                 token.userId = data.data.user.id;
-                console.log('🎫 Token stored in session');
               }
-            } else {
-              const errorText = await response.text();
-              console.error('❌ API registration failed:', response.status, errorText);
-              
-              // For debugging - store error info in token
-              token.authError = {
-                status: response.status,
-                url: `${API_BASE_URL}/api/v1/auth/register`,
-                timestamp: new Date().toISOString()
-              };
             }
           } catch (error) {
-            console.error('💥 Google OAuth API registration error:', error);
+            console.error('NextAuth API registration error:', error);
           }
         } else if (account.provider === 'dev-login') {
           // Development login
@@ -129,13 +106,9 @@ const handler = NextAuth({
     },
     async session({ session, token }) {
       // Add API token and user ID to session
-      console.log('🎭 Session callback - token has apiToken:', !!token.apiToken);
       if (token.apiToken) {
         session.apiToken = token.apiToken as string;
         session.userId = token.userId as string | number;
-        console.log('✅ Session updated with API token');
-      } else {
-        console.log('⚠️ No API token found in session token');
       }
       return session
     },
