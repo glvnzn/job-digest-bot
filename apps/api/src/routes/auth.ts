@@ -34,12 +34,27 @@ router.post('/register', async (req: Request, res: Response) => {
       });
     }
 
-    // Check if user already exists
-    const existingUser = await db.prisma.client.user.findUnique({
+    // Check if user already exists (by googleId or email)
+    let existingUser = await db.prisma.client.user.findUnique({
       where: { googleId }
     });
 
+    // If not found by googleId, check by email
+    if (!existingUser) {
+      existingUser = await db.prisma.client.user.findUnique({
+        where: { email }
+      });
+    }
+
     if (existingUser) {
+      // Update googleId if user was found by email but has different/missing googleId
+      if (existingUser.googleId !== googleId) {
+        existingUser = await db.prisma.client.user.update({
+          where: { id: existingUser.id },
+          data: { googleId }
+        });
+      }
+
       // Generate JWT token for existing user
       const token = jwt.sign(
         { userId: existingUser.id, email: existingUser.email },
