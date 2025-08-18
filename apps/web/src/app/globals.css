@@ -73,3 +73,82 @@
     overflow: hidden;
   }
 }
+
+/* Print-specific styles for resume */
+@media print {
+  @page {
+    margin: 0.5in;
+    size: letter;
+  }
+  
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .print\\:hidden {
+    display: none !important;
+  }
+  
+  .print\\:shadow-none {
+    box-shadow: none !important;
+  }
+  
+  .print\\:rounded-none {
+    border-radius: 0 !important;
+  }
+  
+  .print\\:bg-gray-900 {
+    background-color: #111827 !important;
+  }
+  
+  .print\\:text-white {
+    color: #ffffff !important;
+  }
+  
+  .print\\:bg-white {
+    background-color: #ffffff !important;
+  }
+  
+  /* Ensure proper page breaks */
+  .print\\:break-inside-avoid {
+    break-inside: avoid;
+  }
+  
+  .print\\:break-before-page {
+    break-before: page;
+  }
+  
+  /* Optimize spacing for print */
+  .container {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    max-width: none !important;
+  }
+  
+  /* Hide interactive elements */
+  button,
+  .print\\:hidden {
+    display: none !important;
+  }
+  
+  /* Adjust colors for better print visibility */
+  .text-muted-foreground {
+    color: #374151 !important;
+  }
+  
+  /* Ensure badges and borders print correctly */
+  .border {
+    border-color: #d1d5db !important;
+  }
+  
+  /* Optimize font sizes for print */
+  .text-4xl {
+    font-size: 2.5rem !important;
+  }
+  
+  .text-xl {
+    font-size: 1.125rem !important;
+  }
+}
+
