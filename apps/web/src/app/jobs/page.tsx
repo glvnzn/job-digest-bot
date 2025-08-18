@@ -372,15 +372,17 @@ export default function JobsPage() {
                         >
                           <Eye className="h-3 w-3" />
                         </Button>
-                        <Button asChild size="sm" className="h-7 px-2 text-xs">
-                          <a 
-                            href={job.applyUrl} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        </Button>
+                        {job.applyUrl && (
+                          <Button asChild size="sm" className="h-7 px-2 text-xs">
+                            <a 
+                              href={job.applyUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
