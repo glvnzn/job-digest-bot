@@ -18,7 +18,6 @@ export async function GET(request: NextRequest) {
         environment: {
           NODE_ENV: process.env.NODE_ENV,
           NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-          API_BASE_URL: process.env.API_BASE_URL,
           hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
         }
       }
@@ -31,7 +30,6 @@ export async function GET(request: NextRequest) {
         environment: {
           NODE_ENV: process.env.NODE_ENV,
           NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-          API_BASE_URL: process.env.API_BASE_URL,
           hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
         }
       }
