@@ -33,6 +33,13 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
   // Skip authentication in development if disabled
   if (process.env.DISABLE_AUTH === 'true') {
     console.log('⚠️ Authentication disabled for development');
+    // Attach a default user for development
+    (req as any).user = {
+      userId: 1,
+      email: 'dev@example.com',
+      name: 'Development User',
+      isAdmin: true
+    };
     return next();
   }
 
