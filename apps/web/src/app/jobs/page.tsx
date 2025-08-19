@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useQueryState, parseAsBoolean, parseAsFloat, parseAsInteger } from 'nuqs';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Force dynamic rendering to avoid build-time env issues
 export const dynamic = 'force-dynamic';
@@ -13,13 +13,16 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { apiClient, Job, JobFilters } from '@/lib/api-client';
+import { Job, JobFilters } from '@/lib/api-client';
+import { useJobs, useJobTracker } from '@/hooks/use-jobs';
+import { useUserJobs } from '@/hooks/use-user-jobs';
 import { JobDetailsDrawer } from '@/components/job-details-drawer';
 import { Search, ExternalLink, Eye, Star, Building2, MapPin, Briefcase, RefreshCw, Loader2 } from 'lucide-react';
 
 export default function JobsPage() {
   const { data: session, status } = useSession();
   const queryClient = useQueryClient();
+  const { track, untrack, isTracking, isUntracking } = useJobTracker();
   // URL-synced filter state using nuqs
   const [search, setSearch] = useQueryState('search', {
     throttleMs: 300 // Debounce search input
@@ -41,12 +44,7 @@ export default function JobsPage() {
   }), [search, remote, untracked, minRelevanceScore, limit, offset]);
 
   // Fetch jobs with React Query
-  const { data: jobsData, isLoading, error, refetch } = useQuery({
-    queryKey: ['jobs', filters],
-    queryFn: () => apiClient.jobs.getAll(filters),
-    enabled: status === 'authenticated',
-    staleTime: 30 * 1000, // 30 seconds
-  });
+  const { data: jobsData, isLoading, error, refetch } = useJobs(filters);
 
   const jobs = jobsData?.data || [];
   const totalJobs = jobsData?.meta?.total || 0;
@@ -67,76 +65,62 @@ export default function JobsPage() {
   }, [status, router]);
 
   // Fetch tracked jobs when authenticated
-  const { data: userJobsData } = useQuery({
-    queryKey: ['userJobs'],
-    queryFn: () => apiClient.userJobs.getAll(),
-    enabled: status === 'authenticated',
-  });
+  const { data: userJobsData } = useUserJobs();
 
   useEffect(() => {
     if (userJobsData?.success && userJobsData.data) {
-      const trackedJobIds = new Set(userJobsData.data.map((userJob: any) => userJob.jobId));
+      const trackedJobIds = new Set<string>(userJobsData.data.map((userJob: any) => userJob.jobId));
       setTrackedJobs(trackedJobIds);
     }
   }, [userJobsData]);
 
-  const handleTrackJob = async (jobId: string) => {
+  const handleTrackJob = (jobId: string) => {
     // Prevent multiple clicks
     if (trackingJobs.has(jobId)) return;
     
-    try {
-      setTrackingJobs(prev => new Set(prev).add(jobId));
-      
-      const result = await apiClient.jobs.track(jobId);
-      if (result.success) {
+    setTrackingJobs(prev => new Set(prev).add(jobId));
+    track(jobId, {
+      onSuccess: () => {
         setTrackedJobs(prev => new Set(prev).add(jobId));
-        // Invalidate and refetch jobs query
-        queryClient.invalidateQueries({ queryKey: ['jobs'] });
-        queryClient.invalidateQueries({ queryKey: ['userJobs'] });
         console.log('✅ Job tracked successfully');
-      } else {
-        console.error('❌ Failed to track job:', result.error);
+      },
+      onError: (error: any) => {
+        console.error('❌ Failed to track job:', error);
+      },
+      onSettled: () => {
+        setTrackingJobs(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(jobId);
+          return newSet;
+        });
       }
-    } catch (err) {
-      console.error('❌ Error tracking job:', err);
-    } finally {
-      setTrackingJobs(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(jobId);
-        return newSet;
-      });
-    }
+    });
   };
 
-  const handleUntrackJob = async (jobId: string) => {
+  const handleUntrackJob = (jobId: string) => {
     if (trackingJobs.has(jobId)) return;
     
-    try {
-      setTrackingJobs(prev => new Set(prev).add(jobId));
-      
-      const result = await apiClient.jobs.untrack(jobId);
-      if (result.success) {
+    setTrackingJobs(prev => new Set(prev).add(jobId));
+    untrack(jobId, {
+      onSuccess: () => {
         setTrackedJobs(prev => {
           const newSet = new Set(prev);
           newSet.delete(jobId);
           return newSet;
         });
-        // Invalidate and refetch jobs query
-        queryClient.invalidateQueries({ queryKey: ['jobs'] });
-        queryClient.invalidateQueries({ queryKey: ['userJobs'] });
         console.log('✅ Job untracked successfully');
-      } else {
-        console.error('❌ Failed to untrack job:', result.error);
+      },
+      onError: (error: any) => {
+        console.error('❌ Failed to untrack job:', error);
+      },
+      onSettled: () => {
+        setTrackingJobs(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(jobId);
+          return newSet;
+        });
       }
-    } catch (err) {
-      console.error('❌ Error untracking job:', err);
-    } finally {
-      setTrackingJobs(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(jobId);
-        return newSet;
-      });
-    }
+    });
   };
 
   const handleLogout = async () => {

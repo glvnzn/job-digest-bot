@@ -31,6 +31,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { apiClient, type Job, type UserJob, type JobStage } from '@/lib/api-client';
+import { useJobTracker } from '@/hooks/use-jobs';
 
 interface JobDetailsDrawerProps {
   jobId: string | null;
@@ -41,7 +42,7 @@ interface JobDetailsDrawerProps {
 
 export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: JobDetailsDrawerProps) {
   const queryClient = useQueryClient();
-  const [isTracking, setIsTracking] = useState(false);
+  const { track, untrack, isTracking, isUntracking } = useJobTracker();
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notes, setNotes] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
@@ -83,49 +84,37 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
     }
   }, [userJob]);
 
-  const handleTrackJob = async () => {
+  const handleTrackJob = () => {
     if (!job || isTracking) return;
 
-    try {
-      setIsTracking(true);
-      const result = await apiClient.jobs.track(job.id);
-      
-      if (result.success) {
+    track(job.id, {
+      onSuccess: () => {
         // Refresh data by invalidating queries
         queryClient.invalidateQueries({ queryKey: ['job-details', jobId] });
         queryClient.invalidateQueries({ queryKey: ['job-details-userJobs'] });
-        queryClient.invalidateQueries({ queryKey: ['jobs'] });
-        queryClient.invalidateQueries({ queryKey: ['userJobs'] });
         onJobUpdate?.(); // Notify parent to refresh
+      },
+      onError: (error: any) => {
+        console.error('Error tracking job:', error);
       }
-    } catch (err) {
-      console.error('Error tracking job:', err);
-    } finally {
-      setIsTracking(false);
-    }
+    });
   };
 
-  const handleUntrackJob = async () => {
-    if (!job || isTracking) return;
+  const handleUntrackJob = () => {
+    if (!job || isTracking || isUntracking) return;
 
-    try {
-      setIsTracking(true);
-      const result = await apiClient.jobs.untrack(job.id);
-      
-      if (result.success) {
+    untrack(job.id, {
+      onSuccess: () => {
         // Refresh data by invalidating queries
         queryClient.invalidateQueries({ queryKey: ['job-details', jobId] });
         queryClient.invalidateQueries({ queryKey: ['job-details-userJobs'] });
-        queryClient.invalidateQueries({ queryKey: ['jobs'] });
-        queryClient.invalidateQueries({ queryKey: ['userJobs'] });
         setNotes('');
         onJobUpdate?.(); // Notify parent to refresh
+      },
+      onError: (error: any) => {
+        console.error('Error untracking job:', error);
       }
-    } catch (err) {
-      console.error('Error untracking job:', err);
-    } finally {
-      setIsTracking(false);
-    }
+    });
   };
 
   const handleSaveNotes = async () => {
@@ -287,9 +276,9 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
                         variant="outline" 
                         size="sm"
                         onClick={handleUntrackJob}
-                        disabled={isTracking}
+                        disabled={isTracking || isUntracking}
                       >
-                        {isTracking ? (
+                        {(isTracking || isUntracking) ? (
                           <Loader2 className="h-3 w-3 animate-spin mr-1" />
                         ) : (
                           <X className="h-3 w-3 mr-1" />
