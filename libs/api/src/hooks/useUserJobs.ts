@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient } from '../client';
 
 export function useUserJobs(enabled = true) {
   return useQuery({

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Force dynamic rendering to avoid build-time env issues
 export const dynamic = 'force-dynamic';
@@ -11,8 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { apiClient } from '@/lib/api-client';
 import { JobDetailsDrawer } from '@/components/job-details-drawer';
+import { useDashboardData, apiClient } from '@libs/api';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -80,32 +80,18 @@ interface DashboardStats {
 }
 
 // Component for displaying and managing tracked jobs
-function TrackedJobsList() {
+interface TrackedJobsListProps {
+  userJobs: any[];
+  jobs: any[];
+  stages: any[];
+  isLoading: boolean;
+}
+
+function TrackedJobsList({ userJobs, jobs, stages, isLoading }: TrackedJobsListProps) {
   const queryClient = useQueryClient();
   const [untrackingJobs, setUntrackingJobs] = useState<Set<string>>(new Set());
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-
-  // Fetch tracked jobs data with React Query
-  const { data: userJobsData, isLoading: userJobsLoading } = useQuery({
-    queryKey: ['userJobs'],
-    queryFn: () => apiClient.userJobs.getAll(),
-  });
-
-  const { data: jobsData, isLoading: jobsLoading } = useQuery({
-    queryKey: ['jobs', { limit: 1000 }],
-    queryFn: () => apiClient.jobs.getAll({ limit: 1000 }),
-  });
-
-  const { data: stagesData, isLoading: stagesLoading } = useQuery({
-    queryKey: ['stages'],
-    queryFn: () => apiClient.stages.getAll(),
-  });
-
-  const userJobs = userJobsData?.data || [];
-  const jobs = jobsData?.data || [];
-  const stages = stagesData?.data || [];
-  const isLoading = userJobsLoading || jobsLoading || stagesLoading;
 
   const handleUntrackJob = async (jobId: string) => {
     if (untrackingJobs.has(jobId)) return;
@@ -268,102 +254,13 @@ export default function DashboardPage() {
     }
   }, [status, router]);
 
-  // Fetch dashboard data with React Query
-  const { data: jobsResult, isLoading: jobsLoading, error: jobsError } = useQuery({
-    queryKey: ['dashboard-jobs', { limit: 1000 }],
-    queryFn: () => apiClient.jobs.getAll({ limit: 1000 }),
-    enabled: status === 'authenticated',
-  });
+  // Fetch dashboard data with custom hook
+  const { stats, isLoading, error, jobsQuery, userJobsQuery, stagesQuery } = useDashboardData(status === 'authenticated');
 
-  const { data: userJobsResult, isLoading: userJobsLoading, error: userJobsError } = useQuery({
-    queryKey: ['dashboard-userJobs'],
-    queryFn: () => apiClient.userJobs.getAll(),
-    enabled: status === 'authenticated',
-  });
-
-  const { data: stagesResult, isLoading: stagesLoading, error: stagesError } = useQuery({
-    queryKey: ['dashboard-stages'],
-    queryFn: () => apiClient.stages.getAll(),
-    enabled: status === 'authenticated',
-  });
-
-  const isLoading = jobsLoading || userJobsLoading || stagesLoading;
-  const error = jobsError || userJobsError || stagesError;
-
-  // Calculate stats from fetched data
-  const stats: DashboardStats | null = (() => {
-    if (!jobsResult?.success || !userJobsResult?.success || !stagesResult?.success) {
-      return null;
-    }
-    
-    const totalJobs = jobsResult.meta?.total || 0;
-    const userJobs = userJobsResult.data || [];
-    const stages = stagesResult.data || [];
-
-    // Calculate average relevance score of tracked jobs
-    const trackedJobIds = userJobs.map(uj => uj.jobId);
-    const trackedJobs = jobsResult.data?.filter(job => trackedJobIds.includes(job.id)) || [];
-    const avgRelevance = trackedJobs.length > 0 
-      ? trackedJobs.reduce((sum, job) => sum + job.relevancePercentage, 0) / trackedJobs.length
-      : 0;
-
-    // Group jobs by stage
-    const jobsByStage = stages.map(stage => ({
-      stage: {
-        id: stage.id,
-        name: stage.name,
-        color: stage.color || '#6B7280'
-      },
-      count: userJobs.filter(uj => uj.stageId === stage.id).length
-    }));
-
-    // Get top companies
-    const companyCount: Record<string, number> = {};
-    trackedJobs.forEach(job => {
-      companyCount[job.company] = (companyCount[job.company] || 0) + 1;
-    });
-    const topCompanies = Object.entries(companyCount)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 5)
-      .map(([company, count]) => ({ company, count }));
-
-    // Recent activity (last updated jobs)
-    const recentActivity = userJobs
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, 5)
-      .map(userJob => {
-        const job = trackedJobs.find(j => j.id === userJob.jobId);
-        const stage = stages.find(s => s.id === userJob.stageId);
-        return {
-          id: userJob.id,
-          job: {
-            id: userJob.jobId,
-            title: job?.title || 'Unknown Job',
-            company: job?.company || 'Unknown Company'
-          },
-          stage: {
-            name: stage?.name || 'Unknown',
-            color: stage?.color || '#6B7280'
-          },
-          updatedAt: userJob.updatedAt
-        };
-      });
-
-    return {
-      overview: {
-        totalJobsAvailable: totalJobs,
-        totalSavedJobs: userJobs.length,
-        averageRelevanceScore: avgRelevance
-      },
-      activity: {
-        thisWeek: { saved: userJobs.length, growth: 0 }, // TODO: Calculate actual growth
-        thisMonth: { saved: userJobs.length, growth: 0 } // TODO: Calculate actual growth
-      },
-      jobsByStage,
-      topCompanies,
-      recentActivity
-    };
-  })();
+  // Get data from hooks
+  const userJobs = userJobsQuery.data?.data || [];
+  const jobs = jobsQuery.data?.data || [];
+  const stages = stagesQuery.data?.data || [];
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: '/login' });
@@ -617,7 +514,12 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <TrackedJobsList />
+              <TrackedJobsList 
+                userJobs={userJobs}
+                jobs={jobs}
+                stages={stages}
+                isLoading={isLoading}
+              />
             </CardContent>
           </Card>
 

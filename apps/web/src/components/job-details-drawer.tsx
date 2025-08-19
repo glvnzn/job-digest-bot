@@ -30,7 +30,7 @@ import {
   Save,
   ChevronRight
 } from 'lucide-react';
-import { apiClient, type Job, type UserJob, type JobStage } from '@/lib/api-client';
+import { apiClient, type Job, type UserJob, type JobStage } from '@libs/api';
 import { useJobTracker } from '@/hooks/use-jobs';
 
 interface JobDetailsDrawerProps {

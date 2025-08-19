@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ import {
   Code,
   Zap
 } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
+import { useCareerInsights } from '@libs/api';
 
 interface CareerInsightsProps {
   className?: string;
@@ -30,23 +30,8 @@ interface CareerInsightsProps {
 export function CareerInsights({ className }: CareerInsightsProps) {
   const queryClient = useQueryClient();
 
-  // Fetch career insights with React Query
-  const { data: careerResult, isLoading: careerLoading, error: careerError } = useQuery({
-    queryKey: ['career-insights'],
-    queryFn: () => apiClient.insights.getCareerInsights(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-
-  const { data: trendsResult, isLoading: trendsLoading, error: trendsError } = useQuery({
-    queryKey: ['tech-trends'],
-    queryFn: () => apiClient.insights.getTechTrends(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-
-  const isLoading = careerLoading || trendsLoading;
-  const error = careerError || trendsError;
-  const insights = careerResult?.success ? careerResult.data : null;
-  const techTrends = trendsResult?.success ? trendsResult.data : null;
+  // Fetch career insights with custom hook
+  const { insights, techTrends, isLoading, error } = useCareerInsights();
 
   const refreshInsights = () => {
     queryClient.invalidateQueries({ queryKey: ['career-insights'] });

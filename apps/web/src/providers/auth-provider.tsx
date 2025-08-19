@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react'
 import { useEffect } from 'react'
-import { apiClient } from '@/lib/api-client'
+import { apiClient } from '@libs/api'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession()

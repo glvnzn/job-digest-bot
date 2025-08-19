@@ -37,7 +37,7 @@ import {
   RefreshCw,
   GripVertical
 } from 'lucide-react';
-import { apiClient, type Job, type UserJob, type JobStage } from '@/lib/api-client';
+import { apiClient, type Job, type UserJob, type JobStage } from '@libs/api';
 import { JobDetailsDrawer } from '@/components/job-details-drawer';
 
 // Force dynamic rendering to avoid build-time env issues

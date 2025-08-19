@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient, type Job, type JobFilters, type UserJob } from '@/lib/api-client';
+import { apiClient, type Job, type JobFilters, type UserJob } from '@libs/api';
 
 // Get all jobs with filters - fully typed
 export function useJobs(filters?: JobFilters) {

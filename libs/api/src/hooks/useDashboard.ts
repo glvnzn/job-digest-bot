@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient } from '../client';
 
 export function useDashboardData(enabled = true) {
   // Fetch dashboard data with React Query

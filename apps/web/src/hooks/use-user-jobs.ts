@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
-import { apiClient, type UserJob, type JobStage } from '@/lib/api-client';
+import { apiClient, type UserJob, type JobStage } from '@libs/api';
 
 // Get user's tracked jobs (kanban board data) - React Query powered
 export function useUserJobs() {

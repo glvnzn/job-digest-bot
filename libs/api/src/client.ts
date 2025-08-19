@@ -1,5 +1,5 @@
 // API client using auto-generated OpenAPI types
-import { components } from '@job-digest/shared-types/api';
+import { components } from '../../shared-types/src/api';
 
 // Export types from generated schema
 export type Job = components['schemas']['Job'];

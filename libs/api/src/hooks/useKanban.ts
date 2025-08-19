@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiClient, type UserJob, type Job, type JobStage } from '@/lib/api-client';
+import { apiClient, type UserJob, type Job, type JobStage } from '../client';
 import { useEffect, useState } from 'react';
 
 export interface KanbanData {

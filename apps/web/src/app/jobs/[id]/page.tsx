@@ -7,10 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ExternalLink } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
-import { components } from '@job-digest/shared-types/api';
+import { apiClient, type Job as BaseJob } from '@libs/api';
 
-type Job = components['schemas']['Job'] & {
+type Job = BaseJob & {
   requirements?: string[];
   emailMessageId?: string;
 };

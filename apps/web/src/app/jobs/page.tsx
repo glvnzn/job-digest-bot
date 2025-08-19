@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Job, JobFilters } from '@/lib/api-client';
+import { Job, JobFilters } from '@libs/api';
 import { useJobs, useJobTracker } from '@/hooks/use-jobs';
 import { useUserJobs } from '@/hooks/use-user-jobs';
 import { JobDetailsDrawer } from '@/components/job-details-drawer';
