@@ -74,6 +74,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
     };
 
+
     // Build Prisma where clause
     const where: any = {};
     
@@ -135,8 +136,8 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
     }
 
     // Untracked filter (exclude jobs already tracked by user)
-    if (filters.untracked && (req as any).user?.userId) {
-      const userId = (req as any).user.userId;
+    if (filters.untracked && req.user?.id) {
+      const userId = req.user.id;
       where.userJobs = {
         none: {
           userId: userId
@@ -200,7 +201,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
 router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
   try {
     const jobId = req.params.id;
-    const userId = (req as any).user?.userId;
+    const userId = req.user?.id;
     
     const job = await db.prisma.client.job.findUnique({
       where: { id: jobId },

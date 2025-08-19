@@ -95,7 +95,7 @@ class ApiClient {
       if (filters?.location) params.append('location', filters.location);
       if (filters?.remote !== undefined) params.append('remote', String(filters.remote));
       if (filters?.minRelevanceScore) params.append('minRelevanceScore', String(filters.minRelevanceScore));
-      if (filters?.untracked) params.append('untracked', String(filters.untracked));
+      if (filters?.untracked !== undefined) params.append('untracked', String(filters.untracked));
       if (filters?.limit) params.append('limit', String(filters.limit));
       if (filters?.offset) params.append('offset', String(filters.offset));
 
