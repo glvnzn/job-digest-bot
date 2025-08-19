@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+export const dynamic = 'force-dynamic';
+
+import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useQueryState, parseAsBoolean, parseAsFloat, parseAsInteger } from 'nuqs';
 import { useQueryClient } from '@tanstack/react-query';
-
-// Force dynamic rendering to avoid build-time env issues
-export const dynamic = 'force-dynamic';
 import { useSession, signOut } from 'next-auth/react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,7 +18,8 @@ import { useUserJobs } from '@/hooks/use-user-jobs';
 import { JobDetailsDrawer } from '@/components/job-details-drawer';
 import { Search, ExternalLink, Eye, Star, Building2, MapPin, Briefcase, RefreshCw, Loader2 } from 'lucide-react';
 
-export default function JobsPage() {
+// Main jobs content component that uses search params
+function JobsContent() {
   const { data: session, status } = useSession();
   const queryClient = useQueryClient();
   const { track, untrack, isTracking, isUntracking } = useJobTracker();
@@ -444,5 +444,26 @@ export default function JobsPage() {
         />
       </main>
     </div>
+  );
+}
+
+// Loading fallback component
+function JobsLoading() {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="text-center space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        <p className="text-sm text-muted-foreground">Loading jobs...</p>
+      </div>
+    </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function JobsPage() {
+  return (
+    <Suspense fallback={<JobsLoading />}>
+      <JobsContent />
+    </Suspense>
   );
 }

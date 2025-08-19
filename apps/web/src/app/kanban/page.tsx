@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession, signOut } from 'next-auth/react';
@@ -41,7 +43,6 @@ import { apiClient, type Job, type UserJob, type JobStage } from '@libs/api';
 import { JobDetailsDrawer } from '@/components/job-details-drawer';
 
 // Force dynamic rendering to avoid build-time env issues
-export const dynamic = 'force-dynamic';
 
 interface KanbanData {
   stage: JobStage;

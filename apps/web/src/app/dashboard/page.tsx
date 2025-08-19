@@ -1,10 +1,9 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-
-// Force dynamic rendering to avoid build-time env issues
-export const dynamic = 'force-dynamic';
 import { useSession, signOut } from 'next-auth/react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

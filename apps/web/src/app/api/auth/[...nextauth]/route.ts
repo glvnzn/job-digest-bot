@@ -18,6 +18,16 @@ const handler = NextAuth({
         async authorize(credentials) {
           // In development, allow any email and create/login user via API
           if (credentials?.email) {
+            // Skip API calls during build time
+            if (typeof window === 'undefined' && !process.env.DATABASE_URL) {
+              // Build time - return fallback user
+              return {
+                id: '1',
+                email: credentials.email,
+                name: credentials.email.split('@')[0],
+              };
+            }
+            
           try {
             // Try to register/login the user via our API
             const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
@@ -73,6 +83,12 @@ const handler = NextAuth({
       if (account && user) {
         if (account.provider === 'google') {
           // For Google OAuth, register/login via our API
+          // Skip API calls during build time
+          if (typeof window === 'undefined' && !process.env.DATABASE_URL) {
+            // Build time - return token without API call
+            return { ...token, user };
+          }
+          
           try {
             const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
               method: 'POST',

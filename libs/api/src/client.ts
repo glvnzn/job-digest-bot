@@ -26,7 +26,7 @@ export interface PaginatedResponse<T> {
   };
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
+const API_BASE = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
 
 class ApiClient {
   private baseUrl: string;

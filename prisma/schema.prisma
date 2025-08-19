@@ -1,6 +1,3 @@
-// Job Digest Bot - Prisma Schema
-// This schema models the entire application with full type safety
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,30 +7,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ===== EXISTING TABLES (Legacy Bot Functionality) =====
-
 model Job {
-  id               String    @id // Unique job identifier
-  title            String
-  company          String
-  location         String?
-  isRemote         Boolean   @default(false) @map("is_remote")
-  description      String?
-  requirements     String[]  // PostgreSQL text array
-  applyUrl         String    @map("apply_url")
-  salary           String?
-  postedDate       DateTime? @map("posted_date")
-  source           String    // "LinkedIn", "Indeed", etc.
-  relevanceScore   Float?    @map("relevance_score")
-  emailMessageId   String    @map("email_message_id")
-  processed        Boolean   @default(false)
-  createdAt        DateTime  @default(now()) @map("created_at")
-
-  // Relations to new multi-user features
-  userJobs UserJob[]
-  
-  // Market intelligence relation
-  insights JobInsight?
+  id             String      @id
+  title          String
+  company        String
+  location       String?
+  isRemote       Boolean     @default(false) @map("is_remote")
+  description    String?
+  requirements   String[]
+  applyUrl       String      @map("apply_url")
+  salary         String?
+  postedDate     DateTime?   @map("posted_date")
+  source         String
+  relevanceScore Float?      @map("relevance_score")
+  emailMessageId String      @map("email_message_id")
+  processed      Boolean     @default(false)
+  createdAt      DateTime    @default(now()) @map("created_at")
+  insights       JobInsight?
+  userJobs       UserJob[]
 
   @@map("jobs")
 }
@@ -50,12 +41,12 @@ model ResumeAnalysis {
 }
 
 model ProcessedEmail {
-  messageId      String    @id @map("message_id")
-  subject        String?
-  fromEmail      String?   @map("from_email")
-  processedAt    DateTime  @default(now()) @map("processed_at")
-  jobsExtracted  Int       @default(0) @map("jobs_extracted")
-  deleted        Boolean   @default(false)
+  messageId     String   @id @map("message_id")
+  subject       String?
+  fromEmail     String?  @map("from_email")
+  processedAt   DateTime @default(now()) @map("processed_at")
+  jobsExtracted Int      @default(0) @map("jobs_extracted")
+  deleted       Boolean  @default(false)
 
   @@map("processed_emails")
 }
@@ -69,42 +60,35 @@ model JobLock {
   @@map("job_locks")
 }
 
-// ===== NEW TABLES (Multi-User Web Interface) =====
-
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  googleId  String   @unique @map("google_id")
-  name      String?
-  avatarUrl String?  @map("avatar_url")
-  isAdmin   Boolean  @default(false) @map("is_admin")
-  settings  Json     @default("{}") // User preferences as JSON
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  customJobStages JobStage[] // Custom kanban stages
-  userJobs        UserJob[]  // Tracked jobs
-  insights        UserInsight[] // Career insights and progress
+  id              Int           @id @default(autoincrement())
+  email           String        @unique
+  googleId        String        @unique @map("google_id")
+  name            String?
+  avatarUrl       String?       @map("avatar_url")
+  isAdmin         Boolean       @default(false) @map("is_admin")
+  settings        Json          @default("{}")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  customJobStages JobStage[]
+  insights        UserInsight[]
+  userJobs        UserJob[]
 
   @@map("users")
 }
 
 model JobStage {
-  id        Int      @id @default(autoincrement())
-  userId    Int?     @map("user_id") // NULL for system stages
+  id        Int       @id @default(autoincrement())
+  userId    Int?      @map("user_id")
   name      String
-  color     String   @default("#3B82F6") // Hex color
-  sortOrder Int      @map("sort_order")
-  isSystem  Boolean  @default(false) @map("is_system")
-  createdAt DateTime @default(now()) @map("created_at")
+  color     String    @default("#3B82F6")
+  sortOrder Int       @map("sort_order")
+  isSystem  Boolean   @default(false) @map("is_system")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userJobs  UserJob[]
 
-  // Relations
-  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userJobs UserJob[]
-
-  // Constraints
-  @@unique([name, isSystem]) // Unique system stage names
+  @@unique([name, isSystem])
   @@map("job_stages")
 }
 
@@ -122,53 +106,38 @@ model UserJob {
   salaryExpectation Int?      @map("salary_expectation")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
+  job               Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  stage             JobStage  @relation(fields: [stageId], references: [id])
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Relations
-  user  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  job   Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  stage JobStage @relation(fields: [stageId], references: [id])
-
-  // Constraints
-  @@unique([userId, jobId]) // One entry per user per job
+  @@unique([userId, jobId])
   @@map("user_jobs")
 }
 
-// ===== MARKET INTELLIGENCE & ANALYTICS =====
-
 model TechTrend {
-  id           Int      @id @default(autoincrement())
-  technology   String   @unique
-  category     String   // Frontend, Backend, DevOps, etc.
-  description  String?
-  
-  // Historical tracking
-  weeklyStats  TechTrendWeekly[]
-  
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id          Int               @id @default(autoincrement())
+  technology  String            @unique
+  category    String
+  description String?
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  weeklyStats TechTrendWeekly[]
 
   @@map("tech_trends")
 }
 
 model TechTrendWeekly {
-  id           Int      @id @default(autoincrement())
-  trendId      Int      @map("trend_id")
-  weekStart    DateTime @map("week_start") // Monday of the week
-  
-  // Metrics
-  mentions     Int      @default(0)
-  jobCount     Int      @default(0) @map("job_count")
-  percentage   Float    @default(0)
-  avgSalary    Int?     @map("avg_salary")
-  
-  // Growth indicators
-  growthRate   Float    @default(0) @map("growth_rate") // Percentage growth from previous week
-  trendStatus  String   @default("stable") @map("trend_status") // rising, falling, stable, emerging
-  
-  // Relations
-  techTrend    TechTrend @relation(fields: [trendId], references: [id], onDelete: Cascade)
-  
-  createdAt    DateTime @default(now()) @map("created_at")
+  id          Int       @id @default(autoincrement())
+  trendId     Int       @map("trend_id")
+  weekStart   DateTime  @map("week_start")
+  mentions    Int       @default(0)
+  jobCount    Int       @default(0) @map("job_count")
+  percentage  Float     @default(0)
+  avgSalary   Int?      @map("avg_salary")
+  growthRate  Float     @default(0) @map("growth_rate")
+  trendStatus String    @default("stable") @map("trend_status")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  techTrend   TechTrend @relation(fields: [trendId], references: [id], onDelete: Cascade)
 
   @@unique([trendId, weekStart])
   @@map("tech_trend_weekly")
@@ -177,28 +146,19 @@ model TechTrendWeekly {
 model JobInsight {
   id                Int      @id @default(autoincrement())
   jobId             String   @unique @map("job_id")
-  
-  // Extracted insights
-  technologies      Json     // Array of detected technologies with confidence scores
-  skillRequirements Json     // Parsed skill requirements
-  experienceLevel   String?  @map("experience_level") // junior, mid, senior, lead
-  salaryRange       Json?    @map("salary_range") // {min, max, currency}
-  
-  // AI Analysis results
-  keySkills         Json     @map("key_skills") // Top skills extracted
-  niceToHave        Json     @map("nice_to_have") // Optional skills
-  responsibilities  Json     // Key responsibilities
-  benefits          Json?    // Parsed benefits
-  
-  // Market context
-  competitiveness   Float    @default(0) // How competitive this role is
-  rarityScore       Float    @default(0) @map("rarity_score") // How rare these skills are
-  
-  // Relations
-  job               Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  
+  technologies      Json
+  skillRequirements Json
+  experienceLevel   String?  @map("experience_level")
+  salaryRange       Json?    @map("salary_range")
+  keySkills         Json     @map("key_skills")
+  niceToHave        Json     @map("nice_to_have")
+  responsibilities  Json
+  benefits          Json?
+  competitiveness   Float    @default(0)
+  rarityScore       Float    @default(0) @map("rarity_score")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
+  job               Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@map("job_insights")
 }
@@ -206,21 +166,14 @@ model JobInsight {
 model MarketSnapshot {
   id              Int      @id @default(autoincrement())
   snapshotDate    DateTime @unique @map("snapshot_date")
-  
-  // Market metrics
   totalJobs       Int      @map("total_jobs")
   avgSalaryRange  Json     @map("avg_salary_range")
   topTechnologies Json     @map("top_technologies")
   emergingSkills  Json     @map("emerging_skills")
-  
-  // Trend analysis
   marketTrends    Json     @map("market_trends")
   salaryTrends    Json     @map("salary_trends")
   skillDemand     Json     @map("skill_demand")
-  
-  // User-specific insights
-  recommendations Json?    // Global recommendations for the market
-  
+  recommendations Json?
   createdAt       DateTime @default(now()) @map("created_at")
 
   @@map("market_snapshots")
@@ -229,45 +182,20 @@ model MarketSnapshot {
 model UserInsight {
   id              Int      @id @default(autoincrement())
   userId          Int      @map("user_id")
-  
-  // Personal analysis
-  currentSkills   Json     @map("current_skills") // Skills from tracked jobs
+  currentSkills   Json     @map("current_skills")
   skillGaps       Json     @map("skill_gaps")
-  recommendations Json     // Personalized recommendations
-  
-  // Progress tracking
+  recommendations Json
   learningPath    Json     @map("learning_path")
-  achievements    Json?    // Completed milestones
-  goals           Json?    // Set learning goals
-  
-  // Market fit
-  marketPosition  Json     @map("market_position") // How user compares to market
-  competitiveness Float    @default(0) // User's market competitiveness score
-  
-  // Relations
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Versioning
-  version         Int      @default(1) // For historical tracking
+  achievements    Json?
+  goals           Json?
+  marketPosition  Json     @map("market_position")
+  competitiveness Float    @default(0)
+  version         Int      @default(1)
   isActive        Boolean  @default(true) @map("is_active")
-  
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, version])
   @@map("user_insights")
 }
-
-// ===== INDEXES FOR PERFORMANCE =====
-
-// Job search performance
-// @@index([relevanceScore, createdAt]) on Job - handled by Prisma automatically
-
-// User lookup performance  
-// @@index([email]) on User - unique constraint creates index
-// @@index([googleId]) on User - unique constraint creates index
-
-// Job tracking queries
-// @@index([userId]) on UserJob - foreign key creates index
-// @@index([jobId]) on UserJob - foreign key creates index
-// @@index([stageId]) on UserJob - foreign key creates index

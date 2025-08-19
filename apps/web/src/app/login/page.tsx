@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { signIn, getSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
@@ -12,8 +14,13 @@ import { Chrome, Mail } from 'lucide-react';
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
-  const [showDevLogin, setShowDevLogin] = useState(process.env.NODE_ENV === 'development');
+  const [showDevLogin, setShowDevLogin] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    // Set dev login visibility after component mounts to avoid SSR issues
+    setShowDevLogin(process.env.NODE_ENV === 'development');
+  }, []);
 
   useEffect(() => {
     // Check if user is already signed in

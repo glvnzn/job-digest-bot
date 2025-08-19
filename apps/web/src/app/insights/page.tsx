@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -10,9 +12,6 @@ import {
   Briefcase,
   Brain
 } from 'lucide-react';
-
-// Force dynamic rendering to avoid build-time env issues
-export const dynamic = 'force-dynamic';
 
 export default function InsightsPage() {
   const { data: session, status } = useSession();

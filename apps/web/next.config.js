@@ -12,20 +12,15 @@ const nextConfig = {
   nx: {
     svgr: false,
   },
-  // Environment variables for build time
-  env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333',
-    API_BASE_URL: process.env.API_BASE_URL || 'http://localhost:3333',
-  },
-  // Build configuration
   eslint: {
     ignoreDuringBuilds: true,
   },
   typescript: {
     ignoreBuildErrors: false,
   },
-  // Server-side rendering required for NextAuth.js
-  // No static export - requires Node.js runtime
+  // Hybrid SSR/CSR configuration - no static generation
+  output: 'standalone',
+  trailingSlash: false,
 };
 
 const plugins = [
