@@ -139,6 +139,7 @@ export class JobProcessor {
         );
 
       let totalJobsProcessed = 0;
+      let totalJobsSkipped = 0;
       const relevantJobs: JobListing[] = [];
       const totalEmailsToProcess = jobRelatedEmails.length;
 
@@ -175,22 +176,58 @@ export class JobProcessor {
             continue;
           }
 
-          // Calculate relevance scores and save jobs
+          // Process and deduplicate jobs
+          let jobsProcessedFromEmail = 0;
+          let jobsSkippedFromEmail = 0;
+          
           for (let jobIndex = 0; jobIndex < jobs.length; jobIndex++) {
             const currentJob = jobs[jobIndex];
 
-            // Update progress for URL analysis phase
+            // Update progress for deduplication and analysis phase
             const jobProgress = Math.round(
               40 + ((i + jobIndex / jobs.length) / jobRelatedEmails.length) * 40
             );
             if (job) {
               await job.updateProgress(
                 jobProgress,
-                `Analyzing job ${jobIndex + 1}/${jobs.length} from email ${i + 1}/${jobRelatedEmails.length} (fetching URL content...)`
+                `Processing job ${jobIndex + 1}/${jobs.length} from email ${i + 1}/${jobRelatedEmails.length} (checking duplicates...)`
               );
             }
 
+            // DEDUPLICATION STRATEGY 1: Check if job already exists by ID
+            const jobExists = await this.db.jobExists(currentJob.id);
+            if (jobExists) {
+              console.log(`⚠️ Duplicate job detected (ID: ${currentJob.id}): ${currentJob.title} at ${currentJob.company} - SKIPPING`);
+              jobsSkippedFromEmail++;
+              totalJobsSkipped++;
+              continue;
+            }
+
+            // DEDUPLICATION STRATEGY 2: Find similar jobs by content
+            const similarJobs = await this.db.findSimilarJobs(
+              currentJob.title,
+              currentJob.company,
+              currentJob.applyUrl
+            );
+            
+            if (similarJobs.length > 0) {
+              console.log(`⚠️ Similar job detected: ${currentJob.title} at ${currentJob.company} - SKIPPING (found ${similarJobs.length} similar)`);
+              jobsSkippedFromEmail++;
+              totalJobsSkipped++;
+              continue;
+            }
+
+            // Job is unique - proceed with processing
             currentJob.emailMessageId = email.id;
+            
+            // Update progress for relevance calculation
+            if (job) {
+              await job.updateProgress(
+                jobProgress,
+                `Analyzing relevance for job ${jobIndex + 1}/${jobs.length} from email ${i + 1}/${jobRelatedEmails.length}`
+              );
+            }
+            
             currentJob.relevanceScore = await this.openai.calculateJobRelevance(
               currentJob,
               resumeAnalysis
@@ -198,6 +235,9 @@ export class JobProcessor {
 
             await this.db.saveJob(currentJob);
             totalJobsProcessed++;
+            jobsProcessedFromEmail++;
+
+            console.log(`✅ New job saved: ${currentJob.title} at ${currentJob.company} (Score: ${currentJob.relevanceScore.toFixed(2)})`);
 
             // Analyze job for market intelligence (don't wait for completion to avoid slowing down pipeline)
             this.marketIntelligence.analyzeJobDescription(currentJob).catch(error => {
@@ -213,9 +253,14 @@ export class JobProcessor {
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
 
-          // Mark email as processed and archive (only archive if jobs were found)
-          await this.markEmailProcessedAndArchive(email.id, jobs.length);
-          console.log(`Processed ${jobs.length} jobs from email ${email.id}`);
+          // Mark email as processed and archive (update with actual jobs processed)
+          await this.markEmailProcessedAndArchive(email.id, jobsProcessedFromEmail);
+          
+          if (jobsSkippedFromEmail > 0) {
+            console.log(`📊 Email ${email.id}: ${jobsProcessedFromEmail} new jobs, ${jobsSkippedFromEmail} duplicates skipped`);
+          } else {
+            console.log(`📊 Email ${email.id}: ${jobsProcessedFromEmail} jobs processed`);
+          }
         } catch (emailError) {
           console.error(`Error processing email ${email.id}:`, emailError);
 
@@ -235,10 +280,10 @@ export class JobProcessor {
         }
 
         // Update progress every few emails
-        if (totalJobsProcessed % 10 === 0 && totalJobsProcessed > 0 && progressMessageId) {
+        if ((totalJobsProcessed + totalJobsSkipped) % 10 === 0 && (totalJobsProcessed + totalJobsSkipped) > 0 && progressMessageId) {
           await this.telegram.updateProgressMessage(
             progressMessageId,
-            `📈 Processing... ${totalJobsProcessed} jobs, ${relevantJobs.length} relevant`
+            `📈 Processing... ${totalJobsProcessed} new, ${totalJobsSkipped} skipped, ${relevantJobs.length} relevant`
           );
         }
       }
@@ -261,10 +306,10 @@ export class JobProcessor {
         }
       } else {
         console.log('No relevant jobs found to notify');
-        if (totalJobsProcessed > 0 && progressMessageId) {
+        if ((totalJobsProcessed + totalJobsSkipped) > 0 && progressMessageId) {
           await this.telegram.updateProgressMessage(
             progressMessageId,
-            `📊 Processed ${totalJobsProcessed} jobs, 0 relevant`
+            `📊 ${totalJobsProcessed} new jobs, ${totalJobsSkipped} duplicates, 0 relevant`
           );
         }
       }
@@ -273,11 +318,11 @@ export class JobProcessor {
       if (job) await job.updateProgress(95, 'Finalizing results...');
 
       console.log(
-        `Job processing completed. Total jobs: ${totalJobsProcessed}, Relevant: ${relevantJobs.length}`
+        `Job processing completed. New jobs: ${totalJobsProcessed}, Duplicates skipped: ${totalJobsSkipped}, Relevant: ${relevantJobs.length}`
       );
 
       // Send final completion update
-      const finalMessage = `✅ Complete: ${totalJobsProcessed} jobs, ${relevantJobs.length} sent\n${this.getNextScanMessage()}`;
+      const finalMessage = `✅ Complete: ${totalJobsProcessed} new, ${totalJobsSkipped} duplicates, ${relevantJobs.length} sent\n${this.getNextScanMessage()}`;
       if (progressMessageId) {
         await this.telegram.updateProgressMessage(progressMessageId, finalMessage);
         // Clean up progress history after completion

@@ -95,6 +95,8 @@ export class PrismaDatabaseService {
       update: {
         relevanceScore: jobData.relevanceScore,
         processed: jobData.processed ?? false,
+        // Update email reference if this job appears in multiple emails
+        emailMessageId: jobData.emailMessageId,
       },
       create: {
         id: jobData.id,
@@ -113,6 +115,45 @@ export class PrismaDatabaseService {
         processed: jobData.processed ?? false,
         createdAt: jobData.createdAt,
       },
+    });
+  }
+
+  /**
+   * Check if a job already exists (additional deduplication check)
+   */
+  async jobExists(jobId: string): Promise<boolean> {
+    const existingJob = await this.prisma.job.findUnique({
+      where: { id: jobId },
+      select: { id: true },
+    });
+    return !!existingJob;
+  }
+
+  /**
+   * Find similar jobs by URL or title+company (for advanced deduplication)
+   */
+  async findSimilarJobs(title: string, company: string, applyUrl?: string): Promise<Job[]> {
+    const conditions: Prisma.JobWhereInput[] = [];
+    
+    // Match by URL if available
+    if (applyUrl && applyUrl !== 'Unknown URL') {
+      conditions.push({ applyUrl: applyUrl });
+    }
+    
+    // Match by title + company
+    conditions.push({
+      AND: [
+        { title: { contains: title, mode: 'insensitive' } },
+        { company: { contains: company, mode: 'insensitive' } }
+      ]
+    });
+    
+    if (conditions.length === 0) return [];
+    
+    return await this.prisma.job.findMany({
+      where: { OR: conditions },
+      orderBy: { createdAt: 'desc' },
+      take: 5, // Limit results for performance
     });
   }
 

@@ -176,7 +176,7 @@ export class MarketIntelligenceService {
   /**
    * Saves job insights to the database
    */
-  private async saveJobInsights(jobId: string, analysis: TechStackAnalysis, fullDescription: string): Promise<void> {
+  private async saveJobInsights(jobId: string, analysis: TechStackAnalysis, _fullDescription: string): Promise<void> {
     try {
       // Calculate competitiveness and rarity scores
       const competitiveness = this.calculateCompetitiveness(analysis);

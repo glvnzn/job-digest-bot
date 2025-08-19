@@ -238,6 +238,39 @@ export class DatabaseService {
   // ===== NEW METHODS (for web interface) =====
 
   /**
+   * Check if a job already exists (deduplication)
+   */
+  async jobExists(jobId: string): Promise<boolean> {
+    return await this.prismaService.jobExists(jobId);
+  }
+
+  /**
+   * Find similar jobs for advanced deduplication
+   */
+  async findSimilarJobs(title: string, company: string, applyUrl?: string): Promise<JobListing[]> {
+    const jobs = await this.prismaService.findSimilarJobs(title, company, applyUrl);
+    
+    // Convert Prisma result to JobListing format
+    return jobs.map(job => ({
+      id: job.id,
+      title: job.title,
+      company: job.company,
+      location: job.location || '',
+      isRemote: job.isRemote,
+      description: job.description || '',
+      requirements: job.requirements,
+      applyUrl: job.applyUrl,
+      salary: job.salary ?? undefined,
+      postedDate: job.postedDate || new Date(),
+      source: job.source,
+      relevanceScore: job.relevanceScore || 0,
+      emailMessageId: job.emailMessageId,
+      processed: job.processed,
+      createdAt: job.createdAt,
+    }));
+  }
+
+  /**
    * Get the underlying Prisma service for advanced operations
    */
   get prisma(): PrismaDatabaseService {

@@ -335,7 +335,7 @@ export class InsightAutomationService {
     return recommendations;
   }
 
-  private calculateMarketPosition(userSkills: string[], experienceLevels: string[], marketSnapshot: any): any {
+  private calculateMarketPosition(userSkills: string[], experienceLevels: string[], _marketSnapshot: any): any {
     const skillScore = userSkills.length * 10; // Simple scoring
     const experienceScore = experienceLevels.length > 0 ? 
       { junior: 20, mid: 50, senior: 80, lead: 90, principal: 100 }[experienceLevels[0]] || 50 : 50;

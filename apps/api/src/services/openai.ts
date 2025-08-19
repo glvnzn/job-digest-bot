@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import * as fs from 'fs';
 import * as pdfParse from 'pdf-parse';
+import * as crypto from 'crypto';
 import { ResumeAnalysis, JobListing } from '../models/types';
 
 export class OpenAIService {
@@ -224,26 +225,75 @@ export class OpenAIService {
         .trim();
       const jobs = JSON.parse(cleanContent);
 
-      return jobs.map((job: any, index: number) => ({
-        id: `job_${Date.now()}_${index}`,
-        title: job.title || 'Unknown Title',
-        company: job.company || 'Unknown Company',
-        location: job.location || 'Unknown Location',
-        isRemote: job.isRemote || false,
-        description: job.description || '',
-        requirements: job.requirements || [],
-        applyUrl: this.cleanApplyUrl(job.applyUrl || '', emailFrom),
-        salary: job.salary,
-        postedDate: this.parseValidDate(job.postedDate),
-        source: job.source || this.determineSource(emailFrom),
-        relevanceScore: 0, // Will be calculated separately
-        emailMessageId: '', // Will be set by caller
-        processed: false,
-        createdAt: new Date(),
-      }));
+      return jobs.map((job: any) => {
+        const cleanedApplyUrl = this.cleanApplyUrl(job.applyUrl || '', emailFrom);
+        const jobId = this.generateJobId(
+          job.title || 'Unknown Title',
+          job.company || 'Unknown Company',
+          cleanedApplyUrl
+        );
+        
+        return {
+          id: jobId,
+          title: job.title || 'Unknown Title',
+          company: job.company || 'Unknown Company',
+          location: job.location || 'Unknown Location',
+          isRemote: job.isRemote || false,
+          description: job.description || '',
+          requirements: job.requirements || [],
+          applyUrl: cleanedApplyUrl,
+          salary: job.salary,
+          postedDate: this.parseValidDate(job.postedDate),
+          source: job.source || this.determineSource(emailFrom),
+          relevanceScore: 0, // Will be calculated separately
+          emailMessageId: '', // Will be set by caller
+          processed: false,
+          createdAt: new Date(),
+        };
+      });
     } catch (error) {
       console.error('Error extracting jobs from email:', error);
       return [];
+    }
+  }
+
+  /**
+   * Generate deterministic job ID based on job characteristics to prevent duplicates
+   */
+  private generateJobId(title: string, company: string, applyUrl: string): string {
+    // Normalize inputs for consistent hashing
+    const normalizedTitle = title.toLowerCase().trim().replace(/\s+/g, ' ');
+    const normalizedCompany = company.toLowerCase().trim().replace(/\s+/g, ' ');
+    const normalizedUrl = this.normalizeUrl(applyUrl);
+    
+    // Primary key: URL (if available) since it's most unique
+    if (normalizedUrl && normalizedUrl !== 'unknown url') {
+      const urlHash = crypto.createHash('sha256').update(normalizedUrl).digest('hex').substring(0, 16);
+      return `job_url_${urlHash}`;
+    }
+    
+    // Secondary key: title + company combination
+    const combinedKey = `${normalizedTitle}|${normalizedCompany}`;
+    const combinedHash = crypto.createHash('sha256').update(combinedKey).digest('hex').substring(0, 16);
+    return `job_tc_${combinedHash}`;
+  }
+
+  /**
+   * Normalize URLs for consistent comparison
+   */
+  private normalizeUrl(url: string): string {
+    if (!url || url.toLowerCase() === 'unknown url') {
+      return '';
+    }
+    
+    try {
+      const urlObj = new URL(url);
+      // Remove tracking parameters and fragments
+      const cleanUrl = `${urlObj.protocol}//${urlObj.hostname}${urlObj.pathname}`;
+      return cleanUrl.toLowerCase();
+    } catch {
+      // If URL parsing fails, use the original cleaned string
+      return url.toLowerCase().trim();
     }
   }
 
