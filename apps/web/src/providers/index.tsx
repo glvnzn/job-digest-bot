@@ -3,6 +3,7 @@
 import { SessionProvider } from 'next-auth/react'
 import { QueryProvider } from './query-provider'
 import { AuthProvider } from './auth-provider'
+import { NuqsProvider } from './nuqs-provider'
 
 export function AppProviders({
   children,
@@ -15,7 +16,9 @@ export function AppProviders({
     <SessionProvider session={session}>
       <AuthProvider>
         <QueryProvider>
-          {children}
+          <NuqsProvider>
+            {children}
+          </NuqsProvider>
         </QueryProvider>
       </AuthProvider>
     </SessionProvider>

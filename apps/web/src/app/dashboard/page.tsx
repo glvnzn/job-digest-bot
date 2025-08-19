@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 // Force dynamic rendering to avoid build-time env issues
 export const dynamic = 'force-dynamic';
@@ -80,36 +81,31 @@ interface DashboardStats {
 
 // Component for displaying and managing tracked jobs
 function TrackedJobsList() {
-  const [userJobs, setUserJobs] = useState<any[]>([]);
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [stages, setStages] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [untrackingJobs, setUntrackingJobs] = useState<Set<string>>(new Set());
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  useEffect(() => {
-    fetchTrackedJobs();
-  }, []);
+  // Fetch tracked jobs data with React Query
+  const { data: userJobsData, isLoading: userJobsLoading } = useQuery({
+    queryKey: ['userJobs'],
+    queryFn: () => apiClient.userJobs.getAll(),
+  });
 
-  const fetchTrackedJobs = async () => {
-    try {
-      setIsLoading(true);
-      const [userJobsResult, jobsResult, stagesResult] = await Promise.all([
-        apiClient.userJobs.getAll(),
-        apiClient.jobs.getAll({ limit: 1000 }),
-        apiClient.stages.getAll()
-      ]);
+  const { data: jobsData, isLoading: jobsLoading } = useQuery({
+    queryKey: ['jobs', { limit: 1000 }],
+    queryFn: () => apiClient.jobs.getAll({ limit: 1000 }),
+  });
 
-      if (userJobsResult.success) setUserJobs(userJobsResult.data || []);
-      if (jobsResult.success) setJobs(jobsResult.data || []);
-      if (stagesResult.success) setStages(stagesResult.data || []);
-    } catch (err) {
-      console.error('Error fetching tracked jobs:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { data: stagesData, isLoading: stagesLoading } = useQuery({
+    queryKey: ['stages'],
+    queryFn: () => apiClient.stages.getAll(),
+  });
+
+  const userJobs = userJobsData?.data || [];
+  const jobs = jobsData?.data || [];
+  const stages = stagesData?.data || [];
+  const isLoading = userJobsLoading || jobsLoading || stagesLoading;
 
   const handleUntrackJob = async (jobId: string) => {
     if (untrackingJobs.has(jobId)) return;
@@ -119,7 +115,9 @@ function TrackedJobsList() {
       const result = await apiClient.jobs.untrack(jobId);
       
       if (result.success) {
-        setUserJobs(prev => prev.filter(uj => uj.jobId !== jobId));
+        // Invalidate queries to refetch data
+        queryClient.invalidateQueries({ queryKey: ['userJobs'] });
+        queryClient.invalidateQueries({ queryKey: ['jobs'] });
       }
     } catch (err) {
       console.error('Error untracking job:', err);
@@ -139,7 +137,9 @@ function TrackedJobsList() {
 
   const handleDrawerUpdate = () => {
     // Refresh data when drawer updates something
-    fetchTrackedJobs();
+    queryClient.invalidateQueries({ queryKey: ['userJobs'] });
+    queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    queryClient.invalidateQueries({ queryKey: ['stages'] });
   };
 
   if (isLoading) {
@@ -256,10 +256,8 @@ function TrackedJobsList() {
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -268,102 +266,104 @@ export default function DashboardPage() {
       router.push('/login');
       return;
     }
-
-    if (status === 'authenticated') {
-      fetchDashboardStats();
-    }
   }, [status, router]);
 
-  const fetchDashboardStats = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Fetch real data from existing APIs
-      const [jobsResult, userJobsResult, stagesResult] = await Promise.all([
-        apiClient.jobs.getAll({ limit: 1000 }), // Get total count
-        apiClient.userJobs.getAll(),
-        apiClient.stages.getAll()
-      ]);
+  // Fetch dashboard data with React Query
+  const { data: jobsResult, isLoading: jobsLoading, error: jobsError } = useQuery({
+    queryKey: ['dashboard-jobs', { limit: 1000 }],
+    queryFn: () => apiClient.jobs.getAll({ limit: 1000 }),
+    enabled: status === 'authenticated',
+  });
 
-      if (jobsResult.success && userJobsResult.success && stagesResult.success) {
-        const totalJobs = jobsResult.meta?.total || 0;
-        const userJobs = userJobsResult.data || [];
-        const stages = stagesResult.data || [];
+  const { data: userJobsResult, isLoading: userJobsLoading, error: userJobsError } = useQuery({
+    queryKey: ['dashboard-userJobs'],
+    queryFn: () => apiClient.userJobs.getAll(),
+    enabled: status === 'authenticated',
+  });
 
-        // Calculate average relevance score of tracked jobs
-        const trackedJobIds = userJobs.map(uj => uj.jobId);
-        const trackedJobs = jobsResult.data?.filter(job => trackedJobIds.includes(job.id)) || [];
-        const avgRelevance = trackedJobs.length > 0 
-          ? trackedJobs.reduce((sum, job) => sum + job.relevancePercentage, 0) / trackedJobs.length
-          : 0;
+  const { data: stagesResult, isLoading: stagesLoading, error: stagesError } = useQuery({
+    queryKey: ['dashboard-stages'],
+    queryFn: () => apiClient.stages.getAll(),
+    enabled: status === 'authenticated',
+  });
 
-        // Group jobs by stage
-        const jobsByStage = stages.map(stage => ({
-          stage: {
-            id: stage.id,
-            name: stage.name,
-            color: stage.color || '#6B7280'
-          },
-          count: userJobs.filter(uj => uj.stageId === stage.id).length
-        }));
+  const isLoading = jobsLoading || userJobsLoading || stagesLoading;
+  const error = jobsError || userJobsError || stagesError;
 
-        // Get top companies
-        const companyCount: Record<string, number> = {};
-        trackedJobs.forEach(job => {
-          companyCount[job.company] = (companyCount[job.company] || 0) + 1;
-        });
-        const topCompanies = Object.entries(companyCount)
-          .sort(([,a], [,b]) => b - a)
-          .slice(0, 5)
-          .map(([company, count]) => ({ company, count }));
-
-        // Recent activity (last updated jobs)
-        const recentActivity = userJobs
-          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-          .slice(0, 5)
-          .map(userJob => {
-            const job = trackedJobs.find(j => j.id === userJob.jobId);
-            const stage = stages.find(s => s.id === userJob.stageId);
-            return {
-              id: userJob.id,
-              job: {
-                id: userJob.jobId,
-                title: job?.title || 'Unknown Job',
-                company: job?.company || 'Unknown Company'
-              },
-              stage: {
-                name: stage?.name || 'Unknown',
-                color: stage?.color || '#6B7280'
-              },
-              updatedAt: userJob.updatedAt
-            };
-          });
-
-        setStats({
-          overview: {
-            totalJobsAvailable: totalJobs,
-            totalSavedJobs: userJobs.length,
-            averageRelevanceScore: avgRelevance
-          },
-          activity: {
-            thisWeek: { saved: userJobs.length, growth: 0 }, // TODO: Calculate actual growth
-            thisMonth: { saved: userJobs.length, growth: 0 } // TODO: Calculate actual growth
-          },
-          jobsByStage,
-          topCompanies,
-          recentActivity
-        });
-      } else {
-        setError('Failed to fetch dashboard data');
-      }
-    } catch (err) {
-      console.error('Error fetching dashboard stats:', err);
-      setError('Failed to load dashboard. Please try again.');
-    } finally {
-      setIsLoading(false);
+  // Calculate stats from fetched data
+  const stats: DashboardStats | null = (() => {
+    if (!jobsResult?.success || !userJobsResult?.success || !stagesResult?.success) {
+      return null;
     }
-  };
+    
+    const totalJobs = jobsResult.meta?.total || 0;
+    const userJobs = userJobsResult.data || [];
+    const stages = stagesResult.data || [];
+
+    // Calculate average relevance score of tracked jobs
+    const trackedJobIds = userJobs.map(uj => uj.jobId);
+    const trackedJobs = jobsResult.data?.filter(job => trackedJobIds.includes(job.id)) || [];
+    const avgRelevance = trackedJobs.length > 0 
+      ? trackedJobs.reduce((sum, job) => sum + job.relevancePercentage, 0) / trackedJobs.length
+      : 0;
+
+    // Group jobs by stage
+    const jobsByStage = stages.map(stage => ({
+      stage: {
+        id: stage.id,
+        name: stage.name,
+        color: stage.color || '#6B7280'
+      },
+      count: userJobs.filter(uj => uj.stageId === stage.id).length
+    }));
+
+    // Get top companies
+    const companyCount: Record<string, number> = {};
+    trackedJobs.forEach(job => {
+      companyCount[job.company] = (companyCount[job.company] || 0) + 1;
+    });
+    const topCompanies = Object.entries(companyCount)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([company, count]) => ({ company, count }));
+
+    // Recent activity (last updated jobs)
+    const recentActivity = userJobs
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .slice(0, 5)
+      .map(userJob => {
+        const job = trackedJobs.find(j => j.id === userJob.jobId);
+        const stage = stages.find(s => s.id === userJob.stageId);
+        return {
+          id: userJob.id,
+          job: {
+            id: userJob.jobId,
+            title: job?.title || 'Unknown Job',
+            company: job?.company || 'Unknown Company'
+          },
+          stage: {
+            name: stage?.name || 'Unknown',
+            color: stage?.color || '#6B7280'
+          },
+          updatedAt: userJob.updatedAt
+        };
+      });
+
+    return {
+      overview: {
+        totalJobsAvailable: totalJobs,
+        totalSavedJobs: userJobs.length,
+        averageRelevanceScore: avgRelevance
+      },
+      activity: {
+        thisWeek: { saved: userJobs.length, growth: 0 }, // TODO: Calculate actual growth
+        thisMonth: { saved: userJobs.length, growth: 0 } // TODO: Calculate actual growth
+      },
+      jobsByStage,
+      topCompanies,
+      recentActivity
+    };
+  })();
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: '/login' });
@@ -400,8 +400,12 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="text-destructive">{error}</div>
-          <Button onClick={fetchDashboardStats}>Try Again</Button>
+          <div className="text-destructive">{error.message || 'Failed to load dashboard'}</div>
+          <Button onClick={() => {
+            queryClient.invalidateQueries({ queryKey: ['dashboard-jobs'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard-userJobs'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard-stages'] });
+          }}>Try Again</Button>
         </div>
       </div>
     );

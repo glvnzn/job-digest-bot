@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,58 +40,48 @@ interface JobDetailsDrawerProps {
 }
 
 export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: JobDetailsDrawerProps) {
-  const [job, setJob] = useState<Job | null>(null);
-  const [userJob, setUserJob] = useState<UserJob | null>(null);
-  const [stages, setStages] = useState<JobStage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [isTracking, setIsTracking] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notes, setNotes] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
 
+  // Fetch job details with React Query
+  const { data: jobResult, isLoading: jobLoading, error: jobError } = useQuery({
+    queryKey: ['job-details', jobId],
+    queryFn: () => apiClient.jobs.getById(jobId!),
+    enabled: isOpen && !!jobId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+
+  const { data: userJobsResult, isLoading: userJobsLoading } = useQuery({
+    queryKey: ['job-details-userJobs'],
+    queryFn: () => apiClient.userJobs.getAll(),
+    enabled: isOpen && !!jobId,
+    staleTime: 1 * 60 * 1000, // 1 minute
+  });
+
+  const { data: stagesResult, isLoading: stagesLoading } = useQuery({
+    queryKey: ['job-details-stages'],
+    queryFn: () => apiClient.stages.getAll(),
+    enabled: isOpen && !!jobId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  const isLoading = jobLoading || userJobsLoading || stagesLoading;
+  const error = jobError;
+  const job = jobResult?.success ? jobResult.data : null;
+  const stages = stagesResult?.success ? stagesResult.data || [] : [];
+  const userJob = userJobsResult?.success 
+    ? userJobsResult.data?.find(uj => uj.jobId === jobId) || null 
+    : null;
+
+  // Update notes when userJob changes
   useEffect(() => {
-    if (isOpen && jobId) {
-      fetchJobDetails();
+    if (userJob?.notes !== undefined) {
+      setNotes(userJob.notes || '');
     }
-  }, [isOpen, jobId]);
-
-  const fetchJobDetails = async () => {
-    if (!jobId) return;
-
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const [jobResult, userJobsResult, stagesResult] = await Promise.all([
-        apiClient.jobs.getById(jobId),
-        apiClient.userJobs.getAll(),
-        apiClient.stages.getAll()
-      ]);
-
-      if (jobResult.success && jobResult.data) {
-        setJob(jobResult.data);
-      } else {
-        setError('Failed to fetch job details');
-        return;
-      }
-
-      if (stagesResult.success) {
-        setStages(stagesResult.data || []);
-      }
-
-      if (userJobsResult.success) {
-        const foundUserJob = userJobsResult.data?.find(uj => uj.jobId === jobId);
-        setUserJob(foundUserJob || null);
-        setNotes(foundUserJob?.notes || '');
-      }
-    } catch (err) {
-      console.error('Error fetching job details:', err);
-      setError('Failed to load job details');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [userJob]);
 
   const handleTrackJob = async () => {
     if (!job || isTracking) return;
@@ -100,7 +91,11 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
       const result = await apiClient.jobs.track(job.id);
       
       if (result.success) {
-        await fetchJobDetails(); // Refresh data
+        // Refresh data by invalidating queries
+        queryClient.invalidateQueries({ queryKey: ['job-details', jobId] });
+        queryClient.invalidateQueries({ queryKey: ['job-details-userJobs'] });
+        queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        queryClient.invalidateQueries({ queryKey: ['userJobs'] });
         onJobUpdate?.(); // Notify parent to refresh
       }
     } catch (err) {
@@ -118,7 +113,11 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
       const result = await apiClient.jobs.untrack(job.id);
       
       if (result.success) {
-        setUserJob(null);
+        // Refresh data by invalidating queries
+        queryClient.invalidateQueries({ queryKey: ['job-details', jobId] });
+        queryClient.invalidateQueries({ queryKey: ['job-details-userJobs'] });
+        queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        queryClient.invalidateQueries({ queryKey: ['userJobs'] });
         setNotes('');
         onJobUpdate?.(); // Notify parent to refresh
       }
@@ -137,7 +136,9 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
       const result = await apiClient.userJobs.updateNotes(job.id, notes);
       
       if (result.success) {
-        setUserJob({ ...userJob, notes });
+        // Refresh data by invalidating queries
+        queryClient.invalidateQueries({ queryKey: ['job-details-userJobs'] });
+        queryClient.invalidateQueries({ queryKey: ['userJobs'] });
         setIsEditingNotes(false);
         onJobUpdate?.(); // Notify parent to refresh
       }
@@ -198,8 +199,12 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
 
         {error && (
           <div className="text-center py-8">
-            <div className="text-destructive mb-4">{error}</div>
-            <Button onClick={fetchJobDetails} variant="outline">
+            <div className="text-destructive mb-4">{error?.message || 'Failed to load job details'}</div>
+            <Button onClick={() => {
+              queryClient.invalidateQueries({ queryKey: ['job-details', jobId] });
+              queryClient.invalidateQueries({ queryKey: ['job-details-userJobs'] });
+              queryClient.invalidateQueries({ queryKey: ['job-details-stages'] });
+            }} variant="outline">
               Try Again
             </Button>
           </div>

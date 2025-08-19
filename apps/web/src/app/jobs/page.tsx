@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { useQueryState, parseAsBoolean, parseAsFloat, parseAsInteger } from 'nuqs';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 // Force dynamic rendering to avoid build-time env issues
 export const dynamic = 'force-dynamic';
@@ -17,12 +19,38 @@ import { Search, ExternalLink, Eye, Star, Building2, MapPin, Briefcase, RefreshC
 
 export default function JobsPage() {
   const { data: session, status } = useSession();
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState<JobFilters>({ limit: 20 });
-  const [totalJobs, setTotalJobs] = useState(0);
+  const queryClient = useQueryClient();
+  // URL-synced filter state using nuqs
+  const [search, setSearch] = useQueryState('search', {
+    throttleMs: 300 // Debounce search input
+  });
+  const [remote, setRemote] = useQueryState('remote', parseAsBoolean);
+  const [untracked, setUntracked] = useQueryState('untracked', parseAsBoolean);
+  const [minRelevanceScore, setMinRelevanceScore] = useQueryState('minRelevanceScore', parseAsFloat);
+  const [limit, setLimit] = useQueryState('limit', parseAsInteger.withDefault(20));
+  const [offset, setOffset] = useQueryState('offset', parseAsInteger.withDefault(0));
+  
+  // Build filters object for API calls
+  const filters = useMemo((): JobFilters => ({
+    search: search || undefined,
+    remote: remote || undefined,
+    untracked: untracked || undefined,
+    minRelevanceScore: minRelevanceScore || undefined,
+    limit,
+    offset
+  }), [search, remote, untracked, minRelevanceScore, limit, offset]);
+
+  // Fetch jobs with React Query
+  const { data: jobsData, isLoading, error, refetch } = useQuery({
+    queryKey: ['jobs', filters],
+    queryFn: () => apiClient.jobs.getAll(filters),
+    enabled: status === 'authenticated',
+    staleTime: 30 * 1000, // 30 seconds
+  });
+
+  const jobs = jobsData?.data || [];
+  const totalJobs = jobsData?.meta?.total || 0;
+  
   const [trackingJobs, setTrackingJobs] = useState<Set<string>>(new Set());
   const [trackedJobs, setTrackedJobs] = useState<Set<string>>(new Set());
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -36,64 +64,21 @@ export default function JobsPage() {
       router.push('/login');
       return;
     }
-
-    if (status === 'authenticated') {
-      fetchJobs();
-    }
   }, [status, router]);
 
-  useEffect(() => {
-    // Debounce search
-    const timeoutId = setTimeout(() => {
-      if (searchTerm !== filters.search) {
-        setFilters(prev => ({ ...prev, search: searchTerm || undefined, offset: 0 }));
-      }
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm, filters.search]);
+  // Fetch tracked jobs when authenticated
+  const { data: userJobsData } = useQuery({
+    queryKey: ['userJobs'],
+    queryFn: () => apiClient.userJobs.getAll(),
+    enabled: status === 'authenticated',
+  });
 
   useEffect(() => {
-    if (status === 'authenticated') {
-      fetchJobs();
-      fetchTrackedJobs();
+    if (userJobsData?.success && userJobsData.data) {
+      const trackedJobIds = new Set(userJobsData.data.map((userJob: any) => userJob.jobId));
+      setTrackedJobs(trackedJobIds);
     }
-  }, [filters, status]);
-
-  const fetchTrackedJobs = async () => {
-    try {
-      const result = await apiClient.userJobs.getAll();
-      if (result.success && result.data) {
-        const trackedJobIds = new Set(result.data.map(userJob => userJob.jobId));
-        setTrackedJobs(trackedJobIds);
-      }
-    } catch (err) {
-      console.error('Error fetching tracked jobs:', err);
-    }
-  };
-
-  const fetchJobs = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const result = await apiClient.jobs.getAll(filters);
-      
-      if (result.success) {
-        setJobs(result.data);
-        setTotalJobs(result.meta.total);
-      } else {
-        const errorMsg = 'Failed to fetch jobs: ' + (result.error || 'Unknown error');
-        console.error(errorMsg);
-        setError(errorMsg);
-      }
-    } catch (err) {
-      console.error('Error fetching jobs:', err);
-      setError('Failed to load jobs. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [userJobsData]);
 
   const handleTrackJob = async (jobId: string) => {
     // Prevent multiple clicks
@@ -105,11 +90,12 @@ export default function JobsPage() {
       const result = await apiClient.jobs.track(jobId);
       if (result.success) {
         setTrackedJobs(prev => new Set(prev).add(jobId));
-        // You could add a toast notification here
+        // Invalidate and refetch jobs query
+        queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        queryClient.invalidateQueries({ queryKey: ['userJobs'] });
         console.log('✅ Job tracked successfully');
       } else {
         console.error('❌ Failed to track job:', result.error);
-        // You could show an error toast here
       }
     } catch (err) {
       console.error('❌ Error tracking job:', err);
@@ -135,6 +121,9 @@ export default function JobsPage() {
           newSet.delete(jobId);
           return newSet;
         });
+        // Invalidate and refetch jobs query
+        queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        queryClient.invalidateQueries({ queryKey: ['userJobs'] });
         console.log('✅ Job untracked successfully');
       } else {
         console.error('❌ Failed to untrack job:', result.error);
@@ -161,8 +150,8 @@ export default function JobsPage() {
 
   const handleDrawerUpdate = () => {
     // Refresh data when drawer updates something
-    fetchJobs();
-    fetchTrackedJobs();
+    queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    queryClient.invalidateQueries({ queryKey: ['userJobs'] });
   };
 
   // Note: Calculations moved to backend API - frontend now receives pre-computed values
@@ -179,8 +168,8 @@ export default function JobsPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="text-destructive">{error}</div>
-          <Button onClick={fetchJobs}>Try Again</Button>
+          <div className="text-destructive">{error.message || 'An error occurred'}</div>
+          <Button onClick={() => refetch()}>Try Again</Button>
         </div>
       </div>
     );
@@ -236,7 +225,7 @@ export default function JobsPage() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={fetchJobs} variant="outline" size="sm">
+              <Button onClick={() => refetch()} variant="outline" size="sm">
                 Refresh
               </Button>
               <Button asChild variant="outline" size="sm">
@@ -252,42 +241,39 @@ export default function JobsPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   placeholder="Search jobs by title, company, or keywords..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={search || ''}
+                  onChange={(e) => setSearch(e.target.value || null)}
                   className="pl-10 bg-background"
                 />
               </div>
               <div className="flex gap-2 flex-wrap sm:flex-nowrap">
               <Button
-                variant={filters.remote ? "default" : "outline"}
+                variant={remote ? "default" : "outline"}
                 size="sm"
-                onClick={() => setFilters(prev => ({ 
-                  ...prev, 
-                  remote: prev.remote ? undefined : true,
-                  offset: 0 
-                }))}
+                onClick={async () => {
+                  await setRemote(!remote);
+                  await setOffset(0);
+                }}
               >
                 Remote Only
               </Button>
               <Button
-                variant={filters.minRelevanceScore ? "default" : "outline"}
+                variant={minRelevanceScore ? "default" : "outline"}
                 size="sm"
-                onClick={() => setFilters(prev => ({ 
-                  ...prev, 
-                  minRelevanceScore: prev.minRelevanceScore ? undefined : 0.7,
-                  offset: 0 
-                }))}
+                onClick={async () => {
+                  await setMinRelevanceScore(minRelevanceScore ? null : 0.7);
+                  await setOffset(0);
+                }}
               >
                 High Match (70%+)
               </Button>
               <Button
-                variant={filters.untracked ? "default" : "outline"}
+                variant={untracked ? "default" : "outline"}
                 size="sm"
-                onClick={() => setFilters(prev => ({ 
-                  ...prev, 
-                  untracked: !prev.untracked,
-                  offset: 0 
-                }))}
+                onClick={async () => {
+                  await setUntracked(!untracked);
+                  await setOffset(0);
+                }}
               >
                 Untracked Only
               </Button>
@@ -410,24 +396,27 @@ export default function JobsPage() {
             </div>
             <h3 className="text-lg font-semibold mb-2">No jobs found</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              {searchTerm || filters.remote || filters.minRelevanceScore || filters.untracked
+              {search || remote || minRelevanceScore || untracked
                 ? "Try adjusting your search filters to see more results."
                 : "There are currently no job opportunities available. Try refreshing or check back later."
               }
             </p>
             <div className="flex gap-2 justify-center">
-              {(searchTerm || filters.remote || filters.minRelevanceScore || filters.untracked) && (
+              {(search || remote || minRelevanceScore || untracked) && (
                 <Button 
                   variant="outline" 
-                  onClick={() => {
-                    setSearchTerm('');
-                    setFilters({ limit: 20 });
+                  onClick={async () => {
+                    await setSearch(null);
+                    await setRemote(null);
+                    await setMinRelevanceScore(null);
+                    await setUntracked(null);
+                    await setOffset(0);
                   }}
                 >
                   Clear Filters
                 </Button>
               )}
-              <Button onClick={fetchJobs}>
+              <Button onClick={() => refetch()}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh Jobs
               </Button>
@@ -439,28 +428,22 @@ export default function JobsPage() {
         {jobs.length > 0 && (
           <div className="flex items-center justify-between py-4 mt-4 border-t">
             <div className="text-xs text-muted-foreground">
-              Showing {(filters.offset || 0) + 1} - {Math.min((filters.offset || 0) + jobs.length, totalJobs)} of {totalJobs} jobs
+              Showing {(offset || 0) + 1} - {Math.min((offset || 0) + jobs.length, totalJobs)} of {totalJobs} jobs
             </div>
             <div className="flex gap-2">
               <Button 
                 variant="outline" 
                 size="sm"
-                disabled={!filters.offset || filters.offset === 0}
-                onClick={() => setFilters(prev => ({ 
-                  ...prev, 
-                  offset: Math.max(0, (prev.offset || 0) - (prev.limit || 20))
-                }))}
+                disabled={!offset || offset === 0}
+                onClick={() => setOffset(Math.max(0, (offset || 0) - (limit || 20)))}
               >
                 Previous
               </Button>
               <Button 
                 variant="outline" 
                 size="sm"
-                disabled={(filters.offset || 0) + jobs.length >= totalJobs}
-                onClick={() => setFilters(prev => ({ 
-                  ...prev, 
-                  offset: (prev.offset || 0) + (prev.limit || 20)
-                }))}
+                disabled={(offset || 0) + jobs.length >= totalJobs}
+                onClick={() => setOffset((offset || 0) + (limit || 20))}
               >
                 Next
               </Button>

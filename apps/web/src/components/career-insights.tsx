@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,43 +28,29 @@ interface CareerInsightsProps {
 }
 
 export function CareerInsights({ className }: CareerInsightsProps) {
-  const [insights, setInsights] = useState<any>(null);
-  const [techTrends, setTechTrends] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    fetchInsights();
-  }, []);
+  // Fetch career insights with React Query
+  const { data: careerResult, isLoading: careerLoading, error: careerError } = useQuery({
+    queryKey: ['career-insights'],
+    queryFn: () => apiClient.insights.getCareerInsights(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
-  const fetchInsights = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+  const { data: trendsResult, isLoading: trendsLoading, error: trendsError } = useQuery({
+    queryKey: ['tech-trends'],
+    queryFn: () => apiClient.insights.getTechTrends(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
-      const [careerResult, trendsResult] = await Promise.all([
-        apiClient.insights.getCareerInsights(),
-        apiClient.insights.getTechTrends()
-      ]);
+  const isLoading = careerLoading || trendsLoading;
+  const error = careerError || trendsError;
+  const insights = careerResult?.success ? careerResult.data : null;
+  const techTrends = trendsResult?.success ? trendsResult.data : null;
 
-      if (careerResult.success) {
-        setInsights(careerResult.data);
-      }
-
-      if (trendsResult.success) {
-        setTechTrends(trendsResult.data);
-      }
-
-      if (!careerResult.success && !trendsResult.success) {
-        setError('Failed to load career insights');
-      }
-
-    } catch (err) {
-      console.error('Error fetching career insights:', err);
-      setError('Failed to load career insights');
-    } finally {
-      setIsLoading(false);
-    }
+  const refreshInsights = () => {
+    queryClient.invalidateQueries({ queryKey: ['career-insights'] });
+    queryClient.invalidateQueries({ queryKey: ['tech-trends'] });
   };
 
   const getPriorityColor = (priority: string) => {
@@ -116,8 +102,8 @@ export function CareerInsights({ className }: CareerInsightsProps) {
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
-            <div className="text-destructive mb-4">{error}</div>
-            <Button onClick={fetchInsights} variant="outline">
+            <div className="text-destructive mb-4">{error?.message || 'Failed to load career insights'}</div>
+            <Button onClick={refreshInsights} variant="outline">
               Try Again
             </Button>
           </div>
@@ -370,7 +356,7 @@ export function CareerInsights({ className }: CareerInsightsProps) {
                 <span>⭐ {insights.metadata.trackedJobs} tracked</span>
                 <span>🔄 Updated {new Date(insights.metadata.generatedAt).toLocaleDateString()}</span>
               </div>
-              <Button onClick={fetchInsights} variant="ghost" size="sm">
+              <Button onClick={refreshInsights} variant="ghost" size="sm">
                 <RefreshCw className="h-3 w-3 mr-1" />
                 Refresh
               </Button>
