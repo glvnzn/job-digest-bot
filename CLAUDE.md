@@ -274,3 +274,4 @@ In development mode (`NODE_ENV=development`):
 - Testing: Jest, Vitest, Playwright for e2e
 - Utilities: date-fns, lodash, zod for validation
 - Add to memory. The business logic, calculations and other computation should happen and provided by the api. The frontend should remain "dumb" so that changing of framwework or supporting other framework should be easy.
+- Add to memory. To check other terminal if the npm run dev is already running before running again the commands.
