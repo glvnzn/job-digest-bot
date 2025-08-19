@@ -3,7 +3,76 @@
  * Do not make direct changes to the file.
  */
 
-export type paths = Record<string, never>;
+export interface paths {
+    "/api/v1/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all jobs with filtering
+         * @description Get paginated list of jobs with optional filtering by search, company, location, remote status, relevance score, and tracking status
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Search in title, company, description */
+                    search?: string;
+                    /** @description Filter by company name */
+                    company?: string;
+                    /** @description Filter by location */
+                    location?: string;
+                    /** @description Filter by remote status */
+                    remote?: boolean;
+                    /** @description Minimum relevance score */
+                    minRelevanceScore?: number;
+                    /** @description Show only jobs not tracked by current user (requires authentication) */
+                    untracked?: boolean;
+                    /** @description Page size (max 100) */
+                    limit?: number;
+                    /** @description Pagination offset */
+                    offset?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Jobs retrieved successfully */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiResponse"] & {
+                            data?: components["schemas"]["Job"][];
+                            meta?: components["schemas"]["PaginationMeta"];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+}
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
@@ -137,6 +206,48 @@ export interface components {
             offset: number;
             /** @example 20 */
             count: number;
+        };
+        JobFilters: {
+            /**
+             * @description Search in title, company, description
+             * @example software engineer
+             */
+            search?: string;
+            /**
+             * @description Filter by company name
+             * @example Google
+             */
+            company?: string;
+            /**
+             * @description Filter by location
+             * @example San Francisco
+             */
+            location?: string;
+            /**
+             * @description Filter by remote status
+             * @example true
+             */
+            remote?: boolean;
+            /**
+             * @description Minimum relevance score
+             * @example 0.7
+             */
+            minRelevanceScore?: number;
+            /**
+             * @description Show only jobs not tracked by current user
+             * @example true
+             */
+            untracked?: boolean;
+            /**
+             * @description Page size
+             * @example 20
+             */
+            limit?: number;
+            /**
+             * @description Pagination offset
+             * @example 0
+             */
+            offset?: number;
         };
     };
     responses: never;

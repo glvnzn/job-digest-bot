@@ -1,0 +1,416 @@
+openapi: 3.0.0
+info:
+  title: Job Digest API
+  version: 1.0.0
+  description: API for the Job Digest Bot platform
+
+servers:
+  - url: http://localhost:3333
+    description: Development
+
+components:
+  schemas:
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+          example: job_123
+        title:
+          type: string
+          example: Senior Software Engineer
+        company:
+          type: string
+          example: Tech Corp
+        location:
+          type: string
+          example: San Francisco, CA
+          nullable: true
+        isRemote:
+          type: boolean
+          example: true
+        description:
+          type: string
+          example: Full-time software engineering role...
+          nullable: true
+        applyUrl:
+          type: string
+          format: uri
+          example: https://jobs.example.com/123
+        salary:
+          type: string
+          example: $120k - $180k
+          nullable: true
+        postedDate:
+          type: string
+          format: date-time
+          nullable: true
+        source:
+          type: string
+          example: LinkedIn
+        relevanceScore:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.85
+          nullable: true
+        processed:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+        # Computed fields returned by API
+        formattedPostedDate:
+          type: string
+          example: Jan 15, 2024
+          nullable: true
+        formattedCreatedAt:
+          type: string
+          example: Jan 15, 2024
+        relevancePercentage:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 85
+        relevanceBadgeVariant:
+          type: string
+          enum: [default, secondary]
+          example: default
+      required:
+        - id
+        - title
+        - company
+        - isRemote
+        - applyUrl
+        - source
+        - processed
+        - createdAt
+        - formattedCreatedAt
+        - relevancePercentage
+        - relevanceBadgeVariant
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        googleId:
+          type: string
+          example: "12345678901234567890"
+        name:
+          type: string
+          example: John Doe
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        isAdmin:
+          type: boolean
+          example: false
+        settings:
+          type: object
+          additionalProperties: true
+          example:
+            emailNotifications: true
+            theme: light
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - googleId
+        - isAdmin
+        - settings
+        - createdAt
+        - updatedAt
+
+    JobStage:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        userId:
+          type: integer
+          nullable: true
+          example: null
+        name:
+          type: string
+          example: Interested
+        color:
+          type: string
+          pattern: "^#[0-9A-Fa-f]{6}$"
+          example: "#3B82F6"
+        sortOrder:
+          type: integer
+          example: 1
+        isSystem:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - color
+        - sortOrder
+        - isSystem
+        - createdAt
+
+    UserJob:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        userId:
+          type: integer
+          example: 1
+        jobId:
+          type: string
+          example: job_123
+        stageId:
+          type: integer
+          example: 1
+        isTracked:
+          type: boolean
+          example: true
+        appliedDate:
+          type: string
+          format: date-time
+          nullable: true
+        interviewDate:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+          example: Looks promising, matches my skills
+        applicationUrl:
+          type: string
+          format: uri
+          nullable: true
+        contactPerson:
+          type: string
+          nullable: true
+          example: Jane Smith
+        salaryExpectation:
+          type: integer
+          nullable: true
+          example: 150000
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - jobId
+        - stageId
+        - isTracked
+        - createdAt
+        - updatedAt
+
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          nullable: true
+        error:
+          type: string
+          nullable: true
+        message:
+          type: string
+          nullable: true
+      required:
+        - success
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          minimum: 0
+          example: 150
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          example: 20
+        offset:
+          type: integer
+          minimum: 0
+          example: 0
+        count:
+          type: integer
+          minimum: 0
+          example: 20
+      required:
+        - total
+        - limit
+        - offset
+        - count
+
+    JobFilters:
+      type: object
+      properties:
+        search:
+          type: string
+          description: Search in title, company, description
+          example: software engineer
+        company:
+          type: string
+          description: Filter by company name
+          example: Google
+        location:
+          type: string
+          description: Filter by location
+          example: San Francisco
+        remote:
+          type: boolean
+          description: Filter by remote status
+          example: true
+        minRelevanceScore:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Minimum relevance score
+          example: 0.7
+        untracked:
+          type: boolean
+          description: Show only jobs not tracked by current user
+          example: true
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Page size
+          example: 20
+        offset:
+          type: integer
+          minimum: 0
+          description: Pagination offset
+          example: 0
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+paths:
+  /api/v1/jobs:
+    get:
+      tags: [Jobs]
+      summary: List all jobs with filtering
+      description: Get paginated list of jobs with optional filtering by search, company, location, remote status, relevance score, and tracking status
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Search in title, company, description
+          required: false
+          schema:
+            type: string
+            example: software engineer
+        - name: company
+          in: query
+          description: Filter by company name
+          required: false
+          schema:
+            type: string
+            example: Google
+        - name: location
+          in: query
+          description: Filter by location
+          required: false
+          schema:
+            type: string
+            example: San Francisco
+        - name: remote
+          in: query
+          description: Filter by remote status
+          required: false
+          schema:
+            type: boolean
+            example: true
+        - name: minRelevanceScore
+          in: query
+          description: Minimum relevance score
+          required: false
+          schema:
+            type: number
+            minimum: 0
+            maximum: 1
+            example: 0.7
+        - name: untracked
+          in: query
+          description: Show only jobs not tracked by current user (requires authentication)
+          required: false
+          schema:
+            type: boolean
+            example: true
+        - name: limit
+          in: query
+          description: Page size (max 100)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+        - name: offset
+          in: query
+          description: Pagination offset
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+            example: 0
+      responses:
+        "200":
+          description: Jobs retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Job"
+                      meta:
+                        $ref: "#/components/schemas/PaginationMeta"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+tags: []

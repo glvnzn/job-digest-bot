@@ -18,6 +18,10 @@ tmp/
 .env.test.local
 .env.production.local
 
+# Auto-generated OpenAPI files (do not commit)
+libs/shared-types/openapi.json
+libs/shared-types/src/api.ts
+
 # Logs
 *.log
 npm-debug.log*

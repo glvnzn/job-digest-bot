@@ -55,6 +55,7 @@ db.init().catch(console.error);
  * - minRelevanceScore: number (minimum relevance score)
  * - maxRelevanceScore: number (maximum relevance score)
  * - datePosted: 'today' | 'week' | 'month' | 'all'
+ * - untracked: boolean (show only jobs not tracked by current user)
  * - limit: number (page size, max 100)
  * - offset: number (pagination offset)
  */
@@ -68,6 +69,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       minRelevanceScore: req.query.minRelevanceScore ? parseFloat(req.query.minRelevanceScore as string) : undefined,
       maxRelevanceScore: req.query.maxRelevanceScore ? parseFloat(req.query.maxRelevanceScore as string) : undefined,
       datePosted: req.query.datePosted as 'today' | 'week' | 'month' | 'all' | undefined,
+      untracked: req.query.untracked === 'true',
       limit: req.query.limit ? Math.min(parseInt(req.query.limit as string), 100) : 20,
       offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
     };
@@ -130,6 +132,16 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       }
       
       where.createdAt = { gte: startDate };
+    }
+
+    // Untracked filter (exclude jobs already tracked by user)
+    if (filters.untracked && (req as any).user?.userId) {
+      const userId = (req as any).user.userId;
+      where.userJobs = {
+        none: {
+          userId: userId
+        }
+      };
     }
 
     // Get jobs with filters

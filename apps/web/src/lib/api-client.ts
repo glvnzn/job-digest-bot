@@ -7,23 +7,12 @@ export type User = components['schemas']['User'];
 export type JobStage = components['schemas']['JobStage'];
 export type UserJob = components['schemas']['UserJob'];
 export type PaginationMeta = components['schemas']['PaginationMeta'];
+export type JobFilters = components['schemas']['JobFilters'];
 
-// Custom interfaces for API client usage
-export interface ApiResponse<T> {
-  success: boolean;
+// Use generated ApiResponse schema instead of custom interface
+export type ApiResponse<T = unknown> = Omit<components['schemas']['ApiResponse'], 'data'> & {
   data?: T;
-  error?: string;
-}
-
-export interface JobFilters {
-  search?: string;
-  company?: string;
-  location?: string;
-  remote?: boolean;
-  minRelevanceScore?: number;
-  limit?: number;
-  offset?: number;
-}
+};
 
 export interface PaginatedResponse<T> {
   success: boolean;
@@ -106,6 +95,7 @@ class ApiClient {
       if (filters?.location) params.append('location', filters.location);
       if (filters?.remote !== undefined) params.append('remote', String(filters.remote));
       if (filters?.minRelevanceScore) params.append('minRelevanceScore', String(filters.minRelevanceScore));
+      if (filters?.untracked) params.append('untracked', String(filters.untracked));
       if (filters?.limit) params.append('limit', String(filters.limit));
       if (filters?.offset) params.append('offset', String(filters.offset));
 

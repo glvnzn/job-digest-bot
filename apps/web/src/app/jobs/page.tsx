@@ -280,6 +280,17 @@ export default function JobsPage() {
               >
                 High Match (70%+)
               </Button>
+              <Button
+                variant={filters.untracked ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilters(prev => ({ 
+                  ...prev, 
+                  untracked: !prev.untracked,
+                  offset: 0 
+                }))}
+              >
+                Untracked Only
+              </Button>
               </div>
             </div>
           </div>
@@ -399,13 +410,13 @@ export default function JobsPage() {
             </div>
             <h3 className="text-lg font-semibold mb-2">No jobs found</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              {searchTerm || filters.remote || filters.minRelevanceScore
+              {searchTerm || filters.remote || filters.minRelevanceScore || filters.untracked
                 ? "Try adjusting your search filters to see more results."
                 : "There are currently no job opportunities available. Try refreshing or check back later."
               }
             </p>
             <div className="flex gap-2 justify-center">
-              {(searchTerm || filters.remote || filters.minRelevanceScore) && (
+              {(searchTerm || filters.remote || filters.minRelevanceScore || filters.untracked) && (
                 <Button 
                   variant="outline" 
                   onClick={() => {
