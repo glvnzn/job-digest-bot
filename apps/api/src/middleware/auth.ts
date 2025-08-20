@@ -59,8 +59,10 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     const decoded = jwt.verify(token, JWT_SECRET) as any;
 
     // Fetch user from database to ensure they still exist
+    // Ensure userId is a string (prevents JS number precision issues)
+    const userId = String(decoded.userId);
     const user = await db.prisma.client.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: userId },
       select: {
         id: true,
         email: true,
@@ -113,8 +115,10 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
     const JWT_SECRET = process.env.JWT_SECRET || 'your-dev-secret-key';
     const decoded = jwt.verify(token, JWT_SECRET) as any;
 
+    // Ensure userId is a string (prevents JS number precision issues)
+    const userId = String(decoded.userId);
     const user = await db.prisma.client.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: userId },
       select: {
         id: true,
         email: true,
