@@ -3,7 +3,7 @@ builder = "nixpacks"
 buildCommand = "npx nx build api"
 
 [deploy]
-startCommand = "npm start"
+startCommand = "start:api"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
