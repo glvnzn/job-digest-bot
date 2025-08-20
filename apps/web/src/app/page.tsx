@@ -60,6 +60,11 @@ export default function Index() {
             </p>
           </div>
         </div>
+        
+        {/* Updated for deployment v1.0.2 */}
+        <div className="mt-8 text-xs text-muted-foreground">
+          Version 1.0.2 - Latest updates deployed
+        </div>
       </div>
     </div>
   )
