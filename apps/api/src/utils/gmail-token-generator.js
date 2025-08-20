@@ -1,5 +1,10 @@
 const { google } = require('googleapis');
-const readline = require('readline');
+const http = require('http');
+const url = require('url');
+const path = require('path');
+
+// Load environment variables from .env file
+require('dotenv').config({ path: path.join(__dirname, '../../../../.env') });
 
 /**
  * Gmail OAuth2 Token Generator Utility
@@ -10,7 +15,7 @@ const readline = require('readline');
 
 // Gmail API scope for full Gmail access (needed for reading and archiving emails)
 const SCOPES = ['https://mail.google.com/'];
-const REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob';
+const REDIRECT_URI = 'http://localhost:8080';
 
 class GmailTokenGenerator {
   constructor(clientId, clientSecret) {
@@ -65,46 +70,86 @@ class GmailTokenGenerator {
   }
 
   /**
-   * Interactive method to generate refresh token
+   * Interactive method to generate refresh token using local server
    */
   async generateInteractively() {
     console.log('🔐 Gmail Refresh Token Generator');
     console.log('================================\n');
 
-    // Generate authorization URL
-    const authUrl = this.generateAuthUrl();
-
-    console.log('📋 Step 1: Open this URL in your browser:');
-    console.log(authUrl);
-    console.log('\n📋 Step 2: Grant permissions and copy the authorization code');
-    console.log('📋 Step 3: Paste the code below and press Enter\n');
-
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
-
     return new Promise((resolve, reject) => {
-      rl.question('Enter authorization code: ', async (code) => {
-        try {
-          const tokens = await this.exchangeCodeForTokens(code);
+      // Create a local server to catch the OAuth callback
+      const server = http.createServer(async (req, res) => {
+        const queryParams = url.parse(req.url, true).query;
+        
+        if (queryParams.code) {
+          // We got the authorization code
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end(`
+            <html>
+              <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                <h2>✅ Authorization Successful!</h2>
+                <p>You can close this window and return to the terminal.</p>
+                <p>The Gmail token will be generated automatically.</p>
+              </body>
+            </html>
+          `);
           
-          console.log('\n✅ Success! Here are your credentials:');
-          console.log('=====================================');
-          console.log(`GMAIL_CLIENT_ID=${tokens.clientId}`);
-          console.log(`GMAIL_CLIENT_SECRET=${tokens.clientSecret}`);
-          console.log(`GMAIL_REFRESH_TOKEN=${tokens.refreshToken}`);
-          console.log('=====================================\n');
+          server.close();
           
-          console.log('📝 Add these to your .env file!');
+          try {
+            const tokens = await this.exchangeCodeForTokens(queryParams.code);
+            
+            console.log('\n✅ Success! Here are your credentials:');
+            console.log('=====================================');
+            console.log(`GMAIL_CLIENT_ID=${tokens.clientId}`);
+            console.log(`GMAIL_CLIENT_SECRET=${tokens.clientSecret}`);
+            console.log(`GMAIL_REFRESH_TOKEN=${tokens.refreshToken}`);
+            console.log('=====================================\n');
+            
+            console.log('📝 Add these to your .env file!');
+            
+            resolve(tokens);
+          } catch (error) {
+            console.error('❌ Error getting tokens:', error.message);
+            reject(error);
+          }
+        } else if (queryParams.error) {
+          res.writeHead(400, { 'Content-Type': 'text/html' });
+          res.end(`
+            <html>
+              <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                <h2>❌ Authorization Failed</h2>
+                <p>Error: ${queryParams.error}</p>
+                <p>Please try again.</p>
+              </body>
+            </html>
+          `);
           
-          rl.close();
-          resolve(tokens);
-        } catch (error) {
-          console.error('❌ Error getting tokens:', error.message);
-          rl.close();
-          reject(error);
+          server.close();
+          reject(new Error(`OAuth error: ${queryParams.error}`));
         }
+      });
+
+      server.listen(8080, 'localhost', () => {
+        // Generate authorization URL
+        const authUrl = this.generateAuthUrl();
+
+        console.log('🌐 Starting local server on http://localhost:8080');
+        console.log('\n📋 Step 1: Open this URL in your browser:');
+        console.log(authUrl);
+        console.log('\n📋 Step 2: Grant permissions in your browser');
+        console.log('📋 Step 3: The token will be generated automatically after authorization\n');
+        console.log('⏳ Waiting for authorization...');
+      });
+
+      // Handle server errors
+      server.on('error', (error) => {
+        if (error.code === 'EADDRINUSE') {
+          console.error('❌ Port 8080 is already in use. Please stop any other servers and try again.');
+        } else {
+          console.error('❌ Server error:', error.message);
+        }
+        reject(error);
       });
     });
   }
