@@ -8,10 +8,13 @@ import { apiClient, type UserJob, type JobStage } from '@libs/api';
 export function useUserJobs() {
   const { data: session, status } = useSession();
 
+  // Additional check to ensure API client has the token before making calls
+  const apiClientReady = !!(session as any)?.apiToken && !!(apiClient as any).authToken;
+
   return useQuery({
     queryKey: ['user-jobs', session?.user?.email],
     queryFn: () => apiClient.userJobs.getAll(),
-    enabled: !!(session?.user && (session as any)?.apiToken && status === 'authenticated'), // Only fetch if user is authenticated AND token is available
+    enabled: !!(session?.user && apiClientReady && status === 'authenticated'), // Wait for BOTH session token AND API client to have token
     staleTime: 1 * 60 * 1000, // 1 minute - user jobs change more frequently
     retry: 1,
   });

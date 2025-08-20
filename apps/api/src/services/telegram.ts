@@ -20,6 +20,11 @@ export class TelegramService {
 
     // Add error handling for polling
     this.bot.on('polling_error', error => {
+      // Mute common polling conflicts in development
+      if (error.message?.includes('409 Conflict: terminated by other getUpdates request')) {
+        console.log('⚠️ Telegram polling conflict - another bot instance may be running');
+        return;
+      }
       console.error('🚨 Telegram polling error:', error);
     });
   }
