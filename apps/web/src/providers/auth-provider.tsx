@@ -1,6 +1,6 @@
 'use client'
 
-import { useSession, signOut } from 'next-auth/react'
+import { useSession, signOut, getSession } from 'next-auth/react'
 import { useEffect } from 'react'
 import { apiClient } from '@libs/api'
 import { useRouter } from 'next/navigation'
@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await signOut({ redirect: false })
         router.push('/login')
       },
-      async () => session as any
+      async () => await getSession()
     )
   }, [session, router])
 

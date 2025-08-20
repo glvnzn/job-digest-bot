@@ -53,14 +53,7 @@ function JobsContent() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    if (status === 'loading') return; // Still loading
-    
-    if (status === 'unauthenticated') {
-      router.push('/login');
-      return;
-    }
-  }, [status, router]);
+  // Remove redundant auth check - middleware handles protection
 
   // Fetch tracked jobs when authenticated
   const { data: userJobsData, refetch: refetchUserJobs } = useUserJobs();

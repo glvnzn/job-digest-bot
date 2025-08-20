@@ -161,7 +161,6 @@ PORT=3333
 
 # Authentication & Security
 JWT_SECRET=your-jwt-secret-key
-DISABLE_AUTH=false
 ADMIN_EMAIL=admin@yourcompany.com
 ```
 
@@ -487,6 +486,8 @@ In development mode (`NODE_ENV=development`):
 - Telegram command polling enabled
 - Use `/process` command to manually trigger processing
 - Use `/summary` command to generate daily summary
+- **Authentication**: All pages require Google OAuth sign-in (no bypass or development mode)
+- **Protected Routes**: Every route except `/login` requires authentication via middleware
 
 ## Important Code Patterns
 
@@ -519,6 +520,16 @@ In development mode (`NODE_ENV=development`):
 - **Markdown Support**: Rich formatting in Telegram notifications
 - **Archive Strategy**: Emails are archived (not deleted) for audit trail
 - **Command Security**: Telegram commands restricted to configured chat ID
+
+### Authentication & Authorization
+- **Single Authentication Method**: Google OAuth via NextAuth.js - no alternative login methods
+- **All Pages Protected**: No public access - every page requires Google authentication
+- **Middleware-Based Protection**: Route-level authentication handled by Next.js middleware
+- **JWT Token Flow**: NextAuth session → API JWT token → Protected API endpoints
+- **Session Persistence**: Tokens automatically refreshed and persist across page reloads
+- **API Client Integration**: Automatic token injection via `getSession()` function
+- **Clean Architecture**: No redundant auth checks in individual page components
+- **Centralized Auth Logic**: All authentication logic consolidated in middleware and AuthProvider
 
 ## Technology Stack
 
@@ -599,6 +610,8 @@ In development mode (`NODE_ENV=development`):
 - **Background Queue Processing**: BullMQ implementation for scalable job processing
 - **Multi-User Database Schema**: Ready for web interface with user management and job tracking
 - **API Type Generation**: Automated OpenAPI TypeScript generation for frontend integration
+- **Complete Authentication System**: Google OAuth-only authentication with middleware-based protection
+- **Protected API Architecture**: All endpoints require authentication - no public access
 
 ### ⚠️ Development Notes
 - **Database Migration**: Successfully migrated from raw SQL to Prisma ORM (August 2025)
@@ -607,8 +620,8 @@ In development mode (`NODE_ENV=development`):
 - **Production Ready**: Comprehensive error handling, monitoring, and deployment automation
 
 ### 🚀 Next Development Priorities
-1. **Web Interface Completion**: Frontend implementation for job tracking and analytics
-2. **User Authentication**: Google OAuth integration for multi-user support
-3. **Advanced Analytics**: Enhanced market intelligence and personal insights
-4. **API Documentation**: OpenAPI specification completion for public API
-5. **Testing Infrastructure**: Comprehensive test suite implementation
+1. **Web Interface Enhancement**: Advanced job tracking and analytics features
+2. **Advanced Analytics**: Enhanced market intelligence and personal insights
+3. **API Documentation**: OpenAPI specification completion for authenticated API
+4. **Testing Infrastructure**: Comprehensive test suite implementation
+5. **Performance Optimization**: Caching and query optimization for large datasets

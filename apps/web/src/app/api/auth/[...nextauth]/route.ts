@@ -12,6 +12,9 @@ const handler = NextAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     }),
   ],
+  session: {
+    strategy: 'jwt',
+  },
   pages: {
     signIn: '/login',
   },
@@ -67,6 +70,7 @@ const handler = NextAuth({
         }
       }
       
+      // Always return the token (preserves apiToken and userId on subsequent requests)
       return token
     },
     async session({ session, token }) {

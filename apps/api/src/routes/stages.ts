@@ -10,7 +10,7 @@
 
 import { Router, Request, Response } from 'express';
 import { DatabaseService } from '../services/database';
-import { optionalAuth, authenticateToken } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 const db = new DatabaseService();
@@ -20,11 +20,11 @@ db.init().catch(console.error);
 
 /**
  * GET /api/v1/stages - Get all stages (system + user-defined)
- * Optional authentication - includes user's custom stages if authenticated
+ * Requires authentication to include user's custom stages
  */
-router.get('/', optionalAuth, async (req: Request, res: Response) => {
+router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user.id;
     
     // Get system stages (always available)
     const systemStages = await db.prisma.client.jobStage.findMany({
@@ -32,17 +32,14 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       orderBy: { sortOrder: 'asc' }
     });
 
-    // Get user's custom stages if authenticated
-    let userStages: any[] = [];
-    if (userId) {
-      userStages = await db.prisma.client.jobStage.findMany({
-        where: { 
-          isSystem: false,
-          userId: userId
-        },
-        orderBy: { sortOrder: 'asc' }
-      });
-    }
+    // Get user's custom stages
+    const userStages = await db.prisma.client.jobStage.findMany({
+      where: { 
+        isSystem: false,
+        userId: userId
+      },
+      orderBy: { sortOrder: 'asc' }
+    });
 
     // Combine and sort stages
     const allStages = [...systemStages, ...userStages].sort((a, b) => a.sortOrder - b.sortOrder);

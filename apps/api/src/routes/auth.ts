@@ -11,7 +11,7 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { DatabaseService } from '../services/database';
-import { authenticateToken, generateTestToken } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 const db = new DatabaseService();
@@ -308,39 +308,6 @@ router.get('/users/:email', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * POST /api/v1/auth/dev-token - Generate development token (dev only)
- * Body: { userId, email }
- */
-router.post('/dev-token', async (req: Request, res: Response) => {
-  if (process.env.NODE_ENV === 'production') {
-    return res.status(404).json({ 
-      success: false, 
-      error: 'Not available in production' 
-    });
-  }
-
-  const { userId, email } = req.body;
-
-  if (!userId || !email) {
-    return res.status(400).json({
-      success: false,
-      error: 'Missing userId or email'
-    });
-  }
-
-  const token = generateTestToken(userId, email);
-  res.json({
-    success: true,
-    data: { 
-      token,
-      userId,
-      email,
-      expiresIn: '24h'
-    },
-    message: 'Development token generated'
-  });
-});
 
 /**
  * POST /api/v1/auth/validate - Validate JWT token
@@ -366,5 +333,6 @@ router.post('/validate', authenticateToken, async (req: Request, res: Response) 
     });
   }
 });
+
 
 export default router;

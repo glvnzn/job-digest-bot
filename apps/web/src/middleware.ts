@@ -18,13 +18,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
   
-  // Define protected routes
+  // Define protected routes  
   const protectedRoutes = ['/jobs', '/kanban', '/dashboard', '/profile', '/insights']
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
   
+  
   if (isProtectedRoute) {
     // Check if user has a valid session
-    const token = await getToken({ req: request })
+    const token = await getToken({ 
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
     
     if (!token) {
       // User is not authenticated, redirect to login with callbackUrl

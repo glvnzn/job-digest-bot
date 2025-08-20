@@ -3,11 +3,9 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useSession, signOut } from 'next-auth/react';
 import { useUserJobs, useJobStages, useJobStageUpdate } from '@/hooks/use-user-jobs';
 import { useJobs } from '@/hooks/use-jobs';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   DndContext,
@@ -208,8 +206,6 @@ function StageColumn({ kanbanData, onViewJob }: { kanbanData: KanbanData; onView
 
 export default function KanbanPage() {
   const { status } = useSession();
-  const router = useRouter();
-  const queryClient = useQueryClient();
   const [kanbanData, setKanbanData] = useState<KanbanData[]>([]);
   const [activeJob, setActiveJob] = useState<(UserJob & { job: Job }) | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -221,14 +217,7 @@ export default function KanbanPage() {
     useSensor(TouchSensor)
   );
 
-  useEffect(() => {
-    if (status === 'loading') return;
-    
-    if (status === 'unauthenticated') {
-      router.push('/login');
-      return;
-    }
-  }, [status, router]);
+  // Remove redundant auth check - middleware handles protection
 
   // Fetch kanban data with authentication-aware hooks
   const { data: userJobsResult, isLoading: userJobsLoading, error: userJobsError, refetch: refetchUserJobs } = useUserJobs();

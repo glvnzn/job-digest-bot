@@ -1,16 +1,17 @@
 /**
- * Job Management API Routes
+ * Job Management API Routes (All Protected)
  * 
  * Provides endpoints for:
- * - Public job listings (multi-user access)
- * - Job filtering and search
- * - Individual job details
+ * - Authenticated job listings with user context
+ * - Job filtering and search (with user-specific features)
+ * - Individual job details with tracking status
  * - User-specific job management
  */
 
 import { Router, Request, Response } from 'express';
 import { DatabaseService } from '../services/database';
-import { optionalAuth, authenticateToken } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
+
 
 const router = Router();
 const db = new DatabaseService();
@@ -46,7 +47,7 @@ function addComputedFields(job: any) {
 db.init().catch(console.error);
 
 /**
- * GET /api/v1/jobs - List all jobs with filtering
+ * GET /api/v1/jobs - List all jobs with filtering (requires auth)
  * Query parameters:
  * - search: string (search in title, company, description)
  * - company: string (filter by company name)
@@ -59,7 +60,7 @@ db.init().catch(console.error);
  * - limit: number (page size, max 100)
  * - offset: number (pagination offset)
  */
-router.get('/', optionalAuth, async (req: Request, res: Response) => {
+router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const filters = {
       search: req.query.search as string,
@@ -136,7 +137,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
     }
 
     // Untracked filter (exclude jobs already tracked by user)
-    if (filters.untracked && req.user?.id) {
+    if (filters.untracked) {
       const userId = req.user.id;
       where.userJobs = {
         none: {
@@ -196,17 +197,17 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/v1/jobs/:id - Get job details
+ * GET /api/v1/jobs/:id - Get job details with user tracking status (requires auth)
  */
-router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
+router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const jobId = req.params.id;
-    const userId = req.user?.id;
+    const userId = req.user.id;
     
     const job = await db.prisma.client.job.findUnique({
       where: { id: jobId },
       include: {
-        userJobs: userId ? {
+        userJobs: {
           where: { userId: userId },
           include: {
             stage: {
@@ -218,7 +219,7 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
               }
             }
           }
-        } : false
+        }
       }
     });
 

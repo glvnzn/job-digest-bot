@@ -2,9 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { CareerInsights } from '@/components/career-insights';
@@ -15,16 +13,8 @@ import {
 
 export default function InsightsPage() {
   const { data: session, status } = useSession();
-  const router = useRouter();
 
-  useEffect(() => {
-    if (status === 'loading') return;
-    
-    if (status === 'unauthenticated') {
-      router.push('/login');
-      return;
-    }
-  }, [status, router]);
+  // Remove aggressive auth check - middleware handles protection
 
   if (status === 'loading') {
     return (
