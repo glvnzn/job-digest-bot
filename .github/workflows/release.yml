@@ -1,0 +1,145 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.gitignore'
+
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests and linting
+      run: |
+        npm run lint
+        npm run type-check
+        npm run test
+
+    - name: Build projects
+      run: npm run build
+
+    - name: Get current version
+      id: current_version
+      run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+    - name: Determine release type
+      id: release_type
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "type=${{ github.event.inputs.release_type }}" >> $GITHUB_OUTPUT
+        else
+          # Auto-detect from commit messages
+          if git log --format="%s" HEAD^..HEAD | grep -q "BREAKING CHANGE\|!:"; then
+            echo "type=major" >> $GITHUB_OUTPUT
+          elif git log --format="%s" HEAD^..HEAD | grep -q "^feat\|^feature"; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+          else
+            echo "type=patch" >> $GITHUB_OUTPUT
+          fi
+        fi
+
+    - name: Bump version
+      id: version
+      run: |
+        npm version ${{ steps.release_type.outputs.type }} --no-git-tag-version
+        echo "new_version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+    - name: Update CHANGELOG
+      run: |
+        # Create temporary changelog entry
+        DATE=$(date +%Y-%m-%d)
+        NEW_VERSION="${{ steps.version.outputs.new_version }}"
+        
+        # Extract commits since last tag
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        if [ -n "$LAST_TAG" ]; then
+          COMMITS=$(git log ${LAST_TAG}..HEAD --oneline --no-merges)
+        else
+          COMMITS=$(git log --oneline --no-merges -10)
+        fi
+        
+        # Create new changelog entry
+        {
+          echo "# Changelog"
+          echo ""
+          echo "## [${NEW_VERSION}] - ${DATE}"
+          echo ""
+          echo "### Changes"
+          echo "$COMMITS" | sed 's/^[a-f0-9]* /- /'
+          echo ""
+          tail -n +3 CHANGELOG.md
+        } > CHANGELOG_NEW.md
+        
+        mv CHANGELOG_NEW.md CHANGELOG.md
+
+    - name: Commit version bump
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add package.json CHANGELOG.md
+        git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }} 🚀
+
+        Generated with [Claude Code](https://claude.ai/code)
+        
+        Co-Authored-By: Claude <noreply@anthropic.com>"
+
+    - name: Create and push tag
+      run: |
+        git tag -a "v${{ steps.version.outputs.new_version }}" -m "Release v${{ steps.version.outputs.new_version }}"
+        git push origin main --tags
+
+    - name: Create GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Extract changelog for this version
+        CHANGELOG_CONTENT=$(awk '/^## \['"${{ steps.version.outputs.new_version }}"'\]/{flag=1; next} /^## \[/{flag=0} flag' CHANGELOG.md)
+        
+        gh release create "v${{ steps.version.outputs.new_version }}" \
+          --title "Release v${{ steps.version.outputs.new_version }}" \
+          --notes "$CHANGELOG_CONTENT" \
+          --generate-notes
+
+  deploy:
+    needs: release
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Trigger Railway Deployment
+      run: |
+        echo "🚀 Railway will auto-deploy from main branch"
+        echo "Check deployment status at: https://railway.app/"

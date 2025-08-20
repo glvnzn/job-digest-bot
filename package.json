@@ -28,6 +28,7 @@
     "generate-gmail-token": "node apps/api/src/utils/gmail-token-generator.js",
     "generate-api-types": "node scripts/generate-api-types.js",
     "watch-api-types": "node scripts/watch-api-types.js",
+    "release": "node scripts/release.js",
     "db:generate": "npx prisma generate",
     "db:push": "npx prisma db push",
     "db:migrate": "npx prisma migrate dev",
