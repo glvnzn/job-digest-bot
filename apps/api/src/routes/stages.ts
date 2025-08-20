@@ -24,7 +24,7 @@ db.init().catch(console.error);
  */
 router.get('/', optionalAuth, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.userId;
+    const userId = req.user?.id;
     
     // Get system stages (always available)
     const systemStages = await db.prisma.client.jobStage.findMany({
@@ -72,7 +72,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
  */
 router.post('/', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user.id;
     const { name, color, sortOrder } = req.body;
 
     if (!name || !color) {
@@ -147,7 +147,7 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
 router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const stageId = parseInt(req.params.id, 10);
-    const userId = (req as any).user.userId;
+    const userId = req.user.id;
     const { name, color, description, sortOrder } = req.body;
 
     // Verify stage exists and belongs to user
@@ -218,7 +218,7 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
 router.delete('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const stageId = parseInt(req.params.id, 10);
-    const userId = (req as any).user.userId;
+    const userId = req.user.id;
 
     // Verify stage exists and belongs to user
     const existingStage = await db.prisma.client.jobStage.findFirst({
@@ -273,7 +273,7 @@ router.delete('/:id', authenticateToken, async (req: Request, res: Response) => 
  */
 router.put('/reorder', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user.id;
     const { stageIds } = req.body;
 
     if (!Array.isArray(stageIds)) {
@@ -334,7 +334,7 @@ router.put('/reorder', authenticateToken, async (req: Request, res: Response) =>
 router.get('/:id/jobs', authenticateToken, async (req: Request, res: Response) => {
   try {
     const stageId = parseInt(req.params.id, 10);
-    const userId = (req as any).user.userId;
+    const userId = req.user.id;
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
     const offset = parseInt(req.query.offset as string) || 0;
 

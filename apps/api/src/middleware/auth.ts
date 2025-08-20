@@ -34,8 +34,8 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
   if (process.env.DISABLE_AUTH === 'true') {
     console.log('⚠️ Authentication disabled for development');
     // Attach a default user for development
-    (req as any).user = {
-      userId: 1,
+    req.user = {
+      id: 1,
       email: 'dev@example.com',
       name: 'Development User',
       isAdmin: true
@@ -78,8 +78,8 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     }
 
     // Attach user to request with updated structure
-    (req as any).user = {
-      userId: user.id,
+    req.user = {
+      id: user.id,
       email: user.email,
       name: user.name ?? undefined,
       isAdmin: user.email === process.env.ADMIN_EMAIL // Simple admin check

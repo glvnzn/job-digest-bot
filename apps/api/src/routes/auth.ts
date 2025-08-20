@@ -172,7 +172,7 @@ router.post('/login', async (req: Request, res: Response) => {
  */
 router.get('/me', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user.id;
 
     const user = await db.prisma.client.user.findUnique({
       where: { id: userId },
@@ -240,7 +240,7 @@ router.get('/me', authenticateToken, async (req: Request, res: Response) => {
  */
 router.put('/profile', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user.id;
     const { name, avatarUrl, settings } = req.body;
 
     const user = await db.prisma.client.user.update({
@@ -347,8 +347,8 @@ router.post('/dev-token', async (req: Request, res: Response) => {
  */
 router.post('/validate', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
-    const email = (req as any).user.email;
+    const userId = req.user.id;
+    const email = req.user.email;
 
     res.json({
       success: true,

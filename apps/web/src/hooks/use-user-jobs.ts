@@ -6,12 +6,12 @@ import { apiClient, type UserJob, type JobStage } from '@libs/api';
 
 // Get user's tracked jobs (kanban board data) - React Query powered
 export function useUserJobs() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
 
   return useQuery({
     queryKey: ['user-jobs', session?.user?.email],
     queryFn: () => apiClient.userJobs.getAll(),
-    enabled: !!session?.user, // Only fetch if user is authenticated
+    enabled: !!(session?.user && (session as any)?.apiToken && status === 'authenticated'), // Only fetch if user is authenticated AND token is available
     staleTime: 1 * 60 * 1000, // 1 minute - user jobs change more frequently
     retry: 1,
   });

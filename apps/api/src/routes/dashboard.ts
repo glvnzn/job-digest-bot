@@ -23,7 +23,7 @@ db.init().catch(console.error);
  */
 router.get('/stats', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user.id;
     
     // Get current date ranges
     const now = new Date();
@@ -230,7 +230,7 @@ router.get('/stats', authenticateToken, async (req: Request, res: Response) => {
  */
 router.get('/timeline', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user.id;
     const period = req.query.period as string || 'month';
     
     let startDate: Date;
@@ -334,7 +334,7 @@ router.get('/timeline', authenticateToken, async (req: Request, res: Response) =
  */
 router.get('/analytics', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user.id;
     
     // Get comprehensive analytics
     const [

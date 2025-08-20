@@ -9,7 +9,7 @@ const router = express.Router();
  */
 router.get('/career', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user.id;
 
     // Use real insights service with actual database data
     const insightsService = new InsightsService();
@@ -39,7 +39,7 @@ router.get('/career', authenticateToken, async (req: Request, res: Response) => 
  */
 router.get('/tech-trends', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user.id;
     
     // Use real insights service with actual database data
     const insightsService = new InsightsService();

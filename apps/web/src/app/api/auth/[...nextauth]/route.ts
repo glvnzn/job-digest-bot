@@ -1,120 +1,87 @@
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
+import jwt from "jsonwebtoken"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
+
+// Helper function to generate a development JWT token
+const generateDevToken = (userId: string, email: string): string => {
+  const JWT_SECRET = process.env.JWT_SECRET || 'your-dev-secret-key';
+  return jwt.sign(
+    { 
+      userId: parseInt(userId), 
+      email,
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
+    }, 
+    JWT_SECRET
+  );
+};
 
 
 const handler = NextAuth({
   providers: [
-    // Development credentials provider - only in development
-    ...(process.env.NODE_ENV === 'development' ? [
-      CredentialsProvider({
-        id: "dev-login",
-        name: "Development Login",
-        credentials: {
-          email: { label: "Email", type: "email" }
-        },
-        async authorize(credentials) {
-          // In development, allow any email and create/login user via API
-          if (credentials?.email) {
-            // Skip API calls during build time
-            if (typeof window === 'undefined' && !process.env.DATABASE_URL) {
-              // Build time - return fallback user
-              return {
-                id: '1',
-                email: credentials.email,
-                name: credentials.email.split('@')[0],
-              };
-            }
-            
-          try {
-            // Try to register/login the user via our API
-            const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                email: credentials.email,
-                googleId: `dev-${credentials.email}`, // Development Google ID
-                name: credentials.email.split('@')[0]
-              })
-            });
-
-            if (response.ok) {
-              const data = await response.json();
-              if (data.success && data.data.user) {
-                return {
-                  id: data.data.user.id.toString(),
-                  email: data.data.user.email,
-                  name: data.data.user.name,
-                  apiToken: data.data.token
-                }
-              }
-            }
-          } catch (error) {
-            console.error('Dev login API error:', error);
-          }
-          
-          // Fallback for development
-          return {
-            id: '1',
-            email: credentials.email,
-            name: credentials.email.split('@')[0],
-          }
-        }
-        return null
-      }
-    })
-  ] : []),
-    // Google OAuth (when properly configured)
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
-      GoogleProvider({
-        clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      })
-    ] : []),
+    // Google OAuth - primary authentication method
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    }),
   ],
   pages: {
     signIn: '/login',
   },
   callbacks: {
     async jwt({ token, account, profile, user }) {
-      // Initial sign in
-      if (account && user) {
-        if (account.provider === 'google') {
-          // For Google OAuth, register/login via our API
-          // Skip API calls during build time
-          if (typeof window === 'undefined' && !process.env.DATABASE_URL) {
-            // Build time - return token without API call
-            return { ...token, user };
-          }
+      // Initial sign in with Google
+      if (account && user && account.provider === 'google') {
+        // Skip API calls during build time
+        if (typeof window === 'undefined' && !process.env.DATABASE_URL) {
+          // Build time - generate token for builds
+          const devToken = generateDevToken(user.id || '1', user.email || '');
+          token.apiToken = devToken;
+          token.userId = user.id || '1';
+          return { ...token, user };
+        }
+        
+        try {
+          // Register/login via our API
+          const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: user.email,
+              googleId: account.providerAccountId,
+              name: user.name,
+              avatarUrl: user.image
+            })
+          });
           
-          try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                email: user.email,
-                googleId: account.providerAccountId,
-                name: user.name,
-                avatarUrl: user.image
-              })
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              if (data.success && data.data.token) {
-                token.apiToken = data.data.token;
-                token.userId = data.data.user.id;
-              }
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data.token) {
+              token.apiToken = data.data.token;
+              token.userId = data.data.user.id;
+            } else {
+              console.error('API registration failed:', data);
+              // Fallback: generate token for development
+              const devToken = generateDevToken(user.id || '1', user.email || '');
+              token.apiToken = devToken;
+              token.userId = user.id || '1';
             }
-          } catch (error) {
-            console.error('NextAuth API registration error:', error);
+          } else {
+            console.error('API registration HTTP error:', response.status);
+            // Fallback: generate token for development
+            const devToken = generateDevToken(user.id || '1', user.email || '');
+            token.apiToken = devToken;
+            token.userId = user.id || '1';
           }
-        } else if (account.provider === 'dev-login') {
-          // Development login
-          token.apiToken = user.apiToken;
-          token.userId = user.id;
+        } catch (error) {
+          console.error('NextAuth API registration error:', error);
+          // Fallback: generate token for development
+          const devToken = generateDevToken(user.id || '1', user.email || '');
+          token.apiToken = devToken;
+          token.userId = user.id || '1';
         }
       }
       

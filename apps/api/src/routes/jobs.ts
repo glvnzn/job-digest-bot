@@ -251,7 +251,7 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
  */
 router.get('/user/saved', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user.id;
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
     const offset = parseInt(req.query.offset as string) || 0;
     const stageId = req.query.stageId as string;
@@ -328,7 +328,7 @@ router.get('/user/saved', authenticateToken, async (req: Request, res: Response)
 router.post('/:id/save', authenticateToken, async (req: Request, res: Response) => {
   try {
     const jobId = req.params.id;
-    const userId = (req as any).user.userId;
+    const userId = req.user.id;
     const { stageId, notes } = req.body;
 
     // Check if job exists
@@ -423,7 +423,7 @@ router.post('/:id/save', authenticateToken, async (req: Request, res: Response) 
 router.put('/:id/stage', authenticateToken, async (req: Request, res: Response) => {
   try {
     const jobId = req.params.id;
-    const userId = (req as any).user.userId;
+    const userId = req.user.id;
     const { stageId, notes } = req.body;
 
     if (!stageId) {
@@ -494,7 +494,7 @@ router.put('/:id/stage', authenticateToken, async (req: Request, res: Response) 
 router.delete('/:id/unsave', authenticateToken, async (req: Request, res: Response) => {
   try {
     const jobId = req.params.id;
-    const userId = (req as any).user.userId;
+    const userId = req.user.id;
 
     await db.prisma.client.userJob.delete({
       where: {
