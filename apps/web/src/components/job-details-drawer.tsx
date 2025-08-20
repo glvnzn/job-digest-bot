@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +10,6 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -30,8 +28,9 @@ import {
   Save,
   ChevronRight
 } from 'lucide-react';
-import { apiClient, type Job, type UserJob, type JobStage } from '@libs/api';
 import { useJobTracker } from '@/hooks/use-jobs';
+import { useJob } from '@/hooks/use-jobs';
+import { useUserJobs, useJobStages, useJobNotesUpdate } from '@/hooks/use-user-jobs';
 
 interface JobDetailsDrawerProps {
   jobId: string | null;
@@ -41,33 +40,15 @@ interface JobDetailsDrawerProps {
 }
 
 export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: JobDetailsDrawerProps) {
-  const queryClient = useQueryClient();
   const { track, untrack, isTracking, isUntracking } = useJobTracker();
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notes, setNotes] = useState('');
-  const [isSavingNotes, setIsSavingNotes] = useState(false);
-
-  // Fetch job details with React Query
-  const { data: jobResult, isLoading: jobLoading, error: jobError } = useQuery({
-    queryKey: ['job-details', jobId],
-    queryFn: () => apiClient.jobs.getById(jobId!),
-    enabled: isOpen && !!jobId,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-  });
-
-  const { data: userJobsResult, isLoading: userJobsLoading } = useQuery({
-    queryKey: ['job-details-userJobs'],
-    queryFn: () => apiClient.userJobs.getAll(),
-    enabled: isOpen && !!jobId,
-    staleTime: 1 * 60 * 1000, // 1 minute
-  });
-
-  const { data: stagesResult, isLoading: stagesLoading } = useQuery({
-    queryKey: ['job-details-stages'],
-    queryFn: () => apiClient.stages.getAll(),
-    enabled: isOpen && !!jobId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+  
+  // Use proper hooks for data fetching
+  const { data: jobResult, isLoading: jobLoading, error: jobError } = useJob(jobId || '');
+  const { data: userJobsResult, isLoading: userJobsLoading } = useUserJobs();
+  const { data: stagesResult, isLoading: stagesLoading } = useJobStages();
+  const { mutate: updateNotes, isPending: isSavingNotes } = useJobNotesUpdate();
 
   const isLoading = jobLoading || userJobsLoading || stagesLoading;
   const error = jobError;
@@ -89,10 +70,8 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
 
     track(job.id, {
       onSuccess: () => {
-        // Refresh data by invalidating queries
-        queryClient.invalidateQueries({ queryKey: ['job-details', jobId] });
-        queryClient.invalidateQueries({ queryKey: ['job-details-userJobs'] });
-        onJobUpdate?.(); // Notify parent to refresh
+        // Notify parent to refresh data
+        onJobUpdate?.();
       },
       onError: (error: any) => {
         console.error('Error tracking job:', error);
@@ -105,11 +84,9 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
 
     untrack(job.id, {
       onSuccess: () => {
-        // Refresh data by invalidating queries
-        queryClient.invalidateQueries({ queryKey: ['job-details', jobId] });
-        queryClient.invalidateQueries({ queryKey: ['job-details-userJobs'] });
+        // Notify parent to refresh data
         setNotes('');
-        onJobUpdate?.(); // Notify parent to refresh
+        onJobUpdate?.();
       },
       onError: (error: any) => {
         console.error('Error untracking job:', error);
@@ -120,22 +97,18 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
   const handleSaveNotes = async () => {
     if (!job || !userJob) return;
 
-    try {
-      setIsSavingNotes(true);
-      const result = await apiClient.userJobs.updateNotes(job.id, notes);
-      
-      if (result.success) {
-        // Refresh data by invalidating queries
-        queryClient.invalidateQueries({ queryKey: ['job-details-userJobs'] });
-        queryClient.invalidateQueries({ queryKey: ['userJobs'] });
-        setIsEditingNotes(false);
-        onJobUpdate?.(); // Notify parent to refresh
+    updateNotes(
+      { jobId: job.id, notes },
+      {
+        onSuccess: () => {
+          setIsEditingNotes(false);
+          onJobUpdate?.(); // Notify parent to refresh
+        },
+        onError: (error) => {
+          console.error('Error saving notes:', error);
+        }
       }
-    } catch (err) {
-      console.error('Error saving notes:', err);
-    } finally {
-      setIsSavingNotes(false);
-    }
+    );
   };
 
   const getCurrentStage = () => {
@@ -190,9 +163,7 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
           <div className="text-center py-8">
             <div className="text-destructive mb-4">{error?.message || 'Failed to load job details'}</div>
             <Button onClick={() => {
-              queryClient.invalidateQueries({ queryKey: ['job-details', jobId] });
-              queryClient.invalidateQueries({ queryKey: ['job-details-userJobs'] });
-              queryClient.invalidateQueries({ queryKey: ['job-details-stages'] });
+              onJobUpdate?.(); // Let parent handle refresh
             }} variant="outline">
               Try Again
             </Button>

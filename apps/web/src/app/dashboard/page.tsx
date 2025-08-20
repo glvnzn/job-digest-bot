@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { JobDetailsDrawer } from '@/components/job-details-drawer';
-import { useDashboardData, apiClient } from '@libs/api';
+import { useDashboardData } from '@libs/api';
+import { useJobTracker } from '@/hooks/use-jobs';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -86,30 +87,20 @@ interface TrackedJobsListProps {
 }
 
 function TrackedJobsList({ userJobs, jobs, stages, isLoading, onUpdate }: TrackedJobsListProps & { onUpdate: () => void }) {
-  const [untrackingJobs, setUntrackingJobs] = useState<Set<string>>(new Set());
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const { untrack, isUntracking } = useJobTracker();
 
-  const handleUntrackJob = async (jobId: string) => {
-    if (untrackingJobs.has(jobId)) return;
-    
-    try {
-      setUntrackingJobs(prev => new Set(prev).add(jobId));
-      const result = await apiClient.jobs.untrack(jobId);
-      
-      if (result.success) {
+  const handleUntrackJob = (jobId: string) => {
+    untrack(jobId, {
+      onSuccess: () => {
         // Refresh dashboard data
         onUpdate();
+      },
+      onError: (error) => {
+        console.error('Error untracking job:', error);
       }
-    } catch (err) {
-      console.error('Error untracking job:', err);
-    } finally {
-      setUntrackingJobs(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(jobId);
-        return newSet;
-      });
-    }
+    });
   };
 
   const handleViewJob = (jobId: string) => {
@@ -209,10 +200,10 @@ function TrackedJobsList({ userJobs, jobs, stages, isLoading, onUpdate }: Tracke
                 size="sm" 
                 className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                 onClick={() => handleUntrackJob(job.id)}
-                disabled={untrackingJobs.has(job.id)}
+                disabled={isUntracking}
                 title="Untrack job"
               >
-                {untrackingJobs.has(job.id) ? (
+                {isUntracking ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
                   <X className="h-3 w-3" />

@@ -3,8 +3,10 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSession, signOut } from 'next-auth/react';
+import { useUserJobs, useJobStages, useJobStageUpdate } from '@/hooks/use-user-jobs';
+import { useJobs } from '@/hooks/use-jobs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -39,7 +41,7 @@ import {
   RefreshCw,
   GripVertical
 } from 'lucide-react';
-import { apiClient, type Job, type UserJob, type JobStage } from '@libs/api';
+import { type Job, type UserJob, type JobStage } from '@libs/api';
 import { JobDetailsDrawer } from '@/components/job-details-drawer';
 
 // Force dynamic rendering to avoid build-time env issues
@@ -228,24 +230,13 @@ export default function KanbanPage() {
     }
   }, [status, router]);
 
-  // Fetch kanban data with React Query
-  const { data: userJobsResult, isLoading: userJobsLoading, error: userJobsError } = useQuery({
-    queryKey: ['kanban-userJobs'],
-    queryFn: () => apiClient.userJobs.getAll(),
-    enabled: status === 'authenticated',
-  });
-
-  const { data: jobsResult, isLoading: jobsLoading, error: jobsError } = useQuery({
-    queryKey: ['kanban-jobs', { limit: 1000 }],
-    queryFn: () => apiClient.jobs.getAll({ limit: 1000 }),
-    enabled: status === 'authenticated',
-  });
-
-  const { data: stagesResult, isLoading: stagesLoading, error: stagesError } = useQuery({
-    queryKey: ['kanban-stages'],
-    queryFn: () => apiClient.stages.getAll(),
-    enabled: status === 'authenticated',
-  });
+  // Fetch kanban data with authentication-aware hooks
+  const { data: userJobsResult, isLoading: userJobsLoading, error: userJobsError, refetch: refetchUserJobs } = useUserJobs();
+  const { data: jobsResult, isLoading: jobsLoading, error: jobsError, refetch: refetchJobs } = useJobs({ limit: 1000 });
+  const { data: stagesResult, isLoading: stagesLoading, error: stagesError, refetch: refetchStages } = useJobStages();
+  
+  // Stage update mutation
+  const { mutate: updateJobStage } = useJobStageUpdate();
 
   const isLoading = userJobsLoading || jobsLoading || stagesLoading;
   const error = userJobsError || jobsError || stagesError;
@@ -313,22 +304,18 @@ export default function KanbanPage() {
       }));
     });
 
-    // Update via API
-    try {
-      const result = await apiClient.userJobs.updateStage(userJob.jobId, targetStageId.toString());
-      
-      if (!result.success) {
-        // Revert on error by invalidating queries
-        queryClient.invalidateQueries({ queryKey: ['kanban-userJobs'] });
-        queryClient.invalidateQueries({ queryKey: ['kanban-jobs'] });
-        console.error('Failed to update job stage:', result.error);
+    // Update via mutation hook
+    updateJobStage(
+      { jobId: userJob.jobId, stageId: targetStageId.toString() },
+      {
+        onError: (error) => {
+          // Revert optimistic update on error
+          refetchUserJobs();
+          refetchJobs();
+          console.error('Error updating job stage:', error);
+        }
       }
-    } catch (err) {
-      // Revert on error by invalidating queries
-      queryClient.invalidateQueries({ queryKey: ['kanban-userJobs'] });
-      queryClient.invalidateQueries({ queryKey: ['kanban-jobs'] });
-      console.error('Error updating job stage:', err);
-    }
+    );
   };
 
   const handleViewJob = (jobId: string) => {
@@ -338,9 +325,9 @@ export default function KanbanPage() {
 
   const handleDrawerUpdate = () => {
     // Refresh kanban data when drawer updates something
-    queryClient.invalidateQueries({ queryKey: ['kanban-userJobs'] });
-    queryClient.invalidateQueries({ queryKey: ['kanban-jobs'] });
-    queryClient.invalidateQueries({ queryKey: ['kanban-stages'] });
+    refetchUserJobs();
+    refetchJobs();
+    refetchStages();
   };
 
   if (status === 'loading' || isLoading) {
@@ -360,9 +347,9 @@ export default function KanbanPage() {
         <div className="text-center space-y-4">
           <div className="text-destructive">{error.message || 'Failed to load kanban board'}</div>
           <Button onClick={() => {
-            queryClient.invalidateQueries({ queryKey: ['kanban-userJobs'] });
-            queryClient.invalidateQueries({ queryKey: ['kanban-jobs'] });
-            queryClient.invalidateQueries({ queryKey: ['kanban-stages'] });
+            refetchUserJobs();
+            refetchJobs();
+            refetchStages();
           }}>Try Again</Button>
         </div>
       </div>

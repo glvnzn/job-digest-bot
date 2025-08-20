@@ -2,27 +2,22 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { useJob } from '@/hooks/use-jobs';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ExternalLink } from 'lucide-react';
-import { apiClient, type Job as BaseJob } from '@libs/api';
 
-type Job = BaseJob & {
-  requirements?: string[];
-  emailMessageId?: string;
-};
 
 export default function JobDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { status } = useSession();
-  const [job, setJob] = useState<Job | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const jobId = params.id as string;
+  const { data: jobResult, isLoading, error } = useJob(jobId);
 
   useEffect(() => {
     if (status === 'loading') return; // Still loading
@@ -31,29 +26,9 @@ export default function JobDetailPage() {
       router.push('/login');
       return;
     }
+  }, [router, status]);
 
-    if (status === 'authenticated' && params.id) {
-      fetchJobDetails(params.id as string);
-    }
-  }, [params.id, router, status]);
-
-  const fetchJobDetails = async (jobId: string) => {
-    try {
-      setIsLoading(true);
-      const result = await apiClient.jobs.getById(jobId);
-
-      if (result.success && result.data) {
-        setJob(result.data);
-      } else {
-        setError(result.error || 'Job not found');
-      }
-    } catch (err) {
-      console.error('Error fetching job details:', err);
-      setError('Failed to load job details. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const job = jobResult?.success ? jobResult.data : null;
 
   // Note: Date formatting and score calculations should be moved to backend API
   // Frontend should receive pre-formatted data to remain "dumb"
@@ -70,7 +45,7 @@ export default function JobDetailPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="text-destructive">{error || 'Job not found'}</div>
+          <div className="text-destructive">{error?.message || 'Job not found'}</div>
           <Button onClick={() => router.push('/jobs')}>
             Back to Jobs
           </Button>
@@ -177,24 +152,7 @@ export default function JobDetailPage() {
             </Card>
           )}
 
-          {/* Requirements */}
-          {job.requirements && job.requirements.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Requirements</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {job.requirements.map((requirement, index) => (
-                    <li key={index} className="flex items-start gap-2 text-sm">
-                      <span className="text-muted-foreground mt-1">•</span>
-                      <span>{requirement}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
+          {/* Requirements are included in the job description */}
 
           {/* Meta Information */}
           <Card>
@@ -221,14 +179,6 @@ export default function JobDetailPage() {
                     {job.formattedCreatedAt}
                   </span>
                 </div>
-                {job.emailMessageId && (
-                  <div>
-                    <span className="font-medium">Email ID:</span>
-                    <span className="ml-2 text-muted-foreground font-mono text-xs">
-                      {job.emailMessageId}
-                    </span>
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
