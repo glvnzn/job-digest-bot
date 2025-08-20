@@ -18,9 +18,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  // Hybrid SSR/CSR configuration - no static generation
-  output: 'standalone',
-  trailingSlash: false,
 };
 
 const plugins = [
