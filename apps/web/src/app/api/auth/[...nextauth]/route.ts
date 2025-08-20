@@ -1,23 +1,7 @@
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
-import CredentialsProvider from "next-auth/providers/credentials"
-import jwt from "jsonwebtoken"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
-
-// Helper function to generate a development JWT token
-const generateDevToken = (userId: string, email: string): string => {
-  const JWT_SECRET = process.env.JWT_SECRET || 'your-dev-secret-key';
-  return jwt.sign(
-    { 
-      userId: parseInt(userId), 
-      email,
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
-    }, 
-    JWT_SECRET
-  );
-};
 
 
 const handler = NextAuth({
@@ -51,15 +35,6 @@ const handler = NextAuth({
     async jwt({ token, account, user }) {
       // Initial sign in with Google
       if (account && user && account.provider === 'google') {
-        // Skip API calls during build time
-        if (typeof window === 'undefined' && !process.env.DATABASE_URL) {
-          // Build time - generate token for builds
-          const devToken = generateDevToken(user.id || '1', user.email || '');
-          token.apiToken = devToken;
-          token.userId = user.id || '1';
-          return { ...token, user };
-        }
-        
         try {
           // Register/login via our API
           const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
@@ -80,24 +55,15 @@ const handler = NextAuth({
               token.userId = data.data.user.id;
             } else {
               console.error('API registration failed:', data);
-              // Fallback: generate token for development
-              const devToken = generateDevToken(user.id || '1', user.email || '');
-              token.apiToken = devToken;
-              token.userId = user.id || '1';
+              throw new Error('API registration failed');
             }
           } else {
             console.error('API registration HTTP error:', response.status);
-            // Fallback: generate token for development
-            const devToken = generateDevToken(user.id || '1', user.email || '');
-            token.apiToken = devToken;
-            token.userId = user.id || '1';
+            throw new Error(`API registration HTTP error: ${response.status}`);
           }
         } catch (error) {
           console.error('NextAuth API registration error:', error);
-          // Fallback: generate token for development
-          const devToken = generateDevToken(user.id || '1', user.email || '');
-          token.apiToken = devToken;
-          token.userId = user.id || '1';
+          throw new Error('API unavailable - authentication failed');
         }
       }
       
