@@ -8,13 +8,10 @@ import { apiClient, type UserJob, type JobStage } from '@libs/api';
 export function useUserJobs() {
   const { data: session, status } = useSession();
 
-  // Additional check to ensure API client has the token before making calls
-  const apiClientReady = !!(session as any)?.apiToken && !!(apiClient as any).authToken;
-
   return useQuery({
     queryKey: ['user-jobs', session?.user?.email],
     queryFn: () => apiClient.userJobs.getAll(),
-    enabled: !!(session?.user && apiClientReady && status === 'authenticated'), // Wait for BOTH session token AND API client to have token
+    enabled: !!(session?.user && status === 'authenticated'), // Wait for authentication
     staleTime: 1 * 60 * 1000, // 1 minute - user jobs change more frequently
     retry: 1,
   });
@@ -132,9 +129,12 @@ export function useKanbanBoard() {
 
 // Get job stages (system + user custom)
 export function useJobStages() {
+  const { data: session, status } = useSession();
+  
   return useQuery({
-    queryKey: ['job-stages'],
+    queryKey: ['job-stages', session?.user?.email],
     queryFn: () => apiClient.stages.getAll(),
+    enabled: !!(session?.user && status === 'authenticated'), // Wait for authentication
     staleTime: 10 * 60 * 1000, // 10 minutes - stages don't change often
   });
 }

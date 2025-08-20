@@ -1,13 +1,17 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
 import { apiClient, type Job, type JobFilters, type UserJob } from '@libs/api';
 
 // Get all jobs with filters - fully typed
 export function useJobs(filters?: JobFilters) {
+  const { data: session, status } = useSession();
+  
   return useQuery({
     queryKey: ['jobs', filters],
     queryFn: () => apiClient.jobs.getAll(filters),
+    enabled: !!(session?.user && status === 'authenticated'), // Wait for authentication
     staleTime: 5 * 60 * 1000, // 5 minutes - jobs don't change frequently
     retry: 1,
   });
@@ -15,10 +19,12 @@ export function useJobs(filters?: JobFilters) {
 
 // Get specific job by ID - fully typed
 export function useJob(id: string) {
+  const { data: session, status } = useSession();
+  
   return useQuery({
     queryKey: ['job', id],
     queryFn: () => apiClient.jobs.getById(id),
-    enabled: !!id,
+    enabled: !!(id && session?.user && status === 'authenticated'), // Wait for authentication and valid ID
     staleTime: 10 * 60 * 1000, // 10 minutes - individual jobs are stable
   });
 }
