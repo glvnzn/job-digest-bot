@@ -32,7 +32,23 @@ const handler = NextAuth({
     signIn: '/login',
   },
   callbacks: {
-    async jwt({ token, account, profile, user }) {
+    async redirect({ url, baseUrl }) {
+      // Handle post-login redirects with intended URL support
+      
+      // If URL is from our domain, use it
+      if (url.startsWith(baseUrl)) {
+        return url;
+      }
+      
+      // If it's a relative URL, make it absolute
+      if (url.startsWith('/')) {
+        return `${baseUrl}${url}`;
+      }
+      
+      // Default fallback hierarchy
+      return `${baseUrl}/jobs`;
+    },
+    async jwt({ token, account, user }) {
       // Initial sign in with Google
       if (account && user && account.provider === 'google') {
         // Skip API calls during build time

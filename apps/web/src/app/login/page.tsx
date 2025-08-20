@@ -6,27 +6,30 @@ import { signIn, getSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail } from 'lucide-react';
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Check if user is already signed in
+    // Redirect if already signed in
     getSession().then((session) => {
       if (session) {
-        router.push('/jobs');
+        const callbackUrl = searchParams.get('callbackUrl') || '/jobs';
+        router.push(callbackUrl);
       }
     });
-  }, [router]);
+  }, [router, searchParams]);
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
+      const callbackUrl = searchParams.get('callbackUrl') || '/jobs';
       await signIn('google', { 
-        callbackUrl: '/jobs',
+        callbackUrl,
         redirect: true 
       });
     } catch (error) {

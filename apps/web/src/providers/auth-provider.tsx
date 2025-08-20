@@ -1,11 +1,13 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { useEffect } from 'react'
 import { apiClient } from '@libs/api'
+import { useRouter } from 'next/navigation'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession()
+  const router = useRouter()
 
   useEffect(() => {
     // Update API client with auth token whenever session changes
@@ -14,7 +16,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       apiClient.setAuthToken(null)
     }
-  }, [session])
+
+    // Set up automatic logout for API client
+    apiClient.setAuthHandlers(
+      async () => {
+        await signOut({ redirect: false })
+        router.push('/login')
+      },
+      async () => session as any
+    )
+  }, [session, router])
 
   return <>{children}</>
 }

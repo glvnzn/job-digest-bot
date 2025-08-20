@@ -1,6 +1,10 @@
 // API client using auto-generated OpenAPI types
 import { components } from '../../shared-types/src/api';
 
+// Types for auth integration
+type SignOutFunction = () => Promise<void>;
+type GetSessionFunction = () => Promise<{ apiToken?: string } | null>;
+
 // Export types from generated schema
 export type Job = components['schemas']['Job'];
 export type User = components['schemas']['User'];
@@ -31,6 +35,8 @@ const API_BASE = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_
 class ApiClient {
   private baseUrl: string;
   private authToken: string | null = null;
+  private signOut: SignOutFunction | null = null;
+  private getSession: GetSessionFunction | null = null;
 
   constructor(baseUrl: string = API_BASE) {
     this.baseUrl = baseUrl;
@@ -39,6 +45,34 @@ class ApiClient {
   // Set authentication token (called by hooks)
   setAuthToken(token: string | null) {
     this.authToken = token;
+  }
+
+  // Set NextAuth functions for session management
+  setAuthHandlers(signOut: SignOutFunction, getSession: GetSessionFunction) {
+    this.signOut = signOut;
+    this.getSession = getSession;
+  }
+
+  // Get current session token
+  private async getCurrentToken(): Promise<string | null> {
+    if (this.authToken) {
+      return this.authToken;
+    }
+
+    if (this.getSession) {
+      const session = await this.getSession();
+      return session?.apiToken || null;
+    }
+
+    return null;
+  }
+
+  // Handle authentication errors
+  private async handleAuthError(response: Response): Promise<void> {
+    if ((response.status === 401 || response.status === 403) && this.signOut) {
+      console.warn('Authentication failed, signing out user');
+      await this.signOut();
+    }
   }
 
   private async request<T>(
@@ -52,9 +86,10 @@ class ApiClient {
       ...(options.headers as Record<string, string>),
     };
 
-    // Add authorization header if token is available
-    if (this.authToken) {
-      headers['Authorization'] = `Bearer ${this.authToken}`;
+    // Get current token (from session or stored)
+    const token = await this.getCurrentToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
     
     const config: RequestInit = {
@@ -64,6 +99,16 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config);
+      
+      // Handle authentication errors first
+      if (response.status === 401 || response.status === 403) {
+        await this.handleAuthError(response);
+        return {
+          success: false,
+          error: 'Authentication failed. Please sign in again.',
+        };
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -108,12 +153,26 @@ class ApiClient {
         'Content-Type': 'application/json',
       };
 
-      if (this.authToken) {
-        headers['Authorization'] = `Bearer ${this.authToken}`;
+      // Get current token (from session or stored)
+      const token = await this.getCurrentToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       try {
         const response = await fetch(url, { headers });
+        
+        // Handle authentication errors
+        if (response.status === 401 || response.status === 403) {
+          await this.handleAuthError(response);
+          return {
+            success: false,
+            data: [],
+            error: 'Authentication failed. Please sign in again.',
+            meta: { page: 1, limit: 20, total: 0, totalPages: 0 },
+          };
+        }
+
         const data = await response.json();
 
         if (!response.ok) {
