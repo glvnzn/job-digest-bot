@@ -47,13 +47,13 @@ export function useJobStageUpdate() {
 
       return { previousUserJobs };
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       // Rollback optimistic update on error (React Query error handling)
       if (context?.previousUserJobs) {
         queryClient.setQueryData(['user-jobs'], context.previousUserJobs);
       }
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, _variables) => {
       // Optional: show success toast
       console.log('✅ Job stage updated successfully');
     },
@@ -93,7 +93,7 @@ export function useJobNotesUpdate() {
 
       return { previousUserJobs };
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       if (context?.previousUserJobs) {
         queryClient.setQueryData(['user-jobs'], context.previousUserJobs);
       }

@@ -33,7 +33,9 @@ export function useCareerInsights() {
     techTrends,
     isLoading,
     error,
-    careerQuery,
-    trendsQuery,
+    refetch: () => {
+      careerQuery.refetch();
+      trendsQuery.refetch();
+    },
   };
 }

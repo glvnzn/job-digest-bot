@@ -59,7 +59,7 @@ export function useJobTracker() {
 
       return { previousUserJobs };
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       // Rollback on error
       if (context?.previousUserJobs) {
         queryClient.setQueryData(['user-jobs'], context.previousUserJobs);
@@ -91,7 +91,7 @@ export function useJobTracker() {
 
       return { previousUserJobs };
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       if (context?.previousUserJobs) {
         queryClient.setQueryData(['user-jobs'], context.previousUserJobs);
       }

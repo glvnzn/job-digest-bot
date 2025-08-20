@@ -3,7 +3,6 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useSession, signOut } from 'next-auth/react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,8 +85,7 @@ interface TrackedJobsListProps {
   isLoading: boolean;
 }
 
-function TrackedJobsList({ userJobs, jobs, stages, isLoading }: TrackedJobsListProps) {
-  const queryClient = useQueryClient();
+function TrackedJobsList({ userJobs, jobs, stages, isLoading, onUpdate }: TrackedJobsListProps & { onUpdate: () => void }) {
   const [untrackingJobs, setUntrackingJobs] = useState<Set<string>>(new Set());
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -100,9 +98,8 @@ function TrackedJobsList({ userJobs, jobs, stages, isLoading }: TrackedJobsListP
       const result = await apiClient.jobs.untrack(jobId);
       
       if (result.success) {
-        // Invalidate queries to refetch data
-        queryClient.invalidateQueries({ queryKey: ['userJobs'] });
-        queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        // Refresh dashboard data
+        onUpdate();
       }
     } catch (err) {
       console.error('Error untracking job:', err);
@@ -122,9 +119,7 @@ function TrackedJobsList({ userJobs, jobs, stages, isLoading }: TrackedJobsListP
 
   const handleDrawerUpdate = () => {
     // Refresh data when drawer updates something
-    queryClient.invalidateQueries({ queryKey: ['userJobs'] });
-    queryClient.invalidateQueries({ queryKey: ['jobs'] });
-    queryClient.invalidateQueries({ queryKey: ['stages'] });
+    onUpdate();
   };
 
   if (isLoading) {
@@ -242,7 +237,6 @@ function TrackedJobsList({ userJobs, jobs, stages, isLoading }: TrackedJobsListP
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -254,7 +248,7 @@ export default function DashboardPage() {
   }, [status, router]);
 
   // Fetch dashboard data with custom hook
-  const { stats, isLoading, error, jobsQuery, userJobsQuery, stagesQuery } = useDashboardData(status === 'authenticated');
+  const { stats, isLoading, error, refetch: refetchDashboard, jobsQuery, userJobsQuery, stagesQuery } = useDashboardData(status === 'authenticated');
 
   // Get data from hooks
   const userJobs = userJobsQuery.data?.data || [];
@@ -297,11 +291,7 @@ export default function DashboardPage() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="text-destructive">{error.message || 'Failed to load dashboard'}</div>
-          <Button onClick={() => {
-            queryClient.invalidateQueries({ queryKey: ['dashboard-jobs'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard-userJobs'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard-stages'] });
-          }}>Try Again</Button>
+          <Button onClick={refetchDashboard}>Try Again</Button>
         </div>
       </div>
     );
@@ -517,6 +507,7 @@ export default function DashboardPage() {
                 userJobs={userJobs}
                 jobs={jobs}
                 stages={stages}
+                onUpdate={refetchDashboard}
                 isLoading={isLoading}
               />
             </CardContent>

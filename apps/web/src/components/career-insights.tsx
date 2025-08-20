@@ -1,6 +1,5 @@
 'use client';
 
-import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,15 +27,8 @@ interface CareerInsightsProps {
 }
 
 export function CareerInsights({ className }: CareerInsightsProps) {
-  const queryClient = useQueryClient();
-
   // Fetch career insights with custom hook
-  const { insights, techTrends, isLoading, error } = useCareerInsights();
-
-  const refreshInsights = () => {
-    queryClient.invalidateQueries({ queryKey: ['career-insights'] });
-    queryClient.invalidateQueries({ queryKey: ['tech-trends'] });
-  };
+  const { insights, techTrends, isLoading, error, refetch: refetchInsights } = useCareerInsights();
 
   const getPriorityColor = (priority: string) => {
     switch (priority.toLowerCase()) {
@@ -88,7 +80,7 @@ export function CareerInsights({ className }: CareerInsightsProps) {
         <CardContent>
           <div className="text-center py-8">
             <div className="text-destructive mb-4">{error?.message || 'Failed to load career insights'}</div>
-            <Button onClick={refreshInsights} variant="outline">
+            <Button onClick={refetchInsights} variant="outline">
               Try Again
             </Button>
           </div>
@@ -341,7 +333,7 @@ export function CareerInsights({ className }: CareerInsightsProps) {
                 <span>⭐ {insights.metadata.trackedJobs} tracked</span>
                 <span>🔄 Updated {new Date(insights.metadata.generatedAt).toLocaleDateString()}</span>
               </div>
-              <Button onClick={refreshInsights} variant="ghost" size="sm">
+              <Button onClick={refetchInsights} variant="ghost" size="sm">
                 <RefreshCw className="h-3 w-3 mr-1" />
                 Refresh
               </Button>

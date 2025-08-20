@@ -103,6 +103,11 @@ export function useDashboardData(enabled = true) {
     stats,
     isLoading,
     error,
+    refetch: () => {
+      jobsQuery.refetch();
+      userJobsQuery.refetch();
+      stagesQuery.refetch();
+    },
     jobsQuery,
     userJobsQuery,
     stagesQuery,

@@ -4,7 +4,6 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useQueryState, parseAsBoolean, parseAsFloat, parseAsInteger } from 'nuqs';
-import { useQueryClient } from '@tanstack/react-query';
 import { useSession, signOut } from 'next-auth/react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,7 +20,6 @@ import { Search, ExternalLink, Eye, Star, Building2, MapPin, Briefcase, RefreshC
 // Main jobs content component that uses search params
 function JobsContent() {
   const { data: session, status } = useSession();
-  const queryClient = useQueryClient();
   const { track, untrack, isTracking, isUntracking } = useJobTracker();
   // URL-synced filter state using nuqs
   const [search, setSearch] = useQueryState('search', {
@@ -44,7 +42,7 @@ function JobsContent() {
   }), [search, remote, untracked, minRelevanceScore, limit, offset]);
 
   // Fetch jobs with React Query
-  const { data: jobsData, isLoading, error, refetch } = useJobs(filters);
+  const { data: jobsData, isLoading, error, refetch: refetchJobs } = useJobs(filters);
 
   const jobs = jobsData?.data || [];
   const totalJobs = jobsData?.meta?.total || 0;
@@ -65,7 +63,7 @@ function JobsContent() {
   }, [status, router]);
 
   // Fetch tracked jobs when authenticated
-  const { data: userJobsData } = useUserJobs();
+  const { data: userJobsData, refetch: refetchUserJobs } = useUserJobs();
 
   useEffect(() => {
     if (userJobsData?.success && userJobsData.data) {
@@ -134,8 +132,8 @@ function JobsContent() {
 
   const handleDrawerUpdate = () => {
     // Refresh data when drawer updates something
-    queryClient.invalidateQueries({ queryKey: ['jobs'] });
-    queryClient.invalidateQueries({ queryKey: ['userJobs'] });
+    refetchJobs();
+    refetchUserJobs();
   };
 
   // Note: Calculations moved to backend API - frontend now receives pre-computed values
@@ -153,7 +151,7 @@ function JobsContent() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="text-destructive">{error.message || 'An error occurred'}</div>
-          <Button onClick={() => refetch()}>Try Again</Button>
+          <Button onClick={() => refetchJobs()}>Try Again</Button>
         </div>
       </div>
     );
@@ -209,7 +207,7 @@ function JobsContent() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={() => refetch()} variant="outline" size="sm">
+              <Button onClick={() => refetchJobs()} variant="outline" size="sm">
                 Refresh
               </Button>
               <Button asChild variant="outline" size="sm">
@@ -400,7 +398,7 @@ function JobsContent() {
                   Clear Filters
                 </Button>
               )}
-              <Button onClick={() => refetch()}>
+              <Button onClick={() => refetchJobs()}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh Jobs
               </Button>
