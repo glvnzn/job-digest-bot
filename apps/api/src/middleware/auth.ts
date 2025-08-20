@@ -16,7 +16,7 @@ declare global {
   namespace Express {
     interface Request {
       user?: {
-        id: number;
+        id: string;
         email: string;
         name?: string;
         isAdmin?: boolean;
@@ -35,7 +35,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     console.log('⚠️ Authentication disabled for development');
     // Attach a default user for development
     req.user = {
-      id: 1,
+      id: '1',
       email: 'dev@example.com',
       name: 'Development User',
       isAdmin: true
@@ -172,7 +172,7 @@ export const requireOwnership = (userIdParam: string = 'userId') => {
       });
     }
 
-    const requestedUserId = parseInt(req.params[userIdParam]);
+    const requestedUserId = req.params[userIdParam];
     
     // Admin can access any user's data
     if (req.user.isAdmin) {
@@ -195,7 +195,7 @@ export const requireOwnership = (userIdParam: string = 'userId') => {
 /**
  * Development Helper: Generate JWT for testing
  */
-export const generateTestToken = (userId: number, email: string): string => {
+export const generateTestToken = (userId: string, email: string): string => {
   const JWT_SECRET = process.env.JWT_SECRET || 'your-dev-secret-key';
   return jwt.sign(
     { 

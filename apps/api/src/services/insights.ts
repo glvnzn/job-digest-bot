@@ -54,7 +54,7 @@ export class InsightsService {
   /**
    * Generates comprehensive career insights based on actual job data
    */
-  async generateCareerInsights(userId: number): Promise<any> {
+  async generateCareerInsights(userId: string): Promise<any> {
     try {
       // Get user's tracked jobs to understand their interests
       const userJobs = await this.db.client.userJob.findMany({
@@ -127,7 +127,7 @@ export class InsightsService {
   /**
    * Gets technology trend analysis from real database data
    */
-  async getTechTrends(userId: number): Promise<any> {
+  async getTechTrends(userId: string): Promise<any> {
     try {
       // Get all jobs with insights for trend analysis
       const allJobs = await this.db.client.job.findMany({

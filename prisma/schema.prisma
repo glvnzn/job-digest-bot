@@ -61,7 +61,7 @@ model JobLock {
 }
 
 model User {
-  id              Int           @id @default(autoincrement())
+  id              String        @id @default(cuid())
   email           String        @unique
   googleId        String        @unique @map("google_id")
   name            String?
@@ -79,7 +79,7 @@ model User {
 
 model JobStage {
   id        Int       @id @default(autoincrement())
-  userId    Int?      @map("user_id")
+  userId    String?   @map("user_id")
   name      String
   color     String    @default("#3B82F6")
   sortOrder Int       @map("sort_order")
@@ -94,7 +94,7 @@ model JobStage {
 
 model UserJob {
   id                Int       @id @default(autoincrement())
-  userId            Int       @map("user_id")
+  userId            String    @map("user_id")
   jobId             String    @map("job_id")
   stageId           Int       @map("stage_id")
   isTracked         Boolean   @default(true) @map("is_tracked")
@@ -181,7 +181,7 @@ model MarketSnapshot {
 
 model UserInsight {
   id              Int      @id @default(autoincrement())
-  userId          Int      @map("user_id")
+  userId          String   @map("user_id")
   currentSkills   Json     @map("current_skills")
   skillGaps       Json     @map("skill_gaps")
   recommendations Json

@@ -329,12 +329,12 @@ router.post('/dev-token', async (req: Request, res: Response) => {
     });
   }
 
-  const token = generateTestToken(parseInt(userId), email);
+  const token = generateTestToken(userId, email);
   res.json({
     success: true,
     data: { 
       token,
-      userId: parseInt(userId),
+      userId,
       email,
       expiresIn: '24h'
     },

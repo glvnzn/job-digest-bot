@@ -364,7 +364,7 @@ export class PrismaDatabaseService {
   /**
    * Job Tracking (User-specific)
    */
-  async trackJob(userId: number, jobId: string, stageId?: number): Promise<UserJob> {
+  async trackJob(userId: string, jobId: string, stageId?: number): Promise<UserJob> {
     // Get default "Interested" stage if none specified
     if (!stageId) {
       const interestedStage = await this.prisma.jobStage.findFirst({
@@ -395,7 +395,7 @@ export class PrismaDatabaseService {
     });
   }
 
-  async untrackJob(userId: number, jobId: string): Promise<void> {
+  async untrackJob(userId: string, jobId: string): Promise<void> {
     await this.prisma.userJob.delete({
       where: {
         userId_jobId: { userId, jobId },
@@ -403,7 +403,7 @@ export class PrismaDatabaseService {
     });
   }
 
-  async getUserJobs(userId: number): Promise<UserJob[]> {
+  async getUserJobs(userId: string): Promise<UserJob[]> {
     return await this.prisma.userJob.findMany({
       where: {
         userId,
@@ -420,7 +420,7 @@ export class PrismaDatabaseService {
   /**
    * Job Stages Management
    */
-  async getJobStages(userId?: number): Promise<JobStage[]> {
+  async getJobStages(userId?: string): Promise<JobStage[]> {
     return await this.prisma.jobStage.findMany({
       where: {
         OR: [
