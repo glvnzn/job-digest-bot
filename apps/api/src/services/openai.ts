@@ -193,9 +193,12 @@ export class OpenAIService {
         - If location mentions "remote", "work from home", "WFH", set isRemote to true
         - Extract apply URLs carefully:
           * For LinkedIn: Look for URLs containing "/jobs/view/" or "linkedin.com/jobs" - NOT company pages
+          * For JobStreet: Look for URLs containing "jobstreet.com" with complete query parameters
+          * For Indeed: Look for URLs with "/viewjob?jk=" parameter
           * Prefer direct job application URLs over company profile URLs
           * If you find tracking URLs, try to extract the actual job URL from them
           * Avoid URLs that go to company pages or profiles
+          * Ensure URLs are complete and not truncated - include all query parameters
         - If salary not mentioned, set as null
         - Determine source from email sender
         - If job details are incomplete, extract what you can
@@ -227,6 +230,13 @@ export class OpenAIService {
 
       return jobs.map((job: any) => {
         const cleanedApplyUrl = this.cleanApplyUrl(job.applyUrl || '', emailFrom);
+        
+        // Validate the cleaned URL
+        if (cleanedApplyUrl && !this.validateJobUrl(cleanedApplyUrl)) {
+          console.warn(`Skipping job with invalid URL: ${job.title} at ${job.company} - URL: ${cleanedApplyUrl}`);
+          // Still process the job but mark URL as invalid
+        }
+        
         const jobId = this.generateJobId(
           job.title || 'Unknown Title',
           job.company || 'Unknown Company',
@@ -474,6 +484,9 @@ export class OpenAIService {
     try {
       // Clean up common URL issues
       let cleanUrl = url.trim();
+      
+      // Log URL processing for debugging
+      console.log(`Processing URL: ${cleanUrl} from ${emailFrom}`);
 
       // Handle LinkedIn URLs specifically
       if (emailFrom.includes('linkedin') || cleanUrl.includes('linkedin.com')) {
@@ -488,6 +501,7 @@ export class OpenAIService {
         if (cleanUrl.includes('/jobs/view/') || cleanUrl.includes('linkedin.com/jobs')) {
           // Remove common tracking parameters
           cleanUrl = cleanUrl.split('?')[0]; // Remove query parameters that are usually tracking
+          console.log(`Returning LinkedIn URL: ${cleanUrl}`);
           return cleanUrl;
         }
       }
@@ -496,24 +510,105 @@ export class OpenAIService {
       if (emailFrom.includes('indeed') || cleanUrl.includes('indeed.com')) {
         // Indeed URLs often have tracking - keep the core URL
         if (cleanUrl.includes('/viewjob?jk=')) {
-          return cleanUrl.split('&')[0]; // Keep only the job key parameter
+          const finalUrl = cleanUrl.split('&')[0]; // Keep only the job key parameter
+          console.log(`Returning Indeed URL: ${finalUrl}`);
+          return finalUrl;
+        }
+      }
+
+      // Handle JobStreet URLs
+      if (emailFrom.includes('jobstreet') || cleanUrl.includes('jobstreet.com')) {
+        // JobStreet URLs often require query parameters to work correctly
+        // Keep all parameters but remove tracking ones if needed
+        if (cleanUrl.includes('jobstreet.com')) {
+          try {
+            // Remove common tracking parameters but preserve essential ones
+            const url = new URL(cleanUrl);
+            // Remove tracking parameters that might break the link
+            url.searchParams.delete('utm_source');
+            url.searchParams.delete('utm_medium');
+            url.searchParams.delete('utm_campaign');
+            url.searchParams.delete('utm_content');
+            url.searchParams.delete('fbclid');
+            const finalUrl = url.toString();
+            console.log(`Returning JobStreet URL: ${finalUrl}`);
+            return finalUrl;
+          } catch (error) {
+            console.warn(`Error processing JobStreet URL "${cleanUrl}":`, error);
+            // Return original URL if processing fails
+            return cleanUrl;
+          }
         }
       }
 
       // Generic URL validation
       if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+        console.log(`Returning generic URL: ${cleanUrl}`);
         return cleanUrl;
       }
 
       // If URL doesn't start with protocol, assume https
       if (cleanUrl.includes('.com') || cleanUrl.includes('.org')) {
-        return `https://${cleanUrl}`;
+        const finalUrl = `https://${cleanUrl}`;
+        console.log(`Returning URL with https prefix: ${finalUrl}`);
+        return finalUrl;
       }
 
+      console.log(`Returning fallback URL: ${cleanUrl}`);
       return cleanUrl;
     } catch (error) {
       console.warn(`Error cleaning URL "${url}":`, error);
       return url; // Return original if cleaning fails
+    }
+  }
+
+  /**
+   * Validate that a URL is accessible and properly formatted
+   */
+  private validateJobUrl(url: string): boolean {
+    if (!url || url.trim() === '') {
+      return false;
+    }
+
+    try {
+      const urlObj = new URL(url);
+      
+      // Must have http/https protocol
+      if (!['http:', 'https:'].includes(urlObj.protocol)) {
+        console.warn(`Invalid protocol for URL: ${url}`);
+        return false;
+      }
+
+      // Must have valid hostname
+      if (!urlObj.hostname || urlObj.hostname.length < 3) {
+        console.warn(`Invalid hostname for URL: ${url}`);
+        return false;
+      }
+
+      // Check for common job site patterns
+      const hostname = urlObj.hostname.toLowerCase();
+      const validJobSites = [
+        'linkedin.com',
+        'jobstreet.com', 
+        'indeed.com',
+        'glassdoor.com',
+        'monster.com',
+        'kalibrr.com',
+        'jobs.ph'
+      ];
+
+      const isKnownJobSite = validJobSites.some(site => 
+        hostname.includes(site) || hostname.endsWith(site)
+      );
+
+      if (!isKnownJobSite) {
+        console.log(`Unknown job site URL (might still be valid): ${url}`);
+      }
+
+      return true;
+    } catch (error) {
+      console.warn(`Invalid URL format: ${url}`, error);
+      return false;
     }
   }
 
