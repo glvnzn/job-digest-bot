@@ -60,7 +60,7 @@ router.get('/stats', authenticateToken, async (req: Request, res: Response) => {
           select: { stageId: true }
         });
         
-        const stageGroups = userJobs.reduce((acc: any, uj) => {
+        const stageGroups = userJobs.reduce((acc: Record<number, number>, uj) => {
           const key = uj.stageId;
           acc[key] = (acc[key] || 0) + 1;
           return acc;
@@ -69,7 +69,7 @@ router.get('/stats', authenticateToken, async (req: Request, res: Response) => {
         return Object.entries(stageGroups).map(([stageId, count]) => ({
           stageId: parseInt(stageId, 10),
           _count: { _all: count }
-        })).sort((a: any, b: any) => b._count._all - a._count._all);
+        })).sort((a: { _count: { _all: number } }, b: { _count: { _all: number } }) => b._count._all - a._count._all);
       })(),
       
       // Recent activity (last 7 days)
@@ -142,7 +142,7 @@ router.get('/stats', authenticateToken, async (req: Request, res: Response) => {
           include: { job: { select: { company: true } } }
         });
         
-        const companyCount = userJobs.reduce((acc: any, uj) => {
+        const companyCount = userJobs.reduce((acc: Record<string, number>, uj) => {
           const company = uj.job.company;
           acc[company] = (acc[company] || 0) + 1;
           return acc;
@@ -150,7 +150,7 @@ router.get('/stats', authenticateToken, async (req: Request, res: Response) => {
         
         return Object.entries(companyCount).map(([company, count]) => ({
           company, count
-        })).sort((a: any, b: any) => b.count - a.count).slice(0, 5);
+        })).sort((a: { count: number }, b: { count: number }) => b.count - a.count).slice(0, 5);
       })(),
       
       // Average relevance score of saved jobs
@@ -375,7 +375,7 @@ router.get('/analytics', authenticateToken, async (req: Request, res: Response) 
         include: { job: { select: { location: true } } }
       }).then(jobs => {
         const locations = jobs.map(j => j.job.location);
-        const distribution: any = {};
+        const distribution: Record<string, number> = {};
         
         locations.forEach(location => {
           if (location) {
@@ -429,7 +429,7 @@ router.get('/analytics', authenticateToken, async (req: Request, res: Response) 
         },
         select: { createdAt: true }
       }).then(jobs => {
-        const months: any = {};
+        const months: Record<string, number> = {};
         
         jobs.forEach(job => {
           const month = `${job.createdAt.getFullYear()}-${String(job.createdAt.getMonth() + 1).padStart(2, '0')}`;

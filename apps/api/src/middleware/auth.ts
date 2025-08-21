@@ -44,7 +44,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
   try {
     const JWT_SECRET = process.env.JWT_SECRET || 'your-dev-secret-key';
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload & { userId: number; email: string };
 
     // Fetch user from database to ensure they still exist
     // Ensure userId is a string (prevents JS number precision issues)

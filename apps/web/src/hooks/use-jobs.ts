@@ -108,12 +108,103 @@ export function useJobTracker() {
     },
   });
 
+  const markAppliedMutation = useMutation({
+    mutationFn: async (jobId: string) => {
+      // Check if job is already tracked
+      const isTracked = await isJobTracked(jobId);
+      
+      // Only track if not already tracked
+      if (!isTracked) {
+        await apiClient.jobs.track(jobId);
+      }
+      
+      const appliedStageId = await getStageIdByName('Applied');
+      return apiClient.userJobs.updateStage(jobId, appliedStageId);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['user-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    },
+  });
+
+  const markNotInterestedMutation = useMutation({
+    mutationFn: async (jobId: string) => {
+      // Check if job is already tracked
+      const isTracked = await isJobTracked(jobId);
+      
+      // Only track if not already tracked
+      if (!isTracked) {
+        await apiClient.jobs.track(jobId);
+      }
+      
+      const notInterestedStageId = await getStageIdByName('Not Interested');
+      return apiClient.userJobs.updateStage(jobId, notInterestedStageId);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['user-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    },
+  });
+
+  // Helper function to check if a job is already tracked
+  async function isJobTracked(jobId: string): Promise<boolean> {
+    try {
+      // First check the cache
+      const cachedUserJobs = queryClient.getQueryData(['user-jobs']) as any;
+      if (cachedUserJobs?.success && cachedUserJobs?.data) {
+        const isInCache = cachedUserJobs.data.some((userJob: UserJob) => 
+          userJob.jobId === jobId && userJob.isTracked
+        );
+        if (isInCache) {
+          return true;
+        }
+      }
+      
+      // If not in cache or cache is stale, fetch from API
+      const userJobsResponse = await apiClient.userJobs.getAll();
+      if (userJobsResponse.success && userJobsResponse.data) {
+        return userJobsResponse.data.some((userJob: UserJob) => 
+          userJob.jobId === jobId && userJob.isTracked
+        );
+      }
+      
+      return false;
+    } catch (error) {
+      console.warn(`Failed to check if job is tracked:`, error);
+      return false; // Assume not tracked if we can't check
+    }
+  }
+
+  // Helper function to get stage ID by name
+  async function getStageIdByName(stageName: string): Promise<string> {
+    try {
+      const stagesResponse = await apiClient.stages.getAll();
+      if (stagesResponse.success && stagesResponse.data) {
+        const stage = stagesResponse.data.find(s => s.name === stageName);
+        if (stage) {
+          return stage.id.toString();
+        }
+      }
+    } catch (error) {
+      console.warn(`Failed to fetch stages, using fallback for ${stageName}:`, error);
+    }
+    
+    // Fallback: return '1' for Interested (most common default)
+    return '1';
+  }
+
   return {
     track: trackMutation.mutate,
     untrack: untrackMutation.mutate,
+    markApplied: markAppliedMutation.mutate,
+    markNotInterested: markNotInterestedMutation.mutate,
     isTracking: trackMutation.isPending,
     isUntracking: untrackMutation.isPending,
+    isMarkingApplied: markAppliedMutation.isPending,
+    isMarkingNotInterested: markNotInterestedMutation.isPending,
     trackError: trackMutation.error,
     untrackError: untrackMutation.error,
+    markAppliedError: markAppliedMutation.error,
+    markNotInterestedError: markNotInterestedMutation.error,
   };
 }

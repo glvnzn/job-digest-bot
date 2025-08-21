@@ -9,6 +9,7 @@
  */
 
 import { Router, Request, Response } from 'express';
+import { Job } from '@prisma/client';
 import { DatabaseService } from '../services/database';
 import { authenticateToken } from '../middleware/auth';
 
@@ -20,7 +21,11 @@ const db = new DatabaseService();
  * Helper function to add computed fields to job objects
  * Keeps frontend "dumb" by providing pre-formatted data
  */
-function addComputedFields(job: any) {
+function addComputedFields(job: Partial<Job> & { 
+  relevanceScore?: number | null;
+  createdAt?: Date;
+  postedDate?: Date | null;
+}) {
   const formatDate = (date: Date | string | null) => {
     if (!date) return 'Not specified';
     const d = new Date(date);
@@ -77,7 +82,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
 
 
     // Build Prisma where clause
-    const where: any = {};
+    const where: Record<string, unknown> = {};
     
     // Search across multiple fields
     if (filters.search) {
@@ -105,13 +110,10 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
 
     // Relevance score filter
     if (filters.minRelevanceScore !== undefined || filters.maxRelevanceScore !== undefined) {
-      where.relevanceScore = {};
-      if (filters.minRelevanceScore !== undefined) {
-        where.relevanceScore.gte = filters.minRelevanceScore;
-      }
-      if (filters.maxRelevanceScore !== undefined) {
-        where.relevanceScore.lte = filters.maxRelevanceScore;
-      }
+      where.relevanceScore = {
+        ...(filters.minRelevanceScore !== undefined && { gte: filters.minRelevanceScore }),
+        ...(filters.maxRelevanceScore !== undefined && { lte: filters.maxRelevanceScore })
+      };
     }
 
     // Date filter
@@ -257,9 +259,9 @@ router.get('/user/saved', authenticateToken, async (req: Request, res: Response)
     const offset = parseInt(req.query.offset as string) || 0;
     const stageId = req.query.stageId as string;
 
-    const where: any = { userId };
+    const where: { userId: string; stageId?: number } = { userId };
     if (stageId) {
-      where.stageId = stageId;
+      where.stageId = parseInt(stageId, 10);
     }
 
     const [userJobs, total] = await Promise.all([
@@ -280,7 +282,8 @@ router.get('/user/saved', authenticateToken, async (req: Request, res: Response)
               applyUrl: true,
               salary: true,
               relevanceScore: true,
-              createdAt: true
+              createdAt: true,
+              postedDate: true
             }
           },
           stage: {

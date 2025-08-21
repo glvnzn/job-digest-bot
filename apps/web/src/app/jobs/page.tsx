@@ -15,12 +15,12 @@ import { Job, JobFilters } from '@libs/api';
 import { useJobs, useJobTracker } from '@/hooks/use-jobs';
 import { useUserJobs } from '@/hooks/use-user-jobs';
 import { JobDetailsDrawer } from '@/components/job-details-drawer';
-import { Search, ExternalLink, Eye, Star, Building2, MapPin, Briefcase, RefreshCw, Loader2 } from 'lucide-react';
+import { Search, ExternalLink, Eye, Star, Building2, MapPin, Briefcase, RefreshCw, Loader2, CheckCircle, XCircle } from 'lucide-react';
 
 // Main jobs content component that uses search params
 function JobsContent() {
   const { data: session, status } = useSession();
-  const { track, untrack, isTracking, isUntracking } = useJobTracker();
+  const { track, untrack, markApplied, markNotInterested, isTracking, isUntracking, isMarkingApplied, isMarkingNotInterested } = useJobTracker();
   // URL-synced filter state using nuqs
   const [search, setSearch] = useQueryState('search', {
     throttleMs: 300 // Debounce search input
@@ -103,6 +103,50 @@ function JobsContent() {
       },
       onError: (error: any) => {
         console.error('❌ Failed to untrack job:', error);
+      },
+      onSettled: () => {
+        setTrackingJobs(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(jobId);
+          return newSet;
+        });
+      }
+    });
+  };
+
+  const handleMarkApplied = (jobId: string) => {
+    if (trackingJobs.has(jobId)) return;
+    
+    setTrackingJobs(prev => new Set(prev).add(jobId));
+    markApplied(jobId, {
+      onSuccess: () => {
+        setTrackedJobs(prev => new Set(prev).add(jobId));
+        console.log('✅ Job marked as applied');
+      },
+      onError: (error: any) => {
+        console.error('❌ Failed to mark job as applied:', error);
+      },
+      onSettled: () => {
+        setTrackingJobs(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(jobId);
+          return newSet;
+        });
+      }
+    });
+  };
+
+  const handleMarkNotInterested = (jobId: string) => {
+    if (trackingJobs.has(jobId)) return;
+    
+    setTrackingJobs(prev => new Set(prev).add(jobId));
+    markNotInterested(jobId, {
+      onSuccess: () => {
+        setTrackedJobs(prev => new Set(prev).add(jobId));
+        console.log('✅ Job marked as not interested');
+      },
+      onError: (error: any) => {
+        console.error('❌ Failed to mark job as not interested:', error);
       },
       onSettled: () => {
         setTrackingJobs(prev => {
@@ -334,6 +378,34 @@ function JobsContent() {
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <Star className={`h-3 w-3 ${trackedJobs.has(job.id) ? 'fill-current' : ''}`} />
+                          )}
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleMarkApplied(job.id)}
+                          disabled={trackingJobs.has(job.id)}
+                          className="h-7 px-2 text-xs text-green-600 hover:text-green-700"
+                          title="Mark as applied"
+                        >
+                          {trackingJobs.has(job.id) && isMarkingApplied ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <CheckCircle className="h-3 w-3" />
+                          )}
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleMarkNotInterested(job.id)}
+                          disabled={trackingJobs.has(job.id)}
+                          className="h-7 px-2 text-xs text-red-600 hover:text-red-700"
+                          title="Mark as not interested"
+                        >
+                          {trackingJobs.has(job.id) && isMarkingNotInterested ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <XCircle className="h-3 w-3" />
                           )}
                         </Button>
                         <Button 
