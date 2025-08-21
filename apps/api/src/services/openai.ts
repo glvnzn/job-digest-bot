@@ -190,7 +190,13 @@ export class OpenAIService {
 
         Rules:
         - Extract ALL job listings from the email
-        - If location mentions "remote", "work from home", "WFH", set isRemote to true
+        - For remote work detection, be AGGRESSIVE and set isRemote to true if ANY of these appear ANYWHERE in the job posting:
+          * Location: "remote", "work from home", "WFH", "work-from-home", "telecommute", "telework"
+          * Description: "remote work", "remote position", "remote opportunity", "fully remote", "100% remote"
+          * Description: "work remotely", "work from anywhere", "distributed team", "remote-first"
+          * Description: "no office required", "location independent", "virtual team", "remote collaboration"
+          * Benefits: mentions remote work as a benefit or perk
+          * BUT: If it mentions "hybrid", "office required", "on-site", or "in-person", set isRemote to false
         - Extract apply URLs carefully:
           * For LinkedIn: Look for URLs containing "/jobs/view/" or "linkedin.com/jobs" - NOT company pages
           * For JobStreet: Look for URLs containing "jobstreet.com" with complete query parameters
@@ -243,12 +249,21 @@ export class OpenAIService {
           cleanedApplyUrl
         );
         
+        // Enhanced remote detection - post-process to catch what AI might have missed
+        const enhancedIsRemote = this.detectRemoteWork(
+          job.title || '',
+          job.description || '',
+          job.location || '',
+          job.requirements || [],
+          job.isRemote || false
+        );
+        
         return {
           id: jobId,
           title: job.title || 'Unknown Title',
           company: job.company || 'Unknown Company',
           location: job.location || 'Unknown Location',
-          isRemote: job.isRemote || false,
+          isRemote: enhancedIsRemote,
           description: job.description || '',
           requirements: job.requirements || [],
           applyUrl: cleanedApplyUrl,
@@ -265,6 +280,168 @@ export class OpenAIService {
       console.error('Error extracting jobs from email:', error);
       return [];
     }
+  }
+
+  /**
+   * Enhanced remote work detection - more aggressive than AI alone
+   */
+  private detectRemoteWork(
+    title: string, 
+    description: string, 
+    location: string, 
+    requirements: string[], 
+    aiDetectedRemote: boolean
+  ): boolean {
+    // Combine all text for analysis
+    const allText = [
+      title,
+      description,
+      location,
+      ...(Array.isArray(requirements) ? requirements : [])
+    ].join(' ').toLowerCase();
+
+    // EXCLUSION patterns - if these exist, it's NOT remote
+    const hybridPatterns = [
+      'hybrid',
+      'hybrid work',
+      'hybrid model',
+      'hybrid arrangement',
+      'office required',
+      'on-site required',
+      'onsite required',
+      'in-person required',
+      'must be located',
+      'must be based',
+      'local candidates only',
+      'relocation required',
+      'office presence',
+      'days in office',
+      'office days',
+      'partially remote',
+      'some remote work',
+      'flexible work arrangement',
+      'mix of remote and office',
+      'combination of remote',
+      '3 days in office',
+      '2 days in office',
+      '1 day in office',
+      'occasional office visits',
+      'periodic office attendance'
+    ];
+
+    // Check if it's hybrid/on-site (not fully remote)
+    const hasHybridPattern = hybridPatterns.some(pattern => 
+      allText.includes(pattern)
+    );
+
+    if (hasHybridPattern) {
+      console.log(`Job marked as non-remote due to hybrid/on-site requirement: ${title}`);
+      return false;
+    }
+
+    // INCLUSION patterns - aggressive remote detection
+    const remotePatterns = [
+      // Location-based
+      'remote',
+      'work from home',
+      'wfh',
+      'work-from-home',
+      'telecommute',
+      'telework',
+      'home-based',
+      
+      // Work arrangement
+      'fully remote',
+      '100% remote',
+      'completely remote',
+      'remote position',
+      'remote role',
+      'remote job',
+      'remote work',
+      'remote opportunity',
+      'remote team',
+      'distributed team',
+      'virtual team',
+      'remote-first',
+      'remote friendly',
+      
+      // Flexibility indicators
+      'work from anywhere',
+      'location independent',
+      'no office required',
+      'virtual collaboration',
+      'digital nomad',
+      'anywhere in',
+      
+      // Common remote job titles
+      'virtual assistant',
+      'online tutor',
+      'remote developer',
+      'remote engineer',
+      'remote designer',
+      'remote writer',
+      'remote manager',
+      'remote consultant',
+      'virtual instructor',
+      'online instructor',
+      'remote analyst',
+      'remote specialist',
+      'remote coordinator',
+      'virtual support',
+      'online support',
+      
+      // Benefits/perks mentioning remote
+      'remote work benefit',
+      'work from home benefit',
+      'flexible location'
+    ];
+
+    // Check for remote patterns
+    const hasRemotePattern = remotePatterns.some(pattern => 
+      allText.includes(pattern)
+    );
+
+    // Special location-based detection
+    const locationPatterns = [
+      'worldwide',
+      'global',
+      'anywhere',
+      'any location',
+      'usa remote',
+      'us remote',
+      'remote usa',
+      'remote us',
+      'philippines remote',
+      'remote philippines',
+      'remote - worldwide',
+      'remote - global',
+      'remote (worldwide)',
+      'remote (global)',
+      'international remote',
+      'remote international',
+      'asia remote',
+      'remote asia',
+      'europe remote',
+      'remote europe',
+      'north america remote',
+      'remote north america',
+      'remote - any location',
+      'remote location',
+      'home office',
+      'virtual office'
+    ];
+
+    const hasRemoteLocation = locationPatterns.some(pattern => 
+      location.toLowerCase().includes(pattern)
+    );
+
+    const finalRemote = aiDetectedRemote || hasRemotePattern || hasRemoteLocation;
+
+    if (finalRemote && !aiDetectedRemote) {
+      console.log(`Enhanced remote detection found remote job: ${title} - Pattern detected in: "${allText.slice(0, 200)}..."`);
+    }
+
+    return finalRemote;
   }
 
   /**
