@@ -2,7 +2,8 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { useQueryState } from 'nuqs';
 import { useSession, signOut } from 'next-auth/react';
 import { useUserJobs, useJobStages, useJobStageUpdate } from '@/hooks/use-user-jobs';
 import Link from 'next/link';
@@ -28,6 +29,14 @@ import { CSS } from '@dnd-kit/utilities';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   Briefcase,
   ArrowLeft,
@@ -36,7 +45,10 @@ import {
   ExternalLink,
   Eye,
   RefreshCw,
-  GripVertical
+  GripVertical,
+  Search,
+  Filter,
+  X
 } from 'lucide-react';
 import { type Job, type UserJob, type JobStage } from '@libs/api';
 
@@ -225,12 +237,23 @@ export default function KanbanPage() {
   const [activeJob, setActiveJob] = useState<UserJobWithJob | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  
+  // Filter and search state with URL persistence
+  const [searchTerm, setSearchTerm] = useQueryState('search', { 
+    defaultValue: '',
+    clearOnDefault: true 
+  });
+  const [selectedCompany, setSelectedCompany] = useQueryState('company', { 
+    defaultValue: '',
+    clearOnDefault: true 
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(MouseSensor),
     useSensor(TouchSensor)
   );
+
 
   // Remove redundant auth check - middleware handles protection
 
@@ -244,24 +267,65 @@ export default function KanbanPage() {
   const isLoading = userJobsLoading || stagesLoading;
   const error = userJobsError || stagesError;
 
-  // Update kanban data when queries change
-  useEffect(() => {
-    if (userJobsResult?.success && stagesResult?.success) {
-      // Cast to the correct type since we know the API returns embedded job data
-      const userJobs = (userJobsResult.data || []) as UserJobWithJob[];
-      const stages = (stagesResult.data || []).sort((a, b) => a.sortOrder - b.sortOrder);
-
-      // Create kanban structure - userJobs already contain embedded job data
-      const kanban: KanbanData[] = stages.map(stage => ({
-        stage,
-        userJobs: userJobs
-          .filter(uj => uj.stageId === stage.id)
-          .filter(uj => uj.job) // Ensure job data exists (defensive check)
-      }));
-
-      setKanbanData(kanban);
+  // Compute filtered and grouped kanban data
+  const { filteredKanbanData, availableCompanies, filteredJobCount, totalJobCount } = useMemo(() => {
+    if (!userJobsResult?.success || !stagesResult?.success) {
+      return { filteredKanbanData: [], availableCompanies: [], filteredJobCount: 0, totalJobCount: 0 };
     }
-  }, [userJobsResult, stagesResult]);
+
+    // Cast to the correct type since we know the API returns embedded job data
+    const userJobs = (userJobsResult.data || []) as UserJobWithJob[];
+    const stages = (stagesResult.data || []).sort((a, b) => a.sortOrder - b.sortOrder);
+
+    // Extract unique companies for filter dropdown
+    const companies = [...new Set(
+      userJobs
+        .filter(uj => uj.job?.company)
+        .map(uj => uj.job.company)
+    )].sort();
+
+    // Apply filters
+    const filteredUserJobs = userJobs.filter(uj => {
+      if (!uj.job) return false; // Ensure job data exists
+
+      // Search filter (job title, company, description)
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        const matchesSearch = 
+          uj.job.title?.toLowerCase().includes(searchLower) ||
+          uj.job.company?.toLowerCase().includes(searchLower) ||
+          uj.job.description?.toLowerCase().includes(searchLower);
+        
+        if (!matchesSearch) return false;
+      }
+
+      // Company filter
+      if (selectedCompany && selectedCompany !== '__all__' && uj.job.company !== selectedCompany) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Create kanban structure with filtered jobs
+    const kanban: KanbanData[] = stages.map(stage => ({
+      stage,
+      userJobs: filteredUserJobs
+        .filter(uj => uj.stageId === stage.id)
+    }));
+
+    return {
+      filteredKanbanData: kanban,
+      availableCompanies: companies,
+      filteredJobCount: filteredUserJobs.length,
+      totalJobCount: userJobs.length
+    };
+  }, [userJobsResult, stagesResult, searchTerm, selectedCompany]);
+
+  // Update local state for drag and drop (since DnD needs it in state)
+  useEffect(() => {
+    setKanbanData(filteredKanbanData);
+  }, [filteredKanbanData]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -387,9 +451,68 @@ export default function KanbanPage() {
       <main className="container mx-auto px-4 py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold mb-2">Job Pipeline</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mb-4">
             Drag and drop jobs to manage your application pipeline
           </p>
+          
+          {/* Filter and Search Controls */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex flex-col sm:flex-row gap-3 flex-1">
+              {/* Search Input */}
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search job titles, companies..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
+              {/* Company Filter */}
+              <div className="min-w-[200px]">
+                <Select value={selectedCompany || undefined} onValueChange={(value) => setSelectedCompany(value || '')}>
+                  <SelectTrigger>
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Filter by company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All Companies</SelectItem>
+                    {availableCompanies.map((company) => (
+                      <SelectItem key={company} value={company}>
+                        {company}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Clear Filters */}
+              {(searchTerm || (selectedCompany && selectedCompany !== '__all__')) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedCompany('');
+                  }}
+                  className="shrink-0"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Clear
+                </Button>
+              )}
+            </div>
+
+            {/* Results Count */}
+            <div className="text-sm text-muted-foreground">
+              {filteredJobCount !== totalJobCount ? (
+                <>Showing {filteredJobCount} of {totalJobCount} jobs</>
+              ) : (
+                <>{totalJobCount} jobs</>
+              )}
+            </div>
+          </div>
         </div>
 
         <DndContext
