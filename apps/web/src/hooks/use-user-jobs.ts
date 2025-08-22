@@ -5,12 +5,12 @@ import { useSession } from 'next-auth/react';
 import { apiClient, type UserJob, type JobStage } from '@libs/api';
 
 // Get user's tracked jobs (kanban board data) - React Query powered
-export function useUserJobs() {
+export function useUserJobs(options?: { limit?: number; offset?: number; stageId?: string }) {
   const { data: session, status } = useSession();
 
   return useQuery({
-    queryKey: ['user-jobs', session?.user?.email],
-    queryFn: () => apiClient.userJobs.getAll(),
+    queryKey: ['user-jobs', session?.user?.email, options],
+    queryFn: () => apiClient.userJobs.getAll(options),
     enabled: !!(session?.user && status === 'authenticated'), // Wait for authentication
     staleTime: 1 * 60 * 1000, // 1 minute - user jobs change more frequently
     retry: 1,

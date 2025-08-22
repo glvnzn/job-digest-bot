@@ -5,7 +5,6 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useUserJobs, useJobStages, useJobStageUpdate } from '@/hooks/use-user-jobs';
-import { useJobs } from '@/hooks/use-jobs';
 import Link from 'next/link';
 import {
   DndContext,
@@ -40,13 +39,29 @@ import {
   GripVertical
 } from 'lucide-react';
 import { type Job, type UserJob, type JobStage } from '@libs/api';
+
+// Type for UserJob with embedded Job data (as returned by /api/v1/jobs/user/saved)
+interface UserJobWithJob extends UserJob {
+  job: Job & {
+    formattedPostedDate: string;
+    formattedCreatedAt: string;
+    relevancePercentage: number;
+    relevanceBadgeVariant: 'default' | 'secondary';
+  };
+  stage: {
+    id: number;
+    name: string;
+    color: string;
+    isSystem: boolean;
+  };
+}
 import { JobDetailsDrawer } from '@/components/job-details-drawer';
 
 // Force dynamic rendering to avoid build-time env issues
 
 interface KanbanData {
   stage: JobStage;
-  userJobs: (UserJob & { job: Job })[];
+  userJobs: UserJobWithJob[];
 }
 
 // Draggable job card component
@@ -55,7 +70,7 @@ function DraggableJobCard({
   isDragging, 
   onViewJob 
 }: { 
-  userJob: UserJob & { job: Job }; 
+  userJob: UserJobWithJob; 
   isDragging?: boolean;
   onViewJob: (jobId: string) => void;
 }) {
@@ -207,7 +222,7 @@ function StageColumn({ kanbanData, onViewJob }: { kanbanData: KanbanData; onView
 export default function KanbanPage() {
   const { status } = useSession();
   const [kanbanData, setKanbanData] = useState<KanbanData[]>([]);
-  const [activeJob, setActiveJob] = useState<(UserJob & { job: Job }) | null>(null);
+  const [activeJob, setActiveJob] = useState<UserJobWithJob | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
@@ -219,39 +234,34 @@ export default function KanbanPage() {
 
   // Remove redundant auth check - middleware handles protection
 
-  // Fetch kanban data with authentication-aware hooks
-  const { data: userJobsResult, isLoading: userJobsLoading, error: userJobsError, refetch: refetchUserJobs } = useUserJobs();
-  const { data: jobsResult, isLoading: jobsLoading, error: jobsError, refetch: refetchJobs } = useJobs({ limit: 1000 });
+  // Fetch kanban data with authentication-aware hooks (get all user jobs for kanban)
+  const { data: userJobsResult, isLoading: userJobsLoading, error: userJobsError, refetch: refetchUserJobs } = useUserJobs({ limit: 1000 });
   const { data: stagesResult, isLoading: stagesLoading, error: stagesError, refetch: refetchStages } = useJobStages();
   
   // Stage update mutation
   const { mutate: updateJobStage } = useJobStageUpdate();
 
-  const isLoading = userJobsLoading || jobsLoading || stagesLoading;
-  const error = userJobsError || jobsError || stagesError;
+  const isLoading = userJobsLoading || stagesLoading;
+  const error = userJobsError || stagesError;
 
   // Update kanban data when queries change
   useEffect(() => {
-    if (userJobsResult?.success && jobsResult?.success && stagesResult?.success) {
-      const userJobs = userJobsResult.data || [];
-      const jobs = jobsResult.data || [];
+    if (userJobsResult?.success && stagesResult?.success) {
+      // Cast to the correct type since we know the API returns embedded job data
+      const userJobs = (userJobsResult.data || []) as UserJobWithJob[];
       const stages = (stagesResult.data || []).sort((a, b) => a.sortOrder - b.sortOrder);
 
-      // Create kanban structure
+      // Create kanban structure - userJobs already contain embedded job data
       const kanban: KanbanData[] = stages.map(stage => ({
         stage,
         userJobs: userJobs
           .filter(uj => uj.stageId === stage.id)
-          .map(uj => ({
-            ...uj,
-            job: jobs.find(job => job.id === uj.jobId)!
-          }))
-          .filter(uj => uj.job) // Filter out jobs that weren't found
+          .filter(uj => uj.job) // Ensure job data exists (defensive check)
       }));
 
       setKanbanData(kanban);
     }
-  }, [userJobsResult, jobsResult, stagesResult]);
+  }, [userJobsResult, stagesResult]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -300,7 +310,6 @@ export default function KanbanPage() {
         onError: (error) => {
           // Revert optimistic update on error
           refetchUserJobs();
-          refetchJobs();
           console.error('Error updating job stage:', error);
         }
       }
@@ -315,7 +324,6 @@ export default function KanbanPage() {
   const handleDrawerUpdate = () => {
     // Refresh kanban data when drawer updates something
     refetchUserJobs();
-    refetchJobs();
     refetchStages();
   };
 
@@ -337,7 +345,6 @@ export default function KanbanPage() {
           <div className="text-destructive">{error.message || 'Failed to load kanban board'}</div>
           <Button onClick={() => {
             refetchUserJobs();
-            refetchJobs();
             refetchStages();
           }}>Try Again</Button>
         </div>

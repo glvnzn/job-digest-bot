@@ -236,8 +236,16 @@ class ApiClient {
   // User Jobs API
   userJobs = {
     // GET /api/v1/jobs/user/saved - Get user's tracked jobs
-    getAll: async (): Promise<ApiResponse<UserJob[]>> => {
-      return this.request<UserJob[]>('/api/v1/jobs/user/saved');
+    getAll: async (options?: { limit?: number; offset?: number; stageId?: string }): Promise<ApiResponse<UserJob[]>> => {
+      const params = new URLSearchParams();
+      if (options?.limit) params.append('limit', String(options.limit));
+      if (options?.offset) params.append('offset', String(options.offset));
+      if (options?.stageId) params.append('stageId', options.stageId);
+      
+      const queryString = params.toString();
+      const endpoint = `/api/v1/jobs/user/saved${queryString ? `?${queryString}` : ''}`;
+      
+      return this.request<UserJob[]>(endpoint);
     },
 
     // PUT /api/v1/jobs/:id/stage - Update job stage
