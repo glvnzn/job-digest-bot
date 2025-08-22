@@ -50,6 +50,7 @@ import {
   Filter,
   X
 } from 'lucide-react';
+import { AppHeader } from '@/components/layout/app-header';
 import { type Job, type UserJob, type JobStage } from '@libs/api';
 
 // Type for UserJob with embedded Job data (as returned by /api/v1/jobs/user/saved)
@@ -418,35 +419,7 @@ export default function KanbanPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-6">
-            <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Briefcase className="h-4 w-4 text-primary-foreground" />
-              </div>
-              <span className="font-semibold text-lg">Job Digest</span>
-            </Link>
-            <nav className="hidden md:flex items-center gap-4">
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/dashboard">Dashboard</Link>
-              </Button>
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/jobs">Jobs</Link>
-              </Button>
-              <Button asChild variant="ghost" size="sm" className="bg-muted">
-                <Link href="/kanban">Kanban</Link>
-              </Button>
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/insights">Career Insights</Link>
-              </Button>
-            </nav>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => signOut({ callbackUrl: '/login' })}>
-            Sign Out
-          </Button>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="container mx-auto px-4 py-6">
         <div className="mb-6">

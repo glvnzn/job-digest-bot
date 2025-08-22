@@ -20,22 +20,33 @@ import {
   Code,
   Zap
 } from 'lucide-react';
-import { useCareerInsights } from '@libs/api';
+import { useInsightsData } from '@libs/api';
 
 interface CareerInsightsProps {
   className?: string;
 }
 
 export function CareerInsights({ className }: CareerInsightsProps) {
-  // Fetch career insights with custom hook
-  const { insights, techTrends, isLoading, error, refetch: refetchInsights } = useCareerInsights();
+  // Fetch career insights with custom hook following established patterns
+  const { careerInsights, techTrends, isLoading, error, refetch: refetchInsights } = useInsightsData();
 
   const getPriorityColor = (priority: string) => {
     switch (priority.toLowerCase()) {
+      case 'critical': return 'destructive';
       case 'high': return 'destructive';
       case 'medium': return 'default';
       case 'low': return 'secondary';
       default: return 'outline';
+    }
+  };
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority.toLowerCase()) {
+      case 'critical': return <AlertTriangle className="h-3 w-3" />;
+      case 'high': return <Target className="h-3 w-3" />;
+      case 'medium': return <Clock className="h-3 w-3" />;
+      case 'low': return <CheckCircle className="h-3 w-3" />;
+      default: return <Target className="h-3 w-3" />;
     }
   };
 
@@ -105,7 +116,7 @@ export function CareerInsights({ className }: CareerInsightsProps) {
       </Card>
 
       {/* Tech Stack Analysis */}
-      {insights?.techStackAnalysis && (
+      {careerInsights?.techStackAnalysis && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -118,7 +129,7 @@ export function CareerInsights({ className }: CareerInsightsProps) {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {insights.techStackAnalysis.slice(0, 6).map((tech: any, index: number) => (
+              {careerInsights.techStackAnalysis.slice(0, 6).map((tech: any, index: number) => (
                 <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
@@ -145,37 +156,99 @@ export function CareerInsights({ className }: CareerInsightsProps) {
       {/* Skill Gaps & Recommendations */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Skill Gaps */}
-        {insights?.skillGaps && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Target className="h-5 w-5" />
-                Skill Gap Analysis
-              </CardTitle>
-              <CardDescription>
-                Skills to focus on for better opportunities
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              Skill Gap Analysis
+            </CardTitle>
+            <CardDescription>
+              {careerInsights?.skillGaps && careerInsights.skillGaps.length > 0 
+                ? `${careerInsights.skillGaps.length} key skills to focus on for better opportunities`
+                : 'Analyzing your skill portfolio against market demand'
+              }
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {careerInsights?.skillGaps && careerInsights.skillGaps.length > 0 ? (
               <div className="space-y-4">
-                {insights.skillGaps.map((gap: any, index: number) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium">{gap.skill}</h4>
-                      <Badge variant={getPriorityColor(gap.priority)} className="text-xs">
+                {careerInsights.skillGaps.map((gap: any, index: number) => (
+                  <div key={index} className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-base">{gap.skill}</h4>
+                        <Badge variant="outline" className="text-xs">
+                          {gap.frequency}% demand
+                        </Badge>
+                      </div>
+                      <Badge variant={getPriorityColor(gap.priority)} className="text-xs flex items-center gap-1">
+                        {getPriorityIcon(gap.priority)}
                         {gap.priority} Priority
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">{gap.reasoning}</p>
-                    <div className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-950/20 p-2 rounded">
-                      <strong>Learning Path:</strong> {gap.learningPath}
+                    
+                    <p className="text-sm text-muted-foreground mb-3 leading-relaxed">
+                      {gap.reasoning}
+                    </p>
+                    
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
+                      <div className="flex items-start gap-2">
+                        <BookOpen className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+                        <div className="flex-1">
+                          <h5 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
+                            Recommended Learning Path
+                          </h5>
+                          <div className="text-xs text-blue-700 dark:text-blue-200 space-y-1">
+                            {gap.learningPath.split(/\d+\.\s*/).filter(Boolean).map((step: string, stepIndex: number) => (
+                              <div key={stepIndex} className="flex items-start gap-2">
+                                <span className="inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-blue-600 rounded-full shrink-0">
+                                  {stepIndex + 1}
+                                </span>
+                                <span className="leading-tight">{step.trim()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
+                
+                {/* Learning Progress Encouragement */}
+                <div className="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Lightbulb className="h-4 w-4 text-green-600" />
+                    <h4 className="font-medium text-green-900 dark:text-green-100">Pro Tip</h4>
+                  </div>
+                  <p className="text-sm text-green-700 dark:text-green-200">
+                    Focus on the top 2-3 high-priority skills first. Mastering one skill thoroughly is more valuable than surface-level knowledge of many.
+                  </p>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Star className="h-8 w-8 text-green-600" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2 text-green-900 dark:text-green-100">
+                  Great Skill Portfolio!
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
+                  {careerInsights ? 
+                    'Your skills align well with current market demand. Consider exploring emerging technologies to stay ahead.' :
+                    'Loading your personalized skill gap analysis...'
+                  }
+                </p>
+                {careerInsights && (
+                  <Button variant="outline" size="sm" onClick={refetchInsights}>
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Refresh Analysis
+                  </Button>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Market Trends */}
         {techTrends?.trendingTechnologies && (
@@ -213,7 +286,7 @@ export function CareerInsights({ className }: CareerInsightsProps) {
       </div>
 
       {/* Career Recommendations */}
-      {insights?.recommendations && (
+      {careerInsights?.recommendations && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -226,7 +299,7 @@ export function CareerInsights({ className }: CareerInsightsProps) {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {insights.recommendations.map((rec: any, index: number) => (
+              {careerInsights.recommendations.map((rec: any, index: number) => (
                 <div key={index} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <Badge variant="outline" className="text-xs">
@@ -261,7 +334,7 @@ export function CareerInsights({ className }: CareerInsightsProps) {
       )}
 
       {/* Preparation Roadmap */}
-      {insights?.preparationAdvice && (
+      {careerInsights?.preparationAdvice && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -280,7 +353,7 @@ export function CareerInsights({ className }: CareerInsightsProps) {
                   <h4 className="font-semibold">Immediate (1-4 weeks)</h4>
                 </div>
                 <ul className="space-y-2">
-                  {insights.preparationAdvice.immediate.map((item: string, index: number) => (
+                  {careerInsights.preparationAdvice.immediate.map((item: string, index: number) => (
                     <li key={index} className="flex items-start gap-2 text-sm">
                       <ArrowRight className="h-3 w-3 text-red-500 mt-0.5 shrink-0" />
                       {item}
@@ -295,7 +368,7 @@ export function CareerInsights({ className }: CareerInsightsProps) {
                   <h4 className="font-semibold">Short-term (1-6 months)</h4>
                 </div>
                 <ul className="space-y-2">
-                  {insights.preparationAdvice.shortTerm.map((item: string, index: number) => (
+                  {careerInsights.preparationAdvice.shortTerm.map((item: string, index: number) => (
                     <li key={index} className="flex items-start gap-2 text-sm">
                       <ArrowRight className="h-3 w-3 text-yellow-500 mt-0.5 shrink-0" />
                       {item}
@@ -310,7 +383,7 @@ export function CareerInsights({ className }: CareerInsightsProps) {
                   <h4 className="font-semibold">Long-term (6+ months)</h4>
                 </div>
                 <ul className="space-y-2">
-                  {insights.preparationAdvice.longTerm.map((item: string, index: number) => (
+                  {careerInsights.preparationAdvice.longTerm.map((item: string, index: number) => (
                     <li key={index} className="flex items-start gap-2 text-sm">
                       <ArrowRight className="h-3 w-3 text-green-500 mt-0.5 shrink-0" />
                       {item}
@@ -324,14 +397,14 @@ export function CareerInsights({ className }: CareerInsightsProps) {
       )}
 
       {/* Analysis Metadata */}
-      {insights?.metadata && (
+      {careerInsights?.metadata && (
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between text-sm text-muted-foreground">
               <div className="flex items-center gap-4">
-                <span>📊 Analyzed {insights.metadata.analyzedJobs} jobs</span>
-                <span>⭐ {insights.metadata.trackedJobs} tracked</span>
-                <span>🔄 Updated {new Date(insights.metadata.generatedAt).toLocaleDateString()}</span>
+                <span>📊 Analyzed {careerInsights.metadata.analyzedJobs} jobs</span>
+                <span>⭐ {careerInsights.metadata.trackedJobs} tracked</span>
+                <span>🔄 Updated {new Date(careerInsights.metadata.generatedAt).toLocaleDateString()}</span>
               </div>
               <Button onClick={refetchInsights} variant="ghost" size="sm">
                 <RefreshCw className="h-3 w-3 mr-1" />

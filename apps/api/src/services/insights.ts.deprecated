@@ -235,48 +235,96 @@ export class InsightsService {
    * Identifies skill gaps based on user's tracked jobs vs market demand
    */
   private async identifySkillGaps(userJobs: any[], allJobs: any[]): Promise<SkillGap[]> {
-    // Get technologies from user's tracked jobs
-    const userTechs = new Set<string>();
+    if (allJobs.length === 0) {
+      return this.getMockSkillGaps();
+    }
+
+    // Get technologies from user's tracked jobs with improved confidence scoring
+    const userTechs = new Map<string, number>();
+    const userTechCategories = new Set<string>();
+    
     userJobs.forEach(userJob => {
-      if (userJob.job.insights?.technologies) {
+      if (userJob.job?.insights?.technologies) {
         const technologies = userJob.job.insights.technologies as any[];
         technologies.forEach((tech: any) => {
-          if (tech.confidence > 0.7) {
-            userTechs.add(tech.name);
+          if (tech.confidence > 0.6) { // Slightly lower threshold for user skills
+            const normalizedName = tech.name.toLowerCase().trim();
+            userTechs.set(normalizedName, (userTechs.get(normalizedName) || 0) + 1);
+            if (tech.category) {
+              userTechCategories.add(tech.category.toLowerCase());
+            }
           }
         });
       }
     });
 
-    // Analyze market demand for technologies not in user's skillset
-    const marketTechs: Record<string, number> = {};
+    // Analyze market demand for all technologies
+    const marketTechs: Record<string, { count: number; category: string; avgConfidence: number }> = {};
+    const totalJobsWithTech = allJobs.filter(job => job.insights?.technologies?.length > 0).length;
+    
     allJobs.forEach(job => {
       if (job.insights?.technologies) {
         const technologies = job.insights.technologies as any[];
         technologies.forEach((tech: any) => {
-          if (tech.confidence > 0.7 && !userTechs.has(tech.name)) {
-            marketTechs[tech.name] = (marketTechs[tech.name] || 0) + 1;
+          if (tech.confidence > 0.7) {
+            const normalizedName = tech.name.toLowerCase().trim();
+            if (!marketTechs[normalizedName]) {
+              marketTechs[normalizedName] = {
+                count: 0,
+                category: tech.category || 'Other',
+                avgConfidence: 0
+              };
+            }
+            marketTechs[normalizedName].count++;
+            marketTechs[normalizedName].avgConfidence += tech.confidence;
           }
         });
       }
     });
 
-    const totalJobs = allJobs.length;
+    // Calculate averages and identify gaps
+    const skillGaps: SkillGap[] = [];
     
-    return Object.entries(marketTechs)
-      .map(([skill, count]) => {
-        const frequency = Math.round((count / totalJobs) * 100);
-        return {
-          skill,
-          priority: frequency > 50 ? 'High' : frequency > 30 ? 'Medium' : 'Low',
-          frequency,
-          reasoning: `Appears in ${frequency}% of job postings but not in your tracked jobs`,
-          learningPath: this.generateLearningPath(skill)
-        };
+    Object.entries(marketTechs).forEach(([skill, data]) => {
+      const normalizedSkill = skill.toLowerCase().trim();
+      const userHasSkill = userTechs.has(normalizedSkill);
+      
+      if (!userHasSkill) {
+        const frequency = Math.round((data.count / totalJobsWithTech) * 100);
+        const avgConfidence = data.avgConfidence / data.count;
+        
+        // Enhanced priority calculation
+        let priority = 'Low';
+        if (frequency > 60 && avgConfidence > 0.8) {
+          priority = 'Critical';
+        } else if (frequency > 40 || (frequency > 25 && avgConfidence > 0.85)) {
+          priority = 'High';
+        } else if (frequency > 20) {
+          priority = 'Medium';
+        }
+        
+        // Only include significant gaps
+        if (frequency >= 15) {
+          skillGaps.push({
+            skill: this.capitalizeWords(skill),
+            priority,
+            frequency,
+            reasoning: this.generateGapReasoning(skill, frequency, data.category, userTechCategories),
+            learningPath: this.generateEnhancedLearningPath(skill, data.category, priority)
+          });
+        }
+      }
+    });
+
+    // Sort by priority and frequency
+    const priorityOrder = { 'Critical': 4, 'High': 3, 'Medium': 2, 'Low': 1 };
+    return skillGaps
+      .sort((a, b) => {
+        const priorityDiff = (priorityOrder[a.priority] || 0) - (priorityOrder[b.priority] || 0);
+        if (priorityDiff !== 0) return -priorityDiff;
+        return b.frequency - a.frequency;
       })
-      .filter(gap => gap.frequency > 20) // Only significant gaps
-      .sort((a, b) => b.frequency - a.frequency)
-      .slice(0, 5); // Top 5 skill gaps
+      .slice(0, 6); // Top 6 skill gaps
   }
 
   /**
@@ -459,6 +507,97 @@ export class InsightsService {
     };
     
     return paths[skill] || `Learn ${skill} fundamentals, build projects, and gain hands-on experience`;
+  }
+
+  private generateEnhancedLearningPath(skill: string, category: string, priority: string): string {
+    const skillLower = skill.toLowerCase();
+    
+    // Specific technology paths
+    const specificPaths: Record<string, string> = {
+      'kubernetes': '1. Master Docker fundamentals 2. Complete K8s certification (CKA) 3. Build production-ready deployments',
+      'docker': '1. Learn containerization concepts 2. Master Dockerfile best practices 3. Implement CI/CD with containers',
+      'typescript': '1. Strengthen JavaScript foundations 2. Learn TS type system 3. Build large-scale applications',
+      'graphql': '1. Understand REST vs GraphQL 2. Learn Apollo/Relay 3. Design efficient schemas',
+      'aws': '1. Complete AWS Cloud Practitioner 2. Focus on core services (EC2, S3, Lambda) 3. Pursue Solutions Architect certification',
+      'azure': '1. Learn cloud fundamentals 2. Complete AZ-900 certification 3. Specialize in relevant services',
+      'react': '1. Master modern React patterns 2. Learn state management (Redux/Zustand) 3. Build performance-optimized apps',
+      'vue': '1. Learn Vue 3 composition API 2. Master Nuxt.js framework 3. Build full-stack applications',
+      'angular': '1. Learn TypeScript first 2. Master Angular CLI and services 3. Build enterprise applications',
+      'node.js': '1. Master async programming 2. Learn Express/Fastify 3. Build scalable microservices',
+      'python': '1. Learn syntax and core libraries 2. Master frameworks (Django/FastAPI) 3. Build data/ML applications',
+      'golang': '1. Learn Go fundamentals 2. Master concurrency patterns 3. Build high-performance services',
+      'rust': '1. Learn ownership and borrowing 2. Master async programming 3. Build systems-level applications'
+    };
+
+    if (specificPaths[skillLower]) {
+      return specificPaths[skillLower];
+    }
+
+    // Category-based paths
+    switch (category.toLowerCase()) {
+      case 'frontend framework':
+      case 'frontend':
+        return `1. Learn ${skill} fundamentals 2. Build responsive applications 3. Master component patterns and state management`;
+      case 'backend framework':
+      case 'backend':
+        return `1. Understand ${skill} architecture 2. Build RESTful APIs 3. Implement authentication and security`;
+      case 'database':
+        return `1. Learn ${skill} fundamentals 2. Master query optimization 3. Design scalable database schemas`;
+      case 'cloud platform':
+      case 'devops':
+        return `1. Complete ${skill} certification 2. Practice infrastructure as code 3. Implement CI/CD pipelines`;
+      case 'programming language':
+        return `1. Master ${skill} syntax and idioms 2. Learn ecosystem and frameworks 3. Build production applications`;
+      default:
+        const timeframe = priority === 'Critical' ? '2-4 weeks' : priority === 'High' ? '1-2 months' : '2-3 months';
+        return `1. Learn ${skill} fundamentals 2. Complete hands-on projects 3. Gain production experience (${timeframe})`;
+    }
+  }
+
+  private generateGapReasoning(skill: string, frequency: number, category: string, userCategories: Set<string>): string {
+    const isInUserCategory = userCategories.has(category.toLowerCase());
+    
+    if (frequency > 60) {
+      return `Critical technology appearing in ${frequency}% of positions${isInUserCategory ? ' in your focus area' : ''}`;
+    } else if (frequency > 40) {
+      return `High-demand skill found in ${frequency}% of job postings${isInUserCategory ? ', expanding your existing expertise' : ''}`;
+    } else if (frequency > 25) {
+      return `Emerging technology in ${frequency}% of positions, growing market demand`;
+    } else {
+      return `Specialized skill in ${frequency}% of roles, valuable for career differentiation`;
+    }
+  }
+
+  private capitalizeWords(str: string): string {
+    return str.split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  }
+
+  private getMockSkillGaps(): SkillGap[] {
+    return [
+      {
+        skill: "Kubernetes",
+        priority: "High",
+        frequency: 58,
+        reasoning: "Container orchestration appears in 58% of senior positions",
+        learningPath: "1. Master Docker fundamentals 2. Complete K8s certification (CKA) 3. Build production-ready deployments"
+      },
+      {
+        skill: "TypeScript",
+        priority: "High",
+        frequency: 72,
+        reasoning: "Type-safe development standard in 72% of modern applications",
+        learningPath: "1. Strengthen JavaScript foundations 2. Learn TS type system 3. Build large-scale applications"
+      },
+      {
+        skill: "AWS",
+        priority: "Medium",
+        frequency: 45,
+        reasoning: "Cloud platform expertise required in 45% of positions",
+        learningPath: "1. Complete AWS Cloud Practitioner 2. Focus on core services 3. Pursue Solutions Architect certification"
+      }
+    ];
   }
 
   /**

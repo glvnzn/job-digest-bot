@@ -307,12 +307,12 @@ class ApiClient {
   // Career Insights API
   insights = {
     // GET /api/v1/insights/career - Get career development insights
-    getCareerInsights: async (): Promise<ApiResponse<any>> => {
+    getCareerInsights: async (): Promise<ApiResponse<import('./hooks/useInsights').CareerInsights>> => {
       return this.request('/api/v1/insights/career');
     },
 
     // GET /api/v1/insights/tech-trends - Get technology trend analysis
-    getTechTrends: async (): Promise<ApiResponse<any>> => {
+    getTechTrends: async (): Promise<ApiResponse<import('./hooks/useInsights').TechTrends>> => {
       return this.request('/api/v1/insights/tech-trends');
     },
   };
