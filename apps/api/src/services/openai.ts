@@ -240,58 +240,100 @@ export class OpenAIService {
         .trim();
       const jobs = JSON.parse(cleanContent);
 
-      return jobs.map((job: any) => {
-        const cleanedApplyUrl = this.cleanApplyUrl(job.applyUrl || '', emailFrom);
-        
-        // Validate the cleaned URL
-        if (cleanedApplyUrl && !this.validateJobUrl(cleanedApplyUrl)) {
-          console.warn(`Skipping job with invalid URL: ${job.title} at ${job.company} - URL: ${cleanedApplyUrl}`);
-          // Still process the job but mark URL as invalid
-        }
-        
-        // Enhanced company name extraction for Private Advertiser cases
-        const enhancedCompanyName = this.enhanceCompanyName(
-          job.company || 'Unknown Company',
-          job.title || '',
-          job.description || '',
-          emailContent,
-          cleanedApplyUrl,
-          emailFrom
-        );
-        
-        const jobId = this.generateJobId(
-          job.title || 'Unknown Title',
-          enhancedCompanyName,
-          cleanedApplyUrl
-        );
-        
-        // Enhanced remote detection - post-process to catch what AI might have missed
-        const enhancedIsRemote = this.detectRemoteWork(
-          job.title || '',
-          job.description || '',
-          job.location || '',
-          job.requirements || [],
-          job.isRemote || false
-        );
-        
-        return {
-          id: jobId,
-          title: job.title || 'Unknown Title',
-          company: enhancedCompanyName,
-          location: job.location || 'Unknown Location',
-          isRemote: enhancedIsRemote,
-          description: job.description || '',
-          requirements: job.requirements || [],
-          applyUrl: cleanedApplyUrl,
-          salary: job.salary,
-          postedDate: this.parseValidDate(job.postedDate),
-          source: job.source || this.determineSource(emailFrom),
-          relevanceScore: 0, // Will be calculated separately
-          emailMessageId: '', // Will be set by caller
-          processed: false,
-          createdAt: new Date(),
-        };
-      });
+      // Process jobs asynchronously to enable URL content fetching and summary generation
+      return await Promise.all(
+        jobs.map(async (job: any) => {
+          const cleanedApplyUrl = this.cleanApplyUrl(job.applyUrl || '', emailFrom);
+          
+          // Validate the cleaned URL
+          if (cleanedApplyUrl && !this.validateJobUrl(cleanedApplyUrl)) {
+            console.warn(`Skipping job with invalid URL: ${job.title} at ${job.company} - URL: ${cleanedApplyUrl}`);
+            // Still process the job but mark URL as invalid
+          }
+          
+          // Enhanced company name extraction for Private Advertiser cases
+          const enhancedCompanyName = this.enhanceCompanyName(
+            job.company || 'Unknown Company',
+            job.title || '',
+            job.description || '',
+            emailContent,
+            cleanedApplyUrl,
+            emailFrom
+          );
+          
+          const jobId = this.generateJobId(
+            job.title || 'Unknown Title',
+            enhancedCompanyName,
+            cleanedApplyUrl
+          );
+          
+          // Enhanced remote detection - post-process to catch what AI might have missed
+          const enhancedIsRemote = this.detectRemoteWork(
+            job.title || '',
+            job.description || '',
+            job.location || '',
+            job.requirements || [],
+            job.isRemote || false
+          );
+          
+          // Enhanced job description with URL content and AI summary
+          let enhancedDescription = job.description || '';
+          
+          try {
+            if (cleanedApplyUrl && this.validateJobUrl(cleanedApplyUrl)) {
+              console.log(`🔍 Enhancing job description for: ${job.title} at ${enhancedCompanyName}`);
+              
+              // Small delay to be respectful to job sites (2 seconds between requests)
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              
+              // Fetch full job content from URL
+              const urlContent = await this.fetchJobUrlContent(cleanedApplyUrl);
+              
+              if (urlContent && urlContent.length > 100) { // Only proceed if we got substantial content
+                // Generate AI-powered structured summary
+                const aiSummary = await this.generateJobSummary(
+                  job.title || 'Unknown Title',
+                  enhancedCompanyName,
+                  job.description || '',
+                  urlContent
+                );
+                
+                if (aiSummary && aiSummary.length > enhancedDescription.length) {
+                  enhancedDescription = aiSummary;
+                  console.log(`✅ Enhanced description with AI summary (${aiSummary.length} chars)`);
+                } else {
+                  // Fallback: use the raw URL content if AI summary fails
+                  enhancedDescription = `${job.description || ''}\n\n## Additional Details from Job Posting\n\n${urlContent}`;
+                  console.log(`⚠️ Using raw URL content as fallback (${enhancedDescription.length} chars)`);
+                }
+              } else {
+                console.log(`⚠️ Insufficient URL content for ${job.title}, using original description`);
+              }
+            }
+          } catch (error) {
+            console.error(`❌ Failed to enhance job description for ${job.title}:`, error);
+            // Keep original description on error
+          }
+          
+          return {
+            id: jobId,
+            title: job.title || 'Unknown Title',
+            company: enhancedCompanyName,
+            location: job.location || 'Unknown Location',
+            isRemote: enhancedIsRemote,
+            description: enhancedDescription,
+            requirements: job.requirements || [],
+            applyUrl: cleanedApplyUrl,
+            salary: job.salary,
+            postedDate: this.parseValidDate(job.postedDate),
+            source: job.source || this.determineSource(emailFrom),
+            relevanceScore: 0, // Will be calculated separately
+            emailMessageId: '', // Will be set by caller
+            processed: false,
+            createdAt: new Date(),
+          };
+        })
+      );
     } catch (error) {
       console.error('Error extracting jobs from email:', error);
       return [];
@@ -606,20 +648,24 @@ export class OpenAIService {
 
   private async fetchJobUrlContent(url: string): Promise<string> {
     try {
+      console.log(`🔍 Fetching job content from: ${url}`);
+      
       // Set a reasonable timeout and user agent
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for better content fetching
 
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-          'Accept-Encoding': 'gzip, deflate',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
           Connection: 'keep-alive',
           'Upgrade-Insecure-Requests': '1',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         },
         signal: controller.signal,
       });
@@ -631,36 +677,106 @@ export class OpenAIService {
       }
 
       const html = await response.text();
+      console.log(`✅ Successfully fetched HTML (${html.length} chars)`);
 
-      // Basic HTML text extraction - remove scripts, styles, and HTML tags
+      // Enhanced HTML text extraction with better content preservation
       let text = html
+        // Remove scripts and styles
         .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
         .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+        .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, '')
+        // Convert common HTML elements to readable text
+        .replace(/<h[1-6][^>]*>/gi, '\n## ')
+        .replace(/<\/h[1-6]>/gi, '\n')
+        .replace(/<p[^>]*>/gi, '\n')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<br[^>]*>/gi, '\n')
+        .replace(/<li[^>]*>/gi, '\n• ')
+        .replace(/<\/li>/gi, '')
+        .replace(/<ul[^>]*>|<\/ul>/gi, '\n')
+        .replace(/<ol[^>]*>|<\/ol>/gi, '\n')
+        .replace(/<div[^>]*>/gi, ' ')
+        .replace(/<\/div>/gi, ' ')
+        .replace(/<span[^>]*>/gi, '')
+        .replace(/<\/span>/gi, '')
+        // Remove remaining HTML tags
         .replace(/<[^>]+>/g, ' ')
+        // Clean up entities and formatting
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#[0-9]+;/g, ' ')
         .replace(/&[a-zA-Z0-9#]+;/g, ' ')
+        // Clean up whitespace
+        .replace(/\n\s*\n/g, '\n')
         .replace(/\s+/g, ' ')
         .trim();
 
-      // Limit content size to avoid token limits (keep first 3000 characters)
-      if (text.length > 3000) {
-        text = text.substring(0, 3000) + '...';
+      // Increase content size limit for better job descriptions (8000 characters)
+      if (text.length > 8000) {
+        // Try to cut at a sentence boundary
+        const truncated = text.substring(0, 8000);
+        const lastSentence = truncated.lastIndexOf('.');
+        if (lastSentence > 6000) { // If we can find a sentence boundary after 6000 chars
+          text = truncated.substring(0, lastSentence + 1) + '\n\n[Content truncated for processing]';
+        } else {
+          text = truncated + '\n\n[Content truncated for processing]';
+        }
       }
 
-      // Filter out common non-job-content
+      // Enhanced filtering to remove noise while preserving job content
       const lines = text.split('\n').filter(line => {
         const cleanLine = line.trim().toLowerCase();
-        return (
-          cleanLine.length > 10 &&
-          !cleanLine.includes('cookie') &&
-          !cleanLine.includes('privacy policy') &&
-          !cleanLine.includes('terms of service') &&
-          !cleanLine.includes('©') &&
-          !cleanLine.includes('copyright')
+        
+        // Keep lines that are substantial and job-related
+        if (cleanLine.length < 5) return false;
+        
+        // Filter out common non-job content
+        const excludePatterns = [
+          'cookie', 'privacy policy', 'terms of service', 'terms & conditions',
+          '©', 'copyright', 'all rights reserved',
+          'sign in', 'log in', 'create account', 'register',
+          'follow us', 'social media', 'newsletter',
+          'advertisement', 'sponsored', 'promoted',
+          'back to top', 'scroll to top', 'go to top',
+          'menu', 'navigation', 'breadcrumb',
+          'search jobs', 'browse jobs', 'job alerts',
+          'powered by', 'website by', 'developed by'
+        ];
+        
+        const hasExcludedContent = excludePatterns.some(pattern => 
+          cleanLine.includes(pattern)
         );
+        
+        if (hasExcludedContent) return false;
+        
+        // Keep lines that likely contain job information
+        const jobKeywords = [
+          'requirement', 'responsibility', 'qualification', 'skill', 'experience',
+          'benefit', 'salary', 'compensation', 'remote', 'hybrid',
+          'bachelor', 'degree', 'year', 'proficient', 'knowledge',
+          'role', 'position', 'team', 'company', 'join', 'opportunity',
+          'work', 'develop', 'manage', 'lead', 'support', 'collaborate',
+          'php', 'javascript', 'react', 'node', 'python', 'java', 'sql',
+          'aws', 'docker', 'kubernetes', 'git', 'agile', 'scrum'
+        ];
+        
+        const hasJobKeywords = jobKeywords.some(keyword => 
+          cleanLine.includes(keyword)
+        );
+        
+        // Keep if it has job keywords or if it's substantial content (likely job description)
+        return hasJobKeywords || cleanLine.length > 20;
       });
 
-      return lines.join('\n').trim();
+      const filteredText = lines.join('\n').trim();
+      console.log(`🔍 Extracted content: ${filteredText.length} characters after filtering`);
+      
+      return filteredText;
     } catch (error) {
+      console.error('❌ Error fetching job URL content:', error);
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
           throw new Error('Request timeout');
@@ -671,30 +787,140 @@ export class OpenAIService {
     }
   }
 
+  /**
+   * Generate a structured, easy-to-digest summary of a job posting using AI
+   */
+  private async generateJobSummary(
+    jobTitle: string,
+    company: string,
+    originalDescription: string,
+    urlContent: string
+  ): Promise<string> {
+    try {
+      console.log(`🤖 Generating AI summary for: ${jobTitle} at ${company}`);
+
+      // Combine all available content for analysis
+      const allContent = `
+Original Job Info:
+Title: ${jobTitle}
+Company: ${company}
+Description: ${originalDescription}
+
+Full Job Posting Content:
+${urlContent}
+      `.trim();
+
+      const prompt = `
+Analyze this job posting and create a well-structured, easy-to-digest summary. 
+Focus on extracting the most important information that a job seeker would want to know quickly.
+
+Job Content:
+${allContent}
+
+Please return a structured summary in this exact markdown format:
+
+## 📋 Job Overview
+[2-3 sentence summary of the role and what the company does]
+
+## 🎯 Key Requirements
+• [Most important requirement 1]
+• [Most important requirement 2]
+• [Most important requirement 3]
+• [Additional requirements if applicable, max 6 total]
+
+## 💼 Responsibilities
+• [Main responsibility 1]
+• [Main responsibility 2]
+• [Main responsibility 3]
+• [Additional responsibilities if applicable, max 6 total]
+
+## 🌟 Benefits & Perks
+• [Benefit 1]
+• [Benefit 2]
+• [Additional benefits if mentioned]
+
+## 📍 Work Arrangement
+[Remote/Hybrid/On-site details, location, schedule info]
+
+## 💰 Compensation
+[Salary range if mentioned, or "Not specified"]
+
+## 🏢 About the Company
+[Brief company overview if available, or "Company information not provided"]
+
+Guidelines:
+- Keep each bullet point concise (1-2 lines max)
+- Focus on the most important/unique aspects
+- Use clear, professional language
+- If information isn't available for a section, write "Not specified" or "Information not provided"
+- Prioritize technical requirements, experience level, and unique benefits
+- Include specific technologies, frameworks, or tools mentioned
+- Make it scannable and easy to read quickly
+      `;
+
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert at analyzing job postings and creating clear, structured summaries that help job seekers quickly understand if a position is right for them. Return only the formatted markdown summary.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 1500,
+      });
+
+      const summary = response.choices[0].message.content?.trim() || '';
+      
+      if (summary.length > 0) {
+        console.log(`✅ Generated summary: ${summary.length} characters`);
+        return summary;
+      } else {
+        console.warn('⚠️ AI returned empty summary, using fallback');
+        return this.createFallbackSummary(jobTitle, company, originalDescription, urlContent);
+      }
+    } catch (error) {
+      console.error('❌ Error generating job summary:', error);
+      // Fallback to a basic structured format
+      return this.createFallbackSummary(jobTitle, company, originalDescription, urlContent);
+    }
+  }
+
+  /**
+   * Create a fallback summary when AI generation fails
+   */
+  private createFallbackSummary(
+    jobTitle: string,
+    company: string,
+    originalDescription: string,
+    urlContent: string
+  ): string {
+    const content = urlContent || originalDescription;
+    
+    return `## 📋 Job Overview
+${jobTitle} position at ${company}.
+
+## 📄 Full Description
+${content.substring(0, 2000)}${content.length > 2000 ? '...' : ''}
+
+*This is a fallback summary. Full job details are available above.*`;
+  }
+
   async calculateJobRelevance(job: JobListing, resumeAnalysis: ResumeAnalysis): Promise<number> {
     try {
-      // Try to fetch additional content from the job URL first
-      let urlContent = '';
-      let contentSource = 'email';
-
-      if (job.applyUrl && job.applyUrl !== 'Unknown URL') {
-        try {
-          console.log(`Fetching content from job URL: ${job.applyUrl}`);
-          urlContent = await this.fetchJobUrlContent(job.applyUrl);
-          if (urlContent.trim()) {
-            contentSource = 'url + email';
-            console.log(`✅ Successfully fetched URL content (${urlContent.length} chars)`);
-          }
-        } catch (error) {
-          console.log(
-            `⚠️ Failed to fetch URL content, using email data: ${error instanceof Error ? error.message : 'Unknown error'}`
-          );
-        }
-      }
-
-      const jobDescription = urlContent.trim()
-        ? `${job.description}\n\nAdditional details from job posting:\n${urlContent}`
-        : job.description;
+      // Job description now contains enhanced content with AI summary from URL
+      // No need to fetch URL content again since it's done during job extraction
+      console.log(`🎯 Calculating relevance for: ${job.title} at ${job.company}`);
+      
+      const contentSource = job.description.includes('## 📋 Job Overview') 
+        ? 'enhanced with AI summary' 
+        : 'original description';
+        
+      const jobDescription = job.description;
 
       const prompt = `
         Calculate how relevant this job is for this candidate based on their resume analysis.
