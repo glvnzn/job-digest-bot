@@ -190,6 +190,12 @@ export class OpenAIService {
 
         Rules:
         - Extract ALL job listings from the email
+        - For company names, be intelligent about "Private Advertiser":
+          * If you see "Private Advertiser" in JobStreet content, try to find the actual company name elsewhere
+          * Look for company names in the job description, email content, or job URLs
+          * Check for patterns like "Company: [Name]", "at [Company Name]", "[Company] is hiring"
+          * Only use "Private Advertiser" as a last resort when no real company name is found
+          * If you find a real company name, use that instead of "Private Advertiser"
         - For remote work detection, be AGGRESSIVE and set isRemote to true if ANY of these appear ANYWHERE in the job posting:
           * Location: "remote", "work from home", "WFH", "work-from-home", "telecommute", "telework"
           * Description: "remote work", "remote position", "remote opportunity", "fully remote", "100% remote"
@@ -243,9 +249,19 @@ export class OpenAIService {
           // Still process the job but mark URL as invalid
         }
         
+        // Enhanced company name extraction for Private Advertiser cases
+        const enhancedCompanyName = this.enhanceCompanyName(
+          job.company || 'Unknown Company',
+          job.title || '',
+          job.description || '',
+          emailContent,
+          cleanedApplyUrl,
+          emailFrom
+        );
+        
         const jobId = this.generateJobId(
           job.title || 'Unknown Title',
-          job.company || 'Unknown Company',
+          enhancedCompanyName,
           cleanedApplyUrl
         );
         
@@ -261,7 +277,7 @@ export class OpenAIService {
         return {
           id: jobId,
           title: job.title || 'Unknown Title',
-          company: job.company || 'Unknown Company',
+          company: enhancedCompanyName,
           location: job.location || 'Unknown Location',
           isRemote: enhancedIsRemote,
           description: job.description || '',
@@ -442,6 +458,110 @@ export class OpenAIService {
     }
 
     return finalRemote;
+  }
+
+  /**
+   * Enhanced company name extraction for Private Advertiser cases
+   */
+  private enhanceCompanyName(
+    originalCompany: string,
+    jobTitle: string,
+    jobDescription: string,
+    emailContent: string,
+    _applyUrl: string,
+    _emailFrom: string
+  ): string {
+    // If it's not Private Advertiser, return as-is
+    if (originalCompany !== 'Private Advertiser') {
+      return originalCompany;
+    }
+
+    console.log(`🔍 Attempting to find real company name for job: ${jobTitle}`);
+
+    // Try to extract company name from various sources
+    const allText = [jobTitle, jobDescription, emailContent].join(' ');
+    
+    // Common patterns for company names in job content
+    const companyPatterns = [
+      // Company: [Name] patterns
+      /Company:\s*([A-Za-z][\w\s&.,'-]+?)(?:\s*\||\s*-|\s*\n|$)/i,
+      // "at [Company]" patterns
+      /\bat\s+([A-Z][\w\s&.,'-]+?)(?:\s+is\s+|,|\.|!|\s*\n)/,
+      // "[Company] is hiring" patterns
+      /([A-Z][\w\s&.,'-]+?)\s+is\s+(?:hiring|looking|seeking)/i,
+      // "Join [Company]" patterns
+      /Join\s+([A-Z][\w\s&.,'-]+?)(?:\s+as|\s+team|,|\.|!)/i,
+      // Email subject patterns like "Job at [Company]"
+      /Job\s+at\s+([A-Z][\w\s&.,'-]+)/i,
+      // Working at [Company]
+      /working\s+at\s+([A-Z][\w\s&.,'-]+)/i
+    ];
+
+    // Dynamic pattern for company name followed by job title
+    if (jobTitle) {
+      const escapedJobTitle = jobTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const dynamicPattern = new RegExp(`([A-Z][\\w\\s&.,'-]+?)\\s*-\\s*${escapedJobTitle}`, 'i');
+      companyPatterns.push(dynamicPattern);
+    }
+
+    for (const pattern of companyPatterns) {
+      const match = allText.match(pattern);
+      if (match && match[1]) {
+        const companyName = match[1].trim();
+        
+        // Basic validation of company name
+        if (this.isValidCompanyName(companyName)) {
+          console.log(`✅ Found company name: "${companyName}" for job: ${jobTitle}`);
+          return companyName;
+        }
+      }
+    }
+
+    // Try to extract company from URL (last resort for JobStreet)
+    // JobStreet URLs are complex and don't typically contain company names
+    // This could be enhanced in the future if needed
+
+    // If we couldn't find a real company name, stick with Private Advertiser
+    console.log(`⚠️ Could not find real company name for job: ${jobTitle}, keeping "Private Advertiser"`);
+    return originalCompany;
+  }
+
+  /**
+   * Validate if a potential company name looks legitimate
+   */
+  private isValidCompanyName(companyName: string): boolean {
+    if (!companyName || companyName.length < 2) {
+      return false;
+    }
+
+    // Filter out common false positives
+    const invalidPatterns = [
+      /^(the|a|an|this|that|you|your|our|we|they|it)$/i,
+      /^(job|position|role|opportunity|career|work)$/i,
+      /^(private|advertiser|company|employer|organization)$/i,
+      /^(hiring|recruiting|seeking|looking)$/i,
+      /^(full|part|time|remote|onsite|hybrid)$/i,
+      /^\d+$/, // Only numbers
+      /^.{1,2}$/, // Too short (1-2 chars)
+      /^.{50,}$/, // Too long (50+ chars)
+    ];
+
+    // Check if it matches any invalid pattern
+    if (invalidPatterns.some(pattern => pattern.test(companyName))) {
+      return false;
+    }
+
+    // Must contain at least one letter
+    if (!/[a-zA-Z]/.test(companyName)) {
+      return false;
+    }
+
+    // Must start with a letter or number
+    if (!/^[a-zA-Z0-9]/.test(companyName)) {
+      return false;
+    }
+
+    return true;
   }
 
   /**
