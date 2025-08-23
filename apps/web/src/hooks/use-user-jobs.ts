@@ -70,8 +70,8 @@ export function useJobNotesUpdate() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ jobId, notes }: { jobId: string; notes: string }) =>
-      apiClient.userJobs.updateNotes(jobId, notes),
+    mutationFn: ({ jobId, notes, stageId }: { jobId: string; notes: string; stageId: string }) =>
+      apiClient.userJobs.updateNotes(jobId, notes, stageId),
     onMutate: async ({ jobId, notes }) => {
       await queryClient.cancelQueries({ queryKey: ['user-jobs'] });
       

@@ -98,7 +98,7 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
     if (!job || !userJob) return;
 
     updateNotes(
-      { jobId: job.id, notes },
+      { jobId: job.id, notes, stageId: userJob.stageId.toString() },
       {
         onSuccess: () => {
           setIsEditingNotes(false);

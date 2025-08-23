@@ -15,7 +15,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCorners,
+  closestCenter,
   MouseSensor,
   TouchSensor,
   useDroppable,
@@ -107,9 +107,7 @@ const DraggableJobCard = React.memo(function DraggableJobCard({
     <Card 
       ref={setNodeRef} 
       style={style} 
-      className={`cursor-grab active:cursor-grabbing ${
-        isSortableDragging ? 'opacity-0' : 'hover:shadow-md'
-      }`}
+      className={isSortableDragging ? 'opacity-0' : 'hover:shadow-md'}
       {...attributes}
     >
       <CardContent className="p-4">
@@ -117,7 +115,7 @@ const DraggableJobCard = React.memo(function DraggableJobCard({
           {/* Header with drag handle */}
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-start gap-2 flex-1 min-w-0">
-              <div {...listeners} className="cursor-grab p-1 -m-1 text-muted-foreground hover:text-foreground mt-0.5">
+              <div {...listeners} className="cursor-grab active:cursor-grabbing p-1 -m-1 text-muted-foreground hover:text-foreground mt-0.5">
                 <GripVertical className="h-4 w-4" />
               </div>
               <div className="flex-1 min-w-0">
@@ -560,7 +558,7 @@ export default function KanbanPage() {
 
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCorners}
+          collisionDetection={closestCenter}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >

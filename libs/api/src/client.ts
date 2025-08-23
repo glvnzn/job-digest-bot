@@ -257,10 +257,10 @@ class ApiClient {
     },
 
     // PUT /api/v1/jobs/:id/stage - Update job notes (uses same endpoint)
-    updateNotes: async (jobId: string, notes: string): Promise<ApiResponse<UserJob>> => {
+    updateNotes: async (jobId: string, notes: string, stageId: string): Promise<ApiResponse<UserJob>> => {
       return this.request<UserJob>(`/api/v1/jobs/${jobId}/stage`, {
         method: 'PUT',
-        body: JSON.stringify({ notes }),
+        body: JSON.stringify({ stageId, notes }),
       });
     },
   };
