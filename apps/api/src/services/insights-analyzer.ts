@@ -261,8 +261,11 @@ export class InsightsAnalyzer {
         // Enhanced priority calculation
         const priority = this.calculateSkillPriority(frequency, avgConfidence);
         
-        // Only include significant gaps
-        if (frequency >= 15) {
+        // Lowered threshold to show more actionable insights - especially for users with limited data
+        const hasLimitedUserData = userTechs.size < 10;
+        const minFrequency = hasLimitedUserData ? 8 : 12; // Lower threshold for users with limited data
+        
+        if (frequency >= minFrequency) {
           skillGaps.push({
             skill: this.capitalizeWords(skill),
             priority,
@@ -273,6 +276,12 @@ export class InsightsAnalyzer {
         }
       }
     });
+
+    // If we still have no skill gaps but have market data, add some emerging/complementary technologies
+    if (skillGaps.length === 0 && userTechs.size > 0) {
+      const complementaryTechs = this.getComplementaryTechnologies(userTechs, marketTechs, totalJobsWithTech);
+      skillGaps.push(...complementaryTechs);
+    }
 
     // Sort by priority and frequency
     const priorityOrder = { 'Critical': 4, 'High': 3, 'Medium': 2, 'Low': 1 };
@@ -406,6 +415,70 @@ export class InsightsAnalyzer {
     }
 
     return trends;
+  }
+
+  /**
+   * Gets complementary technologies when no clear skill gaps exist
+   */
+  private getComplementaryTechnologies(
+    userTechs: Map<string, number>,
+    marketTechs: Record<string, { count: number; category: string; avgConfidence: number }>,
+    totalJobsWithTech: number
+  ): SkillGap[] {
+    const complementary: SkillGap[] = [];
+    const userTechArray = Array.from(userTechs.keys());
+    
+    // Define complementary technology mappings
+    const complementaryMap: Record<string, string[]> = {
+      'react': ['next.js', 'redux', 'tailwind css', 'styled-components', 'graphql'],
+      'javascript': ['typescript', 'webpack', 'eslint', 'jest', 'babel'],
+      'node.js': ['express', 'mongodb', 'postgresql', 'redis', 'docker'],
+      'typescript': ['nest.js', 'prisma', 'graphql', 'apollo', 'rxjs'],
+      'python': ['django', 'flask', 'fastapi', 'pandas', 'numpy'],
+      'html/css': ['sass', 'tailwind css', 'bootstrap', 'styled-components'],
+      'vue': ['nuxt.js', 'vuex', 'quasar', 'vuelidate'],
+      'angular': ['rxjs', 'ngrx', 'ionic', 'angular material']
+    };
+
+    // Look for complementary technologies based on user's existing skills
+    userTechArray.forEach(userTech => {
+      const complements = complementaryMap[userTech] || [];
+      complements.forEach(complement => {
+        if (marketTechs[complement] && !userTechs.has(complement)) {
+          const frequency = Math.round((marketTechs[complement].count / totalJobsWithTech) * 100);
+          if (frequency >= 5) { // Even lower threshold for complementary tech
+            complementary.push({
+              skill: this.capitalizeWords(complement),
+              priority: 'Medium',
+              frequency,
+              reasoning: `Complementary to your ${this.capitalizeWords(userTech)} skills. Found in ${frequency}% of job postings.`,
+              learningPath: this.generateEnhancedLearningPath(complement, marketTechs[complement].category, 'Medium')
+            });
+          }
+        }
+      });
+    });
+
+    // If still no complementary techs, suggest some general emerging technologies
+    if (complementary.length === 0) {
+      const emergingTechs = ['docker', 'kubernetes', 'aws', 'typescript', 'graphql', 'next.js', 'tailwind css'];
+      emergingTechs.forEach(tech => {
+        if (marketTechs[tech] && !userTechs.has(tech)) {
+          const frequency = Math.round((marketTechs[tech].count / totalJobsWithTech) * 100);
+          if (frequency >= 3) { // Very low threshold for emerging tech
+            complementary.push({
+              skill: this.capitalizeWords(tech),
+              priority: 'Low',
+              frequency,
+              reasoning: `Emerging technology appearing in ${frequency}% of job postings. Could enhance your skill portfolio.`,
+              learningPath: this.generateEnhancedLearningPath(tech, marketTechs[tech].category, 'Low')
+            });
+          }
+        }
+      });
+    }
+
+    return complementary.slice(0, 3); // Max 3 complementary technologies
   }
 
   /**

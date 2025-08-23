@@ -164,8 +164,10 @@ export function CareerInsights({ className }: CareerInsightsProps) {
             </CardTitle>
             <CardDescription>
               {careerInsights?.skillGaps && careerInsights.skillGaps.length > 0 
-                ? `${careerInsights.skillGaps.length} key skills to focus on for better opportunities`
-                : 'Analyzing your skill portfolio against market demand'
+                ? `${careerInsights.skillGaps.length} skill opportunities identified from ${careerInsights.metadata?.analyzedJobs || 0} job postings`
+                : careerInsights?.metadata 
+                  ? `Analysis complete: ${careerInsights.metadata.analyzedJobs} jobs reviewed, ${careerInsights.metadata.trackedJobs} tracked`
+                  : 'Analyzing your tracked jobs against current market demand...'
               }
             </CardDescription>
           </CardHeader>
@@ -231,19 +233,24 @@ export function CareerInsights({ className }: CareerInsightsProps) {
                   <Star className="h-8 w-8 text-green-600" />
                 </div>
                 <h3 className="text-lg font-semibold mb-2 text-green-900 dark:text-green-100">
-                  Great Skill Portfolio!
+                  Excellent Skill Coverage!
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
                   {careerInsights ? 
-                    'Your skills align well with current market demand. Consider exploring emerging technologies to stay ahead.' :
-                    'Loading your personalized skill gap analysis...'
+                    'Your current skills align well with market demand. This analysis covers jobs from the past 90 days. Track more jobs or check back as new opportunities are analyzed for more personalized insights.' :
+                    'Analyzing your skill portfolio against current market demand...'
                   }
                 </p>
                 {careerInsights && (
-                  <Button variant="outline" size="sm" onClick={refetchInsights}>
-                    <RefreshCw className="h-3 w-3 mr-1" />
-                    Refresh Analysis
-                  </Button>
+                  <div className="flex flex-col items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={refetchInsights}>
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Refresh Analysis
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      💡 Try tracking more diverse job postings for additional insights
+                    </p>
+                  </div>
                 )}
               </div>
             )}
