@@ -446,6 +446,24 @@ router.put('/:id/stage', authenticateToken, async (req: Request, res: Response) 
       });
     }
 
+    // Validate that the stage exists and is accessible to the user
+    const stage = await db.prisma.client.jobStage.findFirst({
+      where: {
+        id: parsedStageId,
+        OR: [
+          { isSystem: true }, // System stages available to all users
+          { userId: userId }  // User's custom stages
+        ]
+      }
+    });
+
+    if (!stage) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid stage ID or stage not accessible to user'
+      });
+    }
+
     // Update user job stage
     const userJob = await db.prisma.client.userJob.update({
       where: {

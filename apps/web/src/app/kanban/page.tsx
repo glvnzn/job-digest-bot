@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useQueryState } from 'nuqs';
 import { useSession, signOut } from 'next-auth/react';
 import { useUserJobs, useJobStages, useJobStageUpdate } from '@/hooks/use-user-jobs';
@@ -15,15 +15,17 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCenter,
+  closestCorners,
   MouseSensor,
   TouchSensor,
-  useDroppable
+  useDroppable,
+  DragOverEvent
 } from '@dnd-kit/core';
 import {
   SortableContext,
   verticalListSortingStrategy,
-  useSortable
+  useSortable,
+  arrayMove
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button } from "@/components/ui/button";
@@ -77,14 +79,12 @@ interface KanbanData {
   userJobs: UserJobWithJob[];
 }
 
-// Draggable job card component
-function DraggableJobCard({ 
+// Draggable job card component - memoized for performance
+const DraggableJobCard = React.memo(function DraggableJobCard({ 
   userJob, 
-  isDragging, 
   onViewJob 
 }: { 
   userJob: UserJobWithJob; 
-  isDragging?: boolean;
   onViewJob: (jobId: string) => void;
 }) {
   const {
@@ -93,12 +93,12 @@ function DraggableJobCard({
     setNodeRef,
     transform,
     transition,
+    isDragging: isSortableDragging,
   } = useSortable({ id: userJob.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
   };
 
   const { job } = userJob;
@@ -107,7 +107,9 @@ function DraggableJobCard({
     <Card 
       ref={setNodeRef} 
       style={style} 
-      className={`cursor-grab active:cursor-grabbing hover:shadow-md transition-all duration-200 ${isDragging ? 'opacity-50 shadow-lg scale-105' : 'hover:scale-[1.02]'}`}
+      className={`cursor-grab active:cursor-grabbing ${
+        isSortableDragging ? 'opacity-0' : 'hover:shadow-md'
+      }`}
       {...attributes}
     >
       <CardContent className="p-4">
@@ -182,10 +184,10 @@ function DraggableJobCard({
       </CardContent>
     </Card>
   );
-}
+});
 
-// Droppable stage column component
-function StageColumn({ kanbanData, onViewJob }: { kanbanData: KanbanData; onViewJob: (jobId: string) => void }) {
+// Droppable stage column component - memoized for performance
+const StageColumn = React.memo(function StageColumn({ kanbanData, onViewJob }: { kanbanData: KanbanData; onViewJob: (jobId: string) => void }) {
   const { stage, userJobs } = kanbanData;
   const { setNodeRef, isOver } = useDroppable({
     id: stage.id,
@@ -194,7 +196,7 @@ function StageColumn({ kanbanData, onViewJob }: { kanbanData: KanbanData; onView
   return (
     <div 
       ref={setNodeRef}
-      className={`flex flex-col w-80 min-w-80 bg-muted/20 rounded-lg p-4 transition-colors ${
+      className={`flex flex-col w-80 min-w-80 bg-muted/20 rounded-lg p-4 ${
         isOver ? 'bg-muted/40 ring-2 ring-primary/20' : ''
       }`}
     >
@@ -230,7 +232,28 @@ function StageColumn({ kanbanData, onViewJob }: { kanbanData: KanbanData; onView
       </SortableContext>
     </div>
   );
-}
+});
+
+// Simplified drag overlay for better performance
+const SimpleDragOverlay = React.memo(function SimpleDragOverlay({ 
+  userJob 
+}: { 
+  userJob: UserJobWithJob;
+}) {
+  return (
+    <Card className="cursor-grabbing shadow-xl rotate-3 scale-105 border-primary/50">
+      <CardContent className="p-4">
+        <div className="space-y-2">
+          <h4 className="font-semibold text-sm line-clamp-1">{userJob.job.title}</h4>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Building2 className="h-3 w-3" />
+            <span className="truncate">{userJob.job.company}</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+});
 
 export default function KanbanPage() {
   const { status } = useSession();
@@ -250,9 +273,22 @@ export default function KanbanPage() {
   });
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(MouseSensor),
-    useSensor(TouchSensor)
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    })
   );
 
 
@@ -321,14 +357,14 @@ export default function KanbanPage() {
       filteredJobCount: filteredUserJobs.length,
       totalJobCount: userJobs.length
     };
-  }, [userJobsResult, stagesResult, searchTerm, selectedCompany]);
+  }, [userJobsResult?.success, userJobsResult?.data, stagesResult?.success, stagesResult?.data, searchTerm, selectedCompany]);
 
   // Update local state for drag and drop (since DnD needs it in state)
   useEffect(() => {
     setKanbanData(filteredKanbanData);
   }, [filteredKanbanData]);
 
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event;
     const userJob = kanbanData
       .flatMap(k => k.userJobs)
@@ -337,9 +373,9 @@ export default function KanbanPage() {
     if (userJob) {
       setActiveJob(userJob);
     }
-  };
+  }, [kanbanData]);
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
     
     setActiveJob(null);
@@ -347,50 +383,84 @@ export default function KanbanPage() {
     if (!over) return;
 
     const userJobId = active.id as number;
-    const targetStageId = over.id as number;
-
-    // Find the user job and its current stage
-    const currentKanban = kanbanData.find(k => 
+    
+    // Find the user job
+    const sourceKanban = kanbanData.find(k => 
       k.userJobs.some(uj => uj.id === userJobId)
     );
+    const userJob = sourceKanban?.userJobs.find(uj => uj.id === userJobId);
     
-    const userJob = currentKanban?.userJobs.find(uj => uj.id === userJobId);
+    if (!userJob || !sourceKanban) return;
+
+    // Check if we're dropping on a stage (for cross-column moves)
+    const targetStage = kanbanData.find(k => k.stage.id === over.id);
     
-    if (!userJob || userJob.stageId === targetStageId) return;
+    if (targetStage) {
+      // Cross-column move
+      if (userJob.stageId === targetStage.stage.id) return; // Same column, no change needed
 
-    // Optimistically update the UI
-    setKanbanData(prev => {
-      return prev.map(kanban => ({
-        ...kanban,
-        userJobs: kanban.stage.id === targetStageId
-          ? [...kanban.userJobs, { ...userJob, stageId: targetStageId }]
-          : kanban.userJobs.filter(uj => uj.id !== userJobId)
-      }));
-    });
+      // Optimistically update the UI
+      setKanbanData(prev => {
+        const updatedUserJob = { ...userJob, stageId: targetStage.stage.id };
+        
+        return prev.map(kanban => {
+          if (kanban.stage.id === targetStage.stage.id) {
+            return {
+              ...kanban,
+              userJobs: [...kanban.userJobs, updatedUserJob]
+            };
+          }
+          if (kanban.stage.id === sourceKanban.stage.id) {
+            return {
+              ...kanban,
+              userJobs: kanban.userJobs.filter(uj => uj.id !== userJobId)
+            };
+          }
+          return kanban;
+        });
+      });
 
-    // Update via mutation hook
-    updateJobStage(
-      { jobId: userJob.jobId, stageId: targetStageId.toString() },
-      {
-        onError: (error) => {
-          // Revert optimistic update on error
-          refetchUserJobs();
-          console.error('Error updating job stage:', error);
+      // Update backend
+      updateJobStage(
+        { jobId: userJob.jobId, stageId: targetStage.stage.id.toString() },
+        {
+          onError: () => refetchUserJobs()
         }
+      );
+    } else {
+      // Same-column reordering - find the old and new index
+      const oldIndex = sourceKanban.userJobs.findIndex(uj => uj.id === userJobId);
+      const overId = over.id as number;
+      const newIndex = sourceKanban.userJobs.findIndex(uj => uj.id === overId);
+      
+      if (oldIndex !== newIndex && oldIndex !== -1 && newIndex !== -1) {
+        // Update local state for same-column reordering
+        setKanbanData(prev => {
+          return prev.map(kanban => {
+            if (kanban.stage.id === sourceKanban.stage.id) {
+              return {
+                ...kanban,
+                userJobs: arrayMove(kanban.userJobs, oldIndex, newIndex)
+              };
+            }
+            return kanban;
+          });
+        });
+        // Note: No backend update needed as we don't store position
       }
-    );
-  };
+    }
+  }, [kanbanData, updateJobStage, refetchUserJobs]);
 
-  const handleViewJob = (jobId: string) => {
+  const handleViewJob = useCallback((jobId: string) => {
     setSelectedJobId(jobId);
     setIsDrawerOpen(true);
-  };
+  }, []);
 
-  const handleDrawerUpdate = () => {
+  const handleDrawerUpdate = useCallback(() => {
     // Refresh kanban data when drawer updates something
     refetchUserJobs();
     refetchStages();
-  };
+  }, [refetchUserJobs, refetchStages]);
 
   if (status === 'loading' || isLoading) {
     return (
@@ -490,7 +560,7 @@ export default function KanbanPage() {
 
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={closestCorners}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
@@ -502,7 +572,7 @@ export default function KanbanPage() {
 
           <DragOverlay>
             {activeJob ? (
-              <DraggableJobCard userJob={activeJob} isDragging onViewJob={handleViewJob} />
+              <SimpleDragOverlay userJob={activeJob} />
             ) : null}
           </DragOverlay>
         </DndContext>
