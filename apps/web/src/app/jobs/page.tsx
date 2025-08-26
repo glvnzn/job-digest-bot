@@ -266,8 +266,9 @@ function JobsContent() {
         {/* Compact Job List */}
         <div className="space-y-2">
           {jobs.map((job) => (
-            <Card key={job.id} className={`hover:shadow-sm transition-all duration-200 border-l-4 ${trackedJobs.has(job.id) ? 'ring-1 ring-primary/20 bg-primary/5' : ''}`} 
-                  style={{ borderLeftColor: job.relevancePercentage >= 80 ? '#10b981' : job.relevancePercentage >= 60 ? '#f59e0b' : '#6b7280' }}>
+            <Card key={job.id} className={`hover:shadow-sm transition-all duration-200 border-l-4 cursor-pointer ${trackedJobs.has(job.id) ? 'ring-1 ring-primary/20 bg-primary/5' : ''}`} 
+                  style={{ borderLeftColor: job.relevancePercentage >= 80 ? '#10b981' : job.relevancePercentage >= 60 ? '#f59e0b' : '#6b7280' }}
+                  onClick={() => job.applyUrl && window.open(job.applyUrl, '_blank', 'noopener,noreferrer')}>
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-3">
                   {/* Main Content */}
@@ -327,7 +328,7 @@ function JobsContent() {
                       </div>
                       
                       {/* Action Buttons */}
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                         <Button 
                           variant={trackedJobs.has(job.id) ? "default" : "ghost"}
                           size="sm"
