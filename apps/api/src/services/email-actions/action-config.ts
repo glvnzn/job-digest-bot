@@ -87,20 +87,21 @@ export const EMAIL_ACTION_CONFIG: Record<EmailCategory, EmailActions> = {
 };
 
 /**
- * Gmail label color configuration using Gmail's predefined palette
- * Gmail only accepts specific color combinations from their predefined set
+ * Gmail label color configuration using Gmail's OFFICIAL predefined palette
+ * These are the exact hex codes allowed by Gmail API (verified 2024)
+ * Source: https://developers.google.com/gmail/api/reference/rest/v1/users.labels
  */
 export const LABEL_COLORS: Record<EmailCategory, { backgroundColor: string; textColor: string }> = {
-  security: { backgroundColor: '#d50000', textColor: '#ffffff' },      // Gmail red - urgent
-  finance: { backgroundColor: '#0d7377', textColor: '#ffffff' },       // Gmail teal - money
-  shopping: { backgroundColor: '#f4511e', textColor: '#ffffff' },      // Gmail orange - orders
-  travel: { backgroundColor: '#3367d6', textColor: '#ffffff' },        // Gmail blue - travel
-  health: { backgroundColor: '#0b8043', textColor: '#ffffff' },        // Gmail green - health
-  personal: { backgroundColor: '#8e24aa', textColor: '#ffffff' },      // Gmail purple - personal
-  newsletter: { backgroundColor: '#7627bb', textColor: '#ffffff' },    // Gmail violet - newsletters
-  promotional: { backgroundColor: '#d81b60', textColor: '#ffffff' },   // Gmail pink - promotions
-  entertainment: { backgroundColor: '#ff6f00', textColor: '#ffffff' }, // Gmail amber - fun
-  automated: { backgroundColor: '#5f6368', textColor: '#ffffff' }      // Gmail gray - system
+  security: { backgroundColor: '#cc3a21', textColor: '#ffffff' },      // Official Gmail red - urgent
+  finance: { backgroundColor: '#0b804b', textColor: '#ffffff' },       // Official Gmail green - money  
+  shopping: { backgroundColor: '#ffad47', textColor: '#000000' },      // Official Gmail orange - orders
+  travel: { backgroundColor: '#4a86e8', textColor: '#ffffff' },        // Official Gmail blue - travel
+  health: { backgroundColor: '#16a766', textColor: '#ffffff' },        // Official Gmail green - health
+  personal: { backgroundColor: '#a479e2', textColor: '#ffffff' },      // Official Gmail purple - personal
+  newsletter: { backgroundColor: '#8e63ce', textColor: '#ffffff' },    // Official Gmail purple - newsletters
+  promotional: { backgroundColor: '#f691b3', textColor: '#000000' },   // Official Gmail pink - promotions
+  entertainment: { backgroundColor: '#ffbc6b', textColor: '#000000' }, // Official Gmail light orange - fun
+  automated: { backgroundColor: '#666666', textColor: '#ffffff' }      // Official Gmail gray - system
 };
 
 /**

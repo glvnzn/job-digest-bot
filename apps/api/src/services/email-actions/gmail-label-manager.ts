@@ -197,19 +197,40 @@ export class GmailLabelManager {
       console.log(`🚀 Creating new label: ${labelName}`);
       const labelColor = (category && ACTION_CONFIG.USE_LABEL_COLORS) ? LABEL_COLORS[category] : undefined;
       
-      const createRequest = {
+      const createRequest: any = {
         name: labelName,
         labelListVisibility: 'labelShow' as const,
-        messageListVisibility: 'show' as const,
-        ...(labelColor && ACTION_CONFIG.USE_LABEL_COLORS && { color: labelColor })
+        messageListVisibility: 'show' as const
       };
+      
+      // Only add color if enabled and available
+      if (labelColor && ACTION_CONFIG.USE_LABEL_COLORS) {
+        createRequest.color = labelColor;
+      }
       
       console.log(`📝 Label creation request:`, JSON.stringify(createRequest, null, 2));
       
-      const newLabel = await this.gmail.users.labels.create({
-        userId: 'me',
-        requestBody: createRequest,
-      });
+      let newLabel;
+      try {
+        newLabel = await this.gmail.users.labels.create({
+          userId: 'me',
+          requestBody: createRequest,
+        });
+      } catch (colorError: any) {
+        // If color fails, try again without color as fallback
+        if (colorError?.message?.includes('color') && createRequest.color) {
+          console.warn(`⚠️ Color failed for label "${labelName}", retrying without color...`);
+          delete createRequest.color;
+          console.log(`📝 Fallback label creation (no color):`, JSON.stringify(createRequest, null, 2));
+          
+          newLabel = await this.gmail.users.labels.create({
+            userId: 'me',
+            requestBody: createRequest,
+          });
+        } else {
+          throw colorError;
+        }
+      }
 
       if (!newLabel.data.id) {
         throw new Error(`Label creation succeeded but no ID returned`);
