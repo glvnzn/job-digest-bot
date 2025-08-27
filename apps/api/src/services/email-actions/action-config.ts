@@ -87,19 +87,20 @@ export const EMAIL_ACTION_CONFIG: Record<EmailCategory, EmailActions> = {
 };
 
 /**
- * Gmail label color configuration for visual organization
+ * Gmail label color configuration using Gmail's predefined palette
+ * Gmail only accepts specific color combinations from their predefined set
  */
 export const LABEL_COLORS: Record<EmailCategory, { backgroundColor: string; textColor: string }> = {
-  security: { backgroundColor: '#b91c1c', textColor: '#ffffff' },      // Dark red - urgent
-  finance: { backgroundColor: '#059669', textColor: '#ffffff' },       // Green - money
-  shopping: { backgroundColor: '#dc2626', textColor: '#ffffff' },      // Red - orders
-  travel: { backgroundColor: '#0284c7', textColor: '#ffffff' },        // Sky blue - travel
-  health: { backgroundColor: '#15803d', textColor: '#ffffff' },        // Green - health
-  personal: { backgroundColor: '#0891b2', textColor: '#ffffff' },      // Cyan - personal
-  newsletter: { backgroundColor: '#7c3aed', textColor: '#ffffff' },    // Purple - newsletters
-  promotional: { backgroundColor: '#ea580c', textColor: '#ffffff' },   // Orange - promotions
-  entertainment: { backgroundColor: '#c2410c', textColor: '#ffffff' }, // Orange-red - fun
-  automated: { backgroundColor: '#64748b', textColor: '#ffffff' }      // Gray - system
+  security: { backgroundColor: '#d50000', textColor: '#ffffff' },      // Gmail red - urgent
+  finance: { backgroundColor: '#0d7377', textColor: '#ffffff' },       // Gmail teal - money
+  shopping: { backgroundColor: '#f4511e', textColor: '#ffffff' },      // Gmail orange - orders
+  travel: { backgroundColor: '#3367d6', textColor: '#ffffff' },        // Gmail blue - travel
+  health: { backgroundColor: '#0b8043', textColor: '#ffffff' },        // Gmail green - health
+  personal: { backgroundColor: '#8e24aa', textColor: '#ffffff' },      // Gmail purple - personal
+  newsletter: { backgroundColor: '#7627bb', textColor: '#ffffff' },    // Gmail violet - newsletters
+  promotional: { backgroundColor: '#d81b60', textColor: '#ffffff' },   // Gmail pink - promotions
+  entertainment: { backgroundColor: '#ff6f00', textColor: '#ffffff' }, // Gmail amber - fun
+  automated: { backgroundColor: '#5f6368', textColor: '#ffffff' }      // Gmail gray - system
 };
 
 /**
@@ -110,6 +111,7 @@ export const ACTION_CONFIG = {
   CREATE_GMAIL_LABELS: process.env.EMAIL_CREATE_LABELS !== 'false',
   APPLY_EMAIL_ACTIONS: process.env.EMAIL_APPLY_ACTIONS !== 'false',
   DRY_RUN_MODE: process.env.EMAIL_DRY_RUN === 'true',
+  USE_LABEL_COLORS: process.env.EMAIL_USE_LABEL_COLORS !== 'false',
   
   // Behavioral overrides
   AUTO_ARCHIVE_NEWSLETTERS: process.env.EMAIL_AUTO_ARCHIVE_NEWSLETTERS !== 'false',

@@ -195,13 +195,13 @@ export class GmailLabelManager {
 
       // Create new label if not found
       console.log(`🚀 Creating new label: ${labelName}`);
-      const labelColor = category ? LABEL_COLORS[category] : undefined;
+      const labelColor = (category && ACTION_CONFIG.USE_LABEL_COLORS) ? LABEL_COLORS[category] : undefined;
       
       const createRequest = {
         name: labelName,
         labelListVisibility: 'labelShow' as const,
         messageListVisibility: 'show' as const,
-        ...(labelColor && { color: labelColor })
+        ...(labelColor && ACTION_CONFIG.USE_LABEL_COLORS && { color: labelColor })
       };
       
       console.log(`📝 Label creation request:`, JSON.stringify(createRequest, null, 2));
