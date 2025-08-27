@@ -229,10 +229,10 @@ const TrackedJobsWidget = memo(function TrackedJobsWidget({
                     size="sm" 
                     className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                     onClick={() => handleUntrackJob(job.id)}
-                    disabled={isUntracking}
+                    disabled={isUntracking(job.id)}
                     title="Untrack"
                   >
-                    {isUntracking ? (
+                    {isUntracking(job.id) ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
                     ) : (
                       <X className="h-3 w-3" />

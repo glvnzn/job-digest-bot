@@ -66,7 +66,7 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
   }, [userJob]);
 
   const handleTrackJob = () => {
-    if (!job || isTracking) return;
+    if (!job || isTracking(job.id)) return;
 
     track(job.id, {
       onSuccess: () => {
@@ -80,7 +80,7 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
   };
 
   const handleUntrackJob = () => {
-    if (!job || isTracking || isUntracking) return;
+    if (!job || isTracking(job.id) || isUntracking(job.id)) return;
 
     untrack(job.id, {
       onSuccess: () => {
@@ -247,9 +247,9 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
                         variant="outline" 
                         size="sm"
                         onClick={handleUntrackJob}
-                        disabled={isTracking || isUntracking}
+                        disabled={isTracking(job.id) || isUntracking(job.id)}
                       >
-                        {(isTracking || isUntracking) ? (
+                        {(isTracking(job.id) || isUntracking(job.id)) ? (
                           <Loader2 className="h-3 w-3 animate-spin mr-1" />
                         ) : (
                           <X className="h-3 w-3 mr-1" />
@@ -321,8 +321,8 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
                 ) : (
                   <div className="text-center py-4">
                     <p className="text-muted-foreground mb-4">This job is not being tracked</p>
-                    <Button onClick={handleTrackJob} disabled={isTracking}>
-                      {isTracking ? (
+                    <Button onClick={handleTrackJob} disabled={isTracking(job.id)}>
+                      {isTracking(job.id) ? (
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       ) : (
                         <Star className="h-4 w-4 mr-2" />

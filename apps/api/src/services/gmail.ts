@@ -205,6 +205,38 @@ export class GmailService {
     }
   }
 
+  async applyLabel(messageId: string, labelId: string): Promise<void> {
+    try {
+      await this.gmail.users.messages.modify({
+        userId: 'me',
+        id: messageId,
+        resource: {
+          addLabelIds: [labelId],
+        },
+      });
+      console.log(`Label ${labelId} applied to email ${messageId} successfully`);
+    } catch (error) {
+      console.error(`Failed to apply label ${labelId} to email ${messageId}:`, error);
+      throw error;
+    }
+  }
+
+  async removeLabel(messageId: string, labelId: string): Promise<void> {
+    try {
+      await this.gmail.users.messages.modify({
+        userId: 'me',
+        id: messageId,
+        resource: {
+          removeLabelIds: [labelId],
+        },
+      });
+      console.log(`Label ${labelId} removed from email ${messageId} successfully`);
+    } catch (error) {
+      console.error(`Failed to remove label ${labelId} from email ${messageId}:`, error);
+      throw error;
+    }
+  }
+
   async testConnection(): Promise<boolean> {
     try {
       const response = await this.gmail.users.getProfile({
