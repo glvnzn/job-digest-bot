@@ -34,6 +34,7 @@ const TrackedJobsWidget = memo(function TrackedJobsWidget({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStage, setSelectedStage] = useState<string>('all');
+  const [showAll, setShowAll] = useState(false);
   const { untrack, isUntracking } = useJobTracker();
 
   const handleUntrackJob = async (jobId: string) => {
@@ -157,8 +158,8 @@ const TrackedJobsWidget = memo(function TrackedJobsWidget({
       </CardHeader>
       
       <CardContent>
-        <div className="space-y-3 max-h-96 overflow-y-auto">
-          {filteredUserJobs.map((userJob) => {
+        <div className="space-y-3">
+          {(showAll ? filteredUserJobs : filteredUserJobs.slice(0, 10)).map((userJob) => {
             const job = jobs.find(j => j.id === userJob.jobId);
             const stage = stages.find(s => s.id === userJob.stageId);
             
@@ -243,6 +244,29 @@ const TrackedJobsWidget = memo(function TrackedJobsWidget({
             );
           })}
         </div>
+
+        {filteredUserJobs.length > 10 && (
+          <div className="mt-4 text-center">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowAll(!showAll)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              {showAll ? (
+                <>
+                  Show Less
+                  <X className="h-4 w-4 ml-1" />
+                </>
+              ) : (
+                <>
+                  Show More ({filteredUserJobs.length - 10} more jobs)
+                  <ArrowRight className="h-4 w-4 ml-1" />
+                </>
+              )}
+            </Button>
+          </div>
+        )}
 
         {filteredUserJobs.length === 0 && searchQuery && (
           <div className="text-center py-8">

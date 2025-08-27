@@ -2,16 +2,23 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../client';
 
 export function useDashboardData(enabled = true) {
-  // Fetch dashboard data with React Query
+  // Fetch dashboard stats using the dedicated API endpoint
+  const dashboardStatsQuery = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: () => apiClient.dashboard.getStats(),
+    enabled,
+  });
+
+  // Still fetch individual data for widgets that need detailed job information
   const jobsQuery = useQuery({
-    queryKey: ['dashboard-jobs', { limit: 1000 }],
-    queryFn: () => apiClient.jobs.getAll({ limit: 1000 }),
+    queryKey: ['dashboard-jobs', { limit: 10000 }], // Increased limit for better data coverage
+    queryFn: () => apiClient.jobs.getAll({ limit: 10000 }),
     enabled,
   });
 
   const userJobsQuery = useQuery({
     queryKey: ['dashboard-userJobs'],
-    queryFn: () => apiClient.userJobs.getAll(),
+    queryFn: () => apiClient.userJobs.getAll({ limit: 1000 }), // Add higher limit for user jobs
     enabled,
   });
 
@@ -21,81 +28,40 @@ export function useDashboardData(enabled = true) {
     enabled,
   });
 
-  const isLoading = jobsQuery.isLoading || userJobsQuery.isLoading || stagesQuery.isLoading;
-  const error = jobsQuery.error || userJobsQuery.error || stagesQuery.error;
+  const isLoading = dashboardStatsQuery.isLoading || jobsQuery.isLoading || userJobsQuery.isLoading || stagesQuery.isLoading;
+  const error = dashboardStatsQuery.error || jobsQuery.error || userJobsQuery.error || stagesQuery.error;
 
-  // Calculate stats from fetched data
+  // Use the optimized stats from the dashboard API
   const stats = (() => {
-    if (!jobsQuery.data?.success || !userJobsQuery.data?.success || !stagesQuery.data?.success) {
+    if (!dashboardStatsQuery.data?.success || !dashboardStatsQuery.data.data) {
       return null;
     }
+
+    const apiStats = dashboardStatsQuery.data.data;
     
-    const totalJobs = jobsQuery.data.meta?.total || 0;
-    const userJobs = userJobsQuery.data.data || [];
-    const stages = stagesQuery.data.data || [];
-
-    // Calculate average relevance score of tracked jobs
-    const trackedJobIds = userJobs.map(uj => uj.jobId);
-    const trackedJobs = jobsQuery.data.data?.filter(job => trackedJobIds.includes(job.id)) || [];
-    const avgRelevance = trackedJobs.length > 0 
-      ? trackedJobs.reduce((sum, job) => sum + job.relevancePercentage, 0) / trackedJobs.length
-      : 0;
-
-    // Group jobs by stage
-    const jobsByStage = stages.map(stage => ({
-      stage: {
-        id: stage.id,
-        name: stage.name,
-        color: stage.color || '#6B7280'
-      },
-      count: userJobs.filter(uj => uj.stageId === stage.id).length
-    }));
-
-    // Get top companies
-    const companyCount: Record<string, number> = {};
-    trackedJobs.forEach(job => {
-      companyCount[job.company] = (companyCount[job.company] || 0) + 1;
-    });
-    const topCompanies = Object.entries(companyCount)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 5)
-      .map(([company, count]) => ({ company, count }));
-
-    // Recent activity (last updated jobs)
-    const recentActivity = userJobs
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, 5)
-      .map(userJob => {
-        const job = trackedJobs.find(j => j.id === userJob.jobId);
-        const stage = stages.find(s => s.id === userJob.stageId);
-        return {
-          id: userJob.id,
-          job: {
-            id: userJob.jobId,
-            title: job?.title || 'Unknown Job',
-            company: job?.company || 'Unknown Company'
-          },
-          stage: {
-            name: stage?.name || 'Unknown',
-            color: stage?.color || '#6B7280'
-          },
-          updatedAt: userJob.updatedAt
-        };
-      });
-
+    // Transform API response to match existing interface
     return {
       overview: {
-        totalJobsAvailable: totalJobs,
-        totalSavedJobs: userJobs.length,
-        averageRelevanceScore: avgRelevance
+        totalJobsAvailable: apiStats.overview.totalJobsAvailable,
+        totalSavedJobs: apiStats.overview.totalSavedJobs,
+        averageRelevanceScore: apiStats.overview.averageRelevanceScore
       },
       activity: {
-        thisWeek: { saved: userJobs.length, growth: 0 }, // TODO: Calculate actual growth
-        thisMonth: { saved: userJobs.length, growth: 0 } // TODO: Calculate actual growth
+        thisWeek: {
+          saved: apiStats.activity.thisWeek.saved,
+          growth: apiStats.activity.thisWeek.growth
+        },
+        thisMonth: {
+          saved: apiStats.activity.thisMonth.saved,
+          growth: apiStats.activity.thisMonth.growth
+        }
       },
-      jobsByStage,
-      topCompanies,
-      recentActivity
+      jobsByStage: apiStats.pipeline.stages.map(stageData => ({
+        stage: stageData.stage,
+        count: stageData.count
+      })),
+      topCompanies: apiStats.topCompanies,
+      recentActivity: apiStats.recentActivity
     };
   })();
 
@@ -104,6 +70,7 @@ export function useDashboardData(enabled = true) {
     isLoading,
     error,
     refetch: () => {
+      dashboardStatsQuery.refetch();
       jobsQuery.refetch();
       userJobsQuery.refetch();
       stagesQuery.refetch();

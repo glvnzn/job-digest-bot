@@ -304,6 +304,51 @@ class ApiClient {
     },
   };
 
+  // Dashboard API
+  dashboard = {
+    // GET /api/v1/dashboard/stats - Get dashboard statistics
+    getStats: async (): Promise<ApiResponse<{
+      overview: {
+        totalJobsAvailable: number;
+        totalSavedJobs: number;
+        averageRelevanceScore: number;
+      };
+      activity: {
+        thisWeek: { saved: number; growth: number };
+        thisMonth: { saved: number; growth: number };
+      };
+      pipeline: {
+        stages: Array<{
+          stage: { id: number; name: string; color: string };
+          count: number;
+        }>;
+      };
+      recentActivity: Array<{
+        id: number;
+        job: { id: string; title: string; company: string };
+        stage: { name: string; color: string };
+        updatedAt: string;
+      }>;
+      topCompanies: Array<{
+        company: string;
+        count: number;
+      }>;
+    }>> => {
+      return this.request('/api/v1/dashboard/stats');
+    },
+
+    // GET /api/v1/dashboard/analytics - Get detailed analytics
+    getAnalytics: async (): Promise<ApiResponse<{
+      relevanceDistribution: Record<string, number>;
+      locationDistribution: Array<{ location: string; count: number }>;
+      remoteVsOnsite: { remote: number; onsite: number; total: number };
+      applicationProgress: Array<{ stage: string; count: number; sortOrder: number }>;
+      monthlyTrends: Array<{ month: string; count: number }>;
+    }>> => {
+      return this.request('/api/v1/dashboard/analytics');
+    },
+  };
+
   // Career Insights API
   insights = {
     // GET /api/v1/insights/career - Get career development insights

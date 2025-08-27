@@ -178,7 +178,7 @@ export class EmailOrganizerService {
   private generateStats(
     classifications: ClassificationResult[],
     actionResults: { successes: number; failures: number },
-    startTime: number
+    _startTime: number
   ): OrganizationStats {
     const totalProcessed = classifications.length;
     const ruleClassified = classifications.filter(c => c.classifiedBy === 'rules').length;
