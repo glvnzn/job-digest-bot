@@ -40,10 +40,11 @@ export function useJobTracker() {
       await queryClient.cancelQueries({ queryKey: ['user-jobs'] });
       await queryClient.cancelQueries({ queryKey: ['jobs'] });
 
-      // Snapshot the previous value
+      // Snapshot the previous values
       const previousUserJobs = queryClient.getQueryData(['user-jobs']);
+      const previousJobs: any[] = [];
 
-      // Optimistically update the cache
+      // Optimistically update user-jobs cache
       queryClient.setQueryData(['user-jobs'], (old: any) => {
         if (!old?.success || !old?.data) return old;
         
@@ -63,12 +64,41 @@ export function useJobTracker() {
         };
       });
 
-      return { previousUserJobs };
+      // Optimistically update jobs cache - remove job if untracked filter is active
+      const allJobsQueries = queryClient.getQueryCache().findAll({ queryKey: ['jobs'] });
+      allJobsQueries.forEach(query => {
+        const filters = query.queryKey[1] as any;
+        if (filters?.untracked === true) {
+          const oldData = queryClient.getQueryData(query.queryKey);
+          if (oldData) {
+            // Store original data for rollback
+            previousJobs.push({ queryKey: query.queryKey, data: oldData });
+            
+            // Remove the job from the list since it's now tracked
+            queryClient.setQueryData(query.queryKey, (old: any) => {
+              if (!old?.success || !old?.data) return old;
+              
+              return {
+                ...old,
+                data: old.data.filter((job: any) => job.id !== jobId),
+                meta: old.meta ? { ...old.meta, total: Math.max(0, (old.meta.total || 0) - 1) } : undefined
+              };
+            });
+          }
+        }
+      });
+
+      return { previousUserJobs, previousJobs };
     },
     onError: (_err, _variables, context) => {
       // Rollback on error
       if (context?.previousUserJobs) {
         queryClient.setQueryData(['user-jobs'], context.previousUserJobs);
+      }
+      if (context?.previousJobs) {
+        context.previousJobs.forEach((item: any) => {
+          queryClient.setQueryData(item.queryKey, item.data);
+        });
       }
     },
     onSettled: () => {
@@ -123,8 +153,10 @@ export function useJobTracker() {
     },
     onMutate: async (jobId) => {
       await queryClient.cancelQueries({ queryKey: ['user-jobs'] });
+      await queryClient.cancelQueries({ queryKey: ['jobs'] });
       
       const previousUserJobs = queryClient.getQueryData(['user-jobs']);
+      const previousJobs: any[] = [];
 
       // Optimistically update or add the job as Applied
       queryClient.setQueryData(['user-jobs'], (old: any) => {
@@ -160,11 +192,40 @@ export function useJobTracker() {
         }
       });
 
-      return { previousUserJobs };
+      // Optimistically update jobs cache - remove job if untracked filter is active
+      const allJobsQueries = queryClient.getQueryCache().findAll({ queryKey: ['jobs'] });
+      allJobsQueries.forEach(query => {
+        const filters = query.queryKey[1] as any;
+        if (filters?.untracked === true) {
+          const oldData = queryClient.getQueryData(query.queryKey);
+          if (oldData) {
+            // Store original data for rollback
+            previousJobs.push({ queryKey: query.queryKey, data: oldData });
+            
+            // Remove the job from the list since it's now tracked (applied)
+            queryClient.setQueryData(query.queryKey, (old: any) => {
+              if (!old?.success || !old?.data) return old;
+              
+              return {
+                ...old,
+                data: old.data.filter((job: any) => job.id !== jobId),
+                meta: old.meta ? { ...old.meta, total: Math.max(0, (old.meta.total || 0) - 1) } : undefined
+              };
+            });
+          }
+        }
+      });
+
+      return { previousUserJobs, previousJobs };
     },
     onError: (_err, _variables, context) => {
       if (context?.previousUserJobs) {
         queryClient.setQueryData(['user-jobs'], context.previousUserJobs);
+      }
+      if (context?.previousJobs) {
+        context.previousJobs.forEach((item: any) => {
+          queryClient.setQueryData(item.queryKey, item.data);
+        });
       }
     },
     onSettled: () => {
@@ -188,8 +249,10 @@ export function useJobTracker() {
     },
     onMutate: async (jobId) => {
       await queryClient.cancelQueries({ queryKey: ['user-jobs'] });
+      await queryClient.cancelQueries({ queryKey: ['jobs'] });
       
       const previousUserJobs = queryClient.getQueryData(['user-jobs']);
+      const previousJobs: any[] = [];
 
       // Optimistically update or add the job as Not Interested
       queryClient.setQueryData(['user-jobs'], (old: any) => {
@@ -225,11 +288,40 @@ export function useJobTracker() {
         }
       });
 
-      return { previousUserJobs };
+      // Optimistically update jobs cache - remove job if untracked filter is active
+      const allJobsQueries = queryClient.getQueryCache().findAll({ queryKey: ['jobs'] });
+      allJobsQueries.forEach(query => {
+        const filters = query.queryKey[1] as any;
+        if (filters?.untracked === true) {
+          const oldData = queryClient.getQueryData(query.queryKey);
+          if (oldData) {
+            // Store original data for rollback
+            previousJobs.push({ queryKey: query.queryKey, data: oldData });
+            
+            // Remove the job from the list since it's now tracked (not interested)
+            queryClient.setQueryData(query.queryKey, (old: any) => {
+              if (!old?.success || !old?.data) return old;
+              
+              return {
+                ...old,
+                data: old.data.filter((job: any) => job.id !== jobId),
+                meta: old.meta ? { ...old.meta, total: Math.max(0, (old.meta.total || 0) - 1) } : undefined
+              };
+            });
+          }
+        }
+      });
+
+      return { previousUserJobs, previousJobs };
     },
     onError: (_err, _variables, context) => {
       if (context?.previousUserJobs) {
         queryClient.setQueryData(['user-jobs'], context.previousUserJobs);
+      }
+      if (context?.previousJobs) {
+        context.previousJobs.forEach((item: any) => {
+          queryClient.setQueryData(item.queryKey, item.data);
+        });
       }
     },
     onSettled: () => {
@@ -290,10 +382,10 @@ export function useJobTracker() {
     untrack: untrackMutation.mutate,
     markApplied: markAppliedMutation.mutate,
     markNotInterested: markNotInterestedMutation.mutate,
-    isTracking: trackMutation.isPending,
-    isUntracking: untrackMutation.isPending,
-    isMarkingApplied: markAppliedMutation.isPending,
-    isMarkingNotInterested: markNotInterestedMutation.isPending,
+    isTracking: (jobId: string) => trackMutation.isPending && trackMutation.variables === jobId,
+    isUntracking: (jobId: string) => untrackMutation.isPending && untrackMutation.variables === jobId,
+    isMarkingApplied: (jobId: string) => markAppliedMutation.isPending && markAppliedMutation.variables === jobId,
+    isMarkingNotInterested: (jobId: string) => markNotInterestedMutation.isPending && markNotInterestedMutation.variables === jobId,
     trackError: trackMutation.error,
     untrackError: untrackMutation.error,
     markAppliedError: markAppliedMutation.error,

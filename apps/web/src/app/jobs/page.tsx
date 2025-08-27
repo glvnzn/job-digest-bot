@@ -22,14 +22,32 @@ function JobsContent() {
   const { data: session, status } = useSession();
   const { track, untrack, markApplied, markNotInterested, isTracking, isUntracking, isMarkingApplied, isMarkingNotInterested } = useJobTracker();
   // URL-synced filter state using nuqs
-  const [search, setSearch] = useQueryState('search', {
-    throttleMs: 300 // Debounce search input
-  });
+  const [search, setSearch] = useQueryState('search');
   const [remote, setRemote] = useQueryState('remote', parseAsBoolean);
   const [untracked, setUntracked] = useQueryState('untracked', parseAsBoolean);
   const [minRelevanceScore, setMinRelevanceScore] = useQueryState('minRelevanceScore', parseAsFloat);
   const [limit, setLimit] = useQueryState('limit', parseAsInteger.withDefault(20));
   const [offset, setOffset] = useQueryState('offset', parseAsInteger.withDefault(0));
+
+  // Local input state for immediate UI feedback
+  const [searchInput, setSearchInput] = useState(search || '');
+
+  // Debounced search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchInput !== (search || '')) {
+        setSearch(searchInput || null);
+        setOffset(0); // Reset pagination when searching
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchInput, search, setSearch, setOffset]);
+
+  // Sync input with URL when it changes externally (e.g., browser back/forward)
+  useEffect(() => {
+    setSearchInput(search || '');
+  }, [search]);
   
   // Build filters object for API calls
   const filters = useMemo((): JobFilters => ({
@@ -170,8 +188,8 @@ function JobsContent() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   placeholder="Search jobs by title, company, or keywords..."
-                  value={search || ''}
-                  onChange={(e) => setSearch(e.target.value || null)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   className="pl-10 bg-background"
                 />
               </div>
@@ -281,11 +299,11 @@ function JobsContent() {
                           variant={trackedJobs.has(job.id) ? "default" : "ghost"}
                           size="sm"
                           onClick={() => trackedJobs.has(job.id) ? handleUntrackJob(job.id) : handleTrackJob(job.id)}
-                          disabled={isTracking || isUntracking}
+                          disabled={isTracking(job.id) || isUntracking(job.id)}
                           className="h-7 px-2 text-xs"
                           title={trackedJobs.has(job.id) ? "Untrack job" : "Track job"}
                         >
-                          {(isTracking || isUntracking) ? (
+                          {(isTracking(job.id) || isUntracking(job.id)) ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <Star className={`h-3 w-3 ${trackedJobs.has(job.id) ? 'fill-current' : ''}`} />
@@ -295,11 +313,11 @@ function JobsContent() {
                           variant="ghost" 
                           size="sm"
                           onClick={() => handleMarkApplied(job.id)}
-                          disabled={isMarkingApplied}
+                          disabled={isMarkingApplied(job.id)}
                           className="h-7 px-2 text-xs text-green-600 hover:text-green-700"
                           title="Mark as applied"
                         >
-                          {isMarkingApplied ? (
+                          {isMarkingApplied(job.id) ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <CheckCircle className="h-3 w-3" />
@@ -309,11 +327,11 @@ function JobsContent() {
                           variant="ghost" 
                           size="sm"
                           onClick={() => handleMarkNotInterested(job.id)}
-                          disabled={isMarkingNotInterested}
+                          disabled={isMarkingNotInterested(job.id)}
                           className="h-7 px-2 text-xs text-red-600 hover:text-red-700"
                           title="Mark as not interested"
                         >
-                          {isMarkingNotInterested ? (
+                          {isMarkingNotInterested(job.id) ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <XCircle className="h-3 w-3" />
@@ -364,6 +382,7 @@ function JobsContent() {
                 <Button 
                   variant="outline" 
                   onClick={async () => {
+                    setSearchInput(''); // Clear local input immediately
                     await setSearch(null);
                     await setRemote(null);
                     await setMinRelevanceScore(null);
