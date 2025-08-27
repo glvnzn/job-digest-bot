@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 import { apiClient, type UserJob, type JobStage } from '@libs/api';
+import { toast } from 'sonner';
 
 // Get user's tracked jobs (kanban board data) - React Query powered
 export function useUserJobs(options?: { limit?: number; offset?: number; stageId?: string }) {
@@ -52,10 +53,10 @@ export function useJobStageUpdate() {
       if (context?.previousUserJobs) {
         queryClient.setQueryData(['user-jobs'], context.previousUserJobs);
       }
+      toast.error('Failed to update job stage. Please try again.');
     },
     onSuccess: (_data, _variables) => {
-      // Optional: show success toast
-      console.log('✅ Job stage updated successfully');
+      toast.success('Job stage updated successfully');
     },
     onSettled: () => {
       // Always refetch after error or success (React Query invalidation)
@@ -97,6 +98,10 @@ export function useJobNotesUpdate() {
       if (context?.previousUserJobs) {
         queryClient.setQueryData(['user-jobs'], context.previousUserJobs);
       }
+      toast.error('Failed to update notes. Please try again.');
+    },
+    onSuccess: () => {
+      toast.success('Notes updated successfully');
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['user-jobs'] });

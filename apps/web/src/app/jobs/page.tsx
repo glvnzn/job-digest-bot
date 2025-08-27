@@ -16,6 +16,7 @@ import { useUserJobs } from '@/hooks/use-user-jobs';
 import { JobDetailsDrawer } from '@/components/job-details-drawer';
 import { AppHeader } from '@/components/layout/app-header';
 import { Search, ExternalLink, Eye, Star, Building2, MapPin, Briefcase, RefreshCw, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Main jobs content component that uses search params
 function JobsContent() {
@@ -84,9 +85,10 @@ function JobsContent() {
   const handleTrackJob = (jobId: string) => {
     track(jobId, {
       onSuccess: () => {
-        console.log('✅ Job tracked successfully');
+        toast.success('Job tracked successfully');
       },
       onError: (error: any) => {
+        toast.error('Failed to track job. Please try again.');
         console.error('❌ Failed to track job:', error);
       }
     });
@@ -95,9 +97,10 @@ function JobsContent() {
   const handleUntrackJob = (jobId: string) => {
     untrack(jobId, {
       onSuccess: () => {
-        console.log('✅ Job untracked successfully');
+        toast.success('Job untracked successfully');
       },
       onError: (error: any) => {
+        toast.error('Failed to untrack job. Please try again.');
         console.error('❌ Failed to untrack job:', error);
       }
     });
@@ -106,9 +109,10 @@ function JobsContent() {
   const handleMarkApplied = (jobId: string) => {
     markApplied(jobId, {
       onSuccess: () => {
-        console.log('✅ Job marked as applied');
+        toast.success('Job marked as applied');
       },
       onError: (error: any) => {
+        toast.error('Failed to mark job as applied. Please try again.');
         console.error('❌ Failed to mark job as applied:', error);
       }
     });
@@ -117,9 +121,10 @@ function JobsContent() {
   const handleMarkNotInterested = (jobId: string) => {
     markNotInterested(jobId, {
       onSuccess: () => {
-        console.log('✅ Job marked as not interested');
+        toast.success('Job marked as not interested');
       },
       onError: (error: any) => {
+        toast.error('Failed to mark job as not interested. Please try again.');
         console.error('❌ Failed to mark job as not interested:', error);
       }
     });
