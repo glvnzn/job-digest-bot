@@ -171,38 +171,61 @@ export class GmailLabelManager {
    */
   private async createOrFindLabel(labelName: string, category?: EmailCategory): Promise<string> {
     try {
+      console.log(`🔍 Searching for/creating label: "${labelName}"`);
+      
       // First, try to find existing label
       const response = await this.gmail.users.labels.list({
         userId: 'me',
       });
 
+      if (!response.data.labels) {
+        console.warn(`⚠️ No labels found in Gmail API response`);
+      } else {
+        console.log(`📋 Found ${response.data.labels.length} existing labels in Gmail`);
+      }
+
       const existingLabel = response.data.labels?.find(
-        label => label.name?.toLowerCase() === labelName.toLowerCase()
+        (label: any) => label.name?.toLowerCase() === labelName.toLowerCase()
       );
 
       if (existingLabel?.id) {
-        console.log(`📋 Found existing label: ${labelName}`);
+        console.log(`✅ Found existing label: ${labelName} (ID: ${existingLabel.id})`);
         return existingLabel.id;
       }
 
       // Create new label if not found
+      console.log(`🚀 Creating new label: ${labelName}`);
       const labelColor = category ? LABEL_COLORS[category] : undefined;
+      
+      const createRequest = {
+        name: labelName,
+        labelListVisibility: 'labelShow' as const,
+        messageListVisibility: 'show' as const,
+        ...(labelColor && { color: labelColor })
+      };
+      
+      console.log(`📝 Label creation request:`, JSON.stringify(createRequest, null, 2));
       
       const newLabel = await this.gmail.users.labels.create({
         userId: 'me',
-        requestBody: {
-          name: labelName,
-          labelListVisibility: 'labelShow',
-          messageListVisibility: 'show',
-          ...(labelColor && { color: labelColor })
-        },
+        requestBody: createRequest,
       });
 
-      console.log(`✨ Created new Gmail label: ${labelName}`);
-      return newLabel.data.id!;
+      if (!newLabel.data.id) {
+        throw new Error(`Label creation succeeded but no ID returned`);
+      }
+
+      console.log(`✨ Successfully created Gmail label: ${labelName} (ID: ${newLabel.data.id})`);
+      return newLabel.data.id;
       
     } catch (error) {
-      console.error(`Failed to create/find label ${labelName}:`, error);
+      console.error(`❌ Failed to create/find label "${labelName}":`, error);
+      if (error instanceof Error) {
+        console.error(`Error details:`, {
+          message: error.message,
+          stack: error.stack?.split('\n').slice(0, 3)
+        });
+      }
       throw error;
     }
   }

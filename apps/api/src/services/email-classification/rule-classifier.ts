@@ -24,6 +24,9 @@ export class RuleBasedClassifier {
       
       const processingTime = Date.now() - startTime;
       
+      // DEBUG: Always log rule classification attempts in production
+      console.log(`📋 Rule attempt: "${email.subject.substring(0, 50)}..." from "${email.from.substring(0, 30)}..." → ${result.category} (confidence: ${result.confidence.toFixed(2)})`);
+      
       if (CONFIG.DETAILED_LOGGING) {
         console.log(`📋 Rule classified: "${email.subject}" → ${result.category} (confidence: ${result.confidence}, time: ${processingTime}ms)`);
       }
@@ -122,7 +125,7 @@ export class RuleBasedClassifier {
     rule: typeof CLASSIFICATION_RULES[0]
   ): number {
     let score = 0;
-    let maxScore = 0;
+    let totalWeight = 0;
 
     // Check content patterns (body + subject) - weight: 0.6
     const contentText = `${normalizedEmail.subject} ${normalizedEmail.body}`;
@@ -130,17 +133,19 @@ export class RuleBasedClassifier {
       contentText.includes(pattern)
     );
     if (rule.contentPatterns.length > 0) {
-      score += (contentMatches.length / rule.contentPatterns.length) * 0.6;
-      maxScore += 0.6;
+      const contentScore = contentMatches.length > 0 ? 0.6 : 0; // Binary: any match = full score
+      score += contentScore;
+      totalWeight += 0.6;
     }
 
-    // Check from patterns - weight: 0.3
+    // Check from patterns - weight: 0.3  
     const fromMatches = rule.fromPatterns.filter(pattern => 
       normalizedEmail.from.includes(pattern)
     );
     if (rule.fromPatterns.length > 0) {
-      score += (fromMatches.length / rule.fromPatterns.length) * 0.3;
-      maxScore += 0.3;
+      const fromScore = fromMatches.length > 0 ? 0.3 : 0; // Binary: any match = full score
+      score += fromScore;
+      totalWeight += 0.3;
     }
 
     // Check subject-specific patterns - weight: 0.1 (bonus points)
@@ -148,12 +153,20 @@ export class RuleBasedClassifier {
       normalizedEmail.subject.includes(pattern)
     );
     if (rule.subjectPatterns.length > 0) {
-      score += (subjectMatches.length / rule.subjectPatterns.length) * 0.1;
-      maxScore += 0.1;
+      const subjectScore = subjectMatches.length > 0 ? 0.1 : 0; // Binary: any match = full score
+      score += subjectScore;
+      totalWeight += 0.1;
     }
 
-    // Normalize score to 0-1 range
-    return maxScore > 0 ? score / maxScore : 0;
+    // If we have any matches, boost the score for this rule
+    const finalScore = totalWeight > 0 ? score / totalWeight : 0;
+    
+    // DEBUG: Log matching details for troubleshooting
+    if (contentMatches.length > 0 || fromMatches.length > 0 || subjectMatches.length > 0) {
+      console.log(`🔍 Rule "${rule.category}" matches: content=${contentMatches.length}, from=${fromMatches.length}, subject=${subjectMatches.length}, score=${finalScore.toFixed(2)}`);
+    }
+
+    return finalScore;
   }
 
   /**

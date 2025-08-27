@@ -30,6 +30,17 @@ export class EmailOrganizerService {
    */
   async organizeSkippedEmails(skippedEmails: EmailData[]): Promise<OrganizationStats> {
     console.log(`🗂️ Starting organization of ${skippedEmails.length} skipped emails`);
+    
+    // DEBUG: Log sample emails for troubleshooting
+    if (skippedEmails.length > 0) {
+      console.log(`📧 Sample skipped emails:`);
+      skippedEmails.slice(0, 3).forEach((email, i) => {
+        console.log(`  ${i + 1}. Subject: "${email.subject.substring(0, 50)}..."`);
+        console.log(`     From: "${email.from.substring(0, 40)}..."`);
+        console.log(`     Body preview: "${email.body.substring(0, 100).replace(/\n/g, ' ')}..."`);
+      });
+    }
+    
     const startTime = Date.now();
     
     // Reset statistics for this run
