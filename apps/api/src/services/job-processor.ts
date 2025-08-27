@@ -5,6 +5,7 @@ import { DatabaseService } from './database';
 import { QueueService } from './queue';
 import { MarketIntelligenceService } from './market-intelligence';
 import { InsightAutomationService } from './insight-automation';
+import { EmailOrganizerService } from './email-organizer';
 import { JobListing, ResumeAnalysis } from '../models/types';
 
 export class JobProcessor {
@@ -14,6 +15,7 @@ export class JobProcessor {
   private db: DatabaseService;
   private marketIntelligence: MarketIntelligenceService;
   private insightAutomation: InsightAutomationService;
+  private emailOrganizer: EmailOrganizerService;
   private queue: QueueService | null = null;
 
   constructor() {
@@ -23,6 +25,7 @@ export class JobProcessor {
     this.db = new DatabaseService();
     this.marketIntelligence = new MarketIntelligenceService();
     this.insightAutomation = new InsightAutomationService();
+    this.emailOrganizer = new EmailOrganizerService(this.gmail);
   }
 
   async initialize(): Promise<void> {
@@ -137,6 +140,45 @@ export class JobProcessor {
           progressMessageId,
           `✅ Found ${jobRelatedEmails.length} job emails`
         );
+
+      // ========== NEW: ORGANIZE SKIPPED (NON-JOB) EMAILS ==========
+      const skippedEmails = allEmails.filter(email => {
+        const classification = classifications.find(c => c.id === email.id);
+        return classification && (!classification.isJobRelated || classification.confidence < 0.5);
+      });
+
+      console.log(`📧 Found ${skippedEmails.length} non-job emails to organize (out of ${allEmails.length} total)`);
+
+      if (skippedEmails.length > 0 && process.env.EMAIL_ORGANIZATION_ENABLED !== 'false') {
+        if (job) await job.updateProgress(35, `Organizing ${skippedEmails.length} non-job emails...`);
+        if (progressMessageId)
+          await this.telegram.updateProgressMessage(
+            progressMessageId,
+            `🗂️ Organizing ${skippedEmails.length} non-job emails...`
+          );
+
+        try {
+          const organizationStats = await this.emailOrganizer.organizeSkippedEmails(skippedEmails);
+          
+          // Update progress with organization results
+          const efficiency = ((organizationStats.ruleClassified / organizationStats.totalProcessed) * 100).toFixed(0);
+          if (progressMessageId)
+            await this.telegram.updateProgressMessage(
+              progressMessageId,
+              `✅ Organized ${organizationStats.totalProcessed} emails (${efficiency}% by rules, cost: $${organizationStats.totalCost.toFixed(3)})`
+            );
+
+        } catch (error) {
+          console.error('📧 Email organization failed:', error);
+          // Don't break the job processing if email organization fails
+          if (progressMessageId)
+            await this.telegram.updateProgressMessage(
+              progressMessageId,
+              `⚠️ Email organization failed, continuing with job processing...`
+            );
+        }
+      }
+      // ========== END NEW SECTION ==========
 
       let totalJobsProcessed = 0;
       let totalJobsSkipped = 0;

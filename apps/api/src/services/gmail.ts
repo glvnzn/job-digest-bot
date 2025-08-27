@@ -217,4 +217,9 @@ export class GmailService {
       return false;
     }
   }
+
+  // Expose Gmail API objects for advanced operations (used by EmailOrganizerService)
+  get users() {
+    return this.gmail.users;
+  }
 }
