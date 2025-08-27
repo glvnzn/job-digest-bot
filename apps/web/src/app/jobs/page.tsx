@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Job, JobFilters } from '@libs/api';
 import { useJobs, useJobTracker } from '@/hooks/use-jobs';
@@ -48,11 +47,9 @@ function JobsContent() {
   const jobs = jobsData?.data || [];
   const totalJobs = jobsData?.meta?.total || 0;
   
-  const [trackingJobs, setTrackingJobs] = useState<Set<string>>(new Set());
   const [trackedJobs, setTrackedJobs] = useState<Set<string>>(new Set());
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const router = useRouter();
 
   // Remove redundant auth check - middleware handles protection
 
@@ -67,94 +64,45 @@ function JobsContent() {
   }, [userJobsData]);
 
   const handleTrackJob = (jobId: string) => {
-    // Prevent multiple clicks
-    if (trackingJobs.has(jobId)) return;
-    
-    setTrackingJobs(prev => new Set(prev).add(jobId));
     track(jobId, {
       onSuccess: () => {
-        setTrackedJobs(prev => new Set(prev).add(jobId));
         console.log('✅ Job tracked successfully');
       },
       onError: (error: any) => {
         console.error('❌ Failed to track job:', error);
-      },
-      onSettled: () => {
-        setTrackingJobs(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(jobId);
-          return newSet;
-        });
       }
     });
   };
 
   const handleUntrackJob = (jobId: string) => {
-    if (trackingJobs.has(jobId)) return;
-    
-    setTrackingJobs(prev => new Set(prev).add(jobId));
     untrack(jobId, {
       onSuccess: () => {
-        setTrackedJobs(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(jobId);
-          return newSet;
-        });
         console.log('✅ Job untracked successfully');
       },
       onError: (error: any) => {
         console.error('❌ Failed to untrack job:', error);
-      },
-      onSettled: () => {
-        setTrackingJobs(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(jobId);
-          return newSet;
-        });
       }
     });
   };
 
   const handleMarkApplied = (jobId: string) => {
-    if (trackingJobs.has(jobId)) return;
-    
-    setTrackingJobs(prev => new Set(prev).add(jobId));
     markApplied(jobId, {
       onSuccess: () => {
-        setTrackedJobs(prev => new Set(prev).add(jobId));
         console.log('✅ Job marked as applied');
       },
       onError: (error: any) => {
         console.error('❌ Failed to mark job as applied:', error);
-      },
-      onSettled: () => {
-        setTrackingJobs(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(jobId);
-          return newSet;
-        });
       }
     });
   };
 
   const handleMarkNotInterested = (jobId: string) => {
-    if (trackingJobs.has(jobId)) return;
-    
-    setTrackingJobs(prev => new Set(prev).add(jobId));
     markNotInterested(jobId, {
       onSuccess: () => {
-        setTrackedJobs(prev => new Set(prev).add(jobId));
         console.log('✅ Job marked as not interested');
       },
       onError: (error: any) => {
         console.error('❌ Failed to mark job as not interested:', error);
-      },
-      onSettled: () => {
-        setTrackingJobs(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(jobId);
-          return newSet;
-        });
       }
     });
   };
@@ -333,11 +281,11 @@ function JobsContent() {
                           variant={trackedJobs.has(job.id) ? "default" : "ghost"}
                           size="sm"
                           onClick={() => trackedJobs.has(job.id) ? handleUntrackJob(job.id) : handleTrackJob(job.id)}
-                          disabled={trackingJobs.has(job.id)}
+                          disabled={isTracking || isUntracking}
                           className="h-7 px-2 text-xs"
                           title={trackedJobs.has(job.id) ? "Untrack job" : "Track job"}
                         >
-                          {trackingJobs.has(job.id) ? (
+                          {(isTracking || isUntracking) ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <Star className={`h-3 w-3 ${trackedJobs.has(job.id) ? 'fill-current' : ''}`} />
@@ -347,11 +295,11 @@ function JobsContent() {
                           variant="ghost" 
                           size="sm"
                           onClick={() => handleMarkApplied(job.id)}
-                          disabled={trackingJobs.has(job.id)}
+                          disabled={isMarkingApplied}
                           className="h-7 px-2 text-xs text-green-600 hover:text-green-700"
                           title="Mark as applied"
                         >
-                          {trackingJobs.has(job.id) && isMarkingApplied ? (
+                          {isMarkingApplied ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <CheckCircle className="h-3 w-3" />
@@ -361,11 +309,11 @@ function JobsContent() {
                           variant="ghost" 
                           size="sm"
                           onClick={() => handleMarkNotInterested(job.id)}
-                          disabled={trackingJobs.has(job.id)}
+                          disabled={isMarkingNotInterested}
                           className="h-7 px-2 text-xs text-red-600 hover:text-red-700"
                           title="Mark as not interested"
                         >
-                          {trackingJobs.has(job.id) && isMarkingNotInterested ? (
+                          {isMarkingNotInterested ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <XCircle className="h-3 w-3" />

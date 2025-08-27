@@ -121,6 +121,52 @@ export function useJobTracker() {
       const appliedStageId = await getStageIdByName('Applied');
       return apiClient.userJobs.updateStage(jobId, appliedStageId);
     },
+    onMutate: async (jobId) => {
+      await queryClient.cancelQueries({ queryKey: ['user-jobs'] });
+      
+      const previousUserJobs = queryClient.getQueryData(['user-jobs']);
+
+      // Optimistically update or add the job as Applied
+      queryClient.setQueryData(['user-jobs'], (old: any) => {
+        if (!old?.success || !old?.data) return old;
+        
+        const existingJob = old.data.find((userJob: UserJob) => userJob.jobId === jobId);
+        
+        if (existingJob) {
+          // Update existing job to Applied stage
+          return {
+            ...old,
+            data: old.data.map((userJob: UserJob) => 
+              userJob.jobId === jobId 
+                ? { ...userJob, stageId: 2, isTracked: true } // Assuming Applied is stage 2
+                : userJob
+            ),
+          };
+        } else {
+          // Add new tracked job in Applied stage
+          const newUserJob = {
+            jobId,
+            userId: 1,
+            stageId: 2, // Applied stage
+            isTracked: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          
+          return {
+            ...old,
+            data: [...old.data, newUserJob],
+          };
+        }
+      });
+
+      return { previousUserJobs };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousUserJobs) {
+        queryClient.setQueryData(['user-jobs'], context.previousUserJobs);
+      }
+    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['user-jobs'] });
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
@@ -139,6 +185,52 @@ export function useJobTracker() {
       
       const notInterestedStageId = await getStageIdByName('Not Interested');
       return apiClient.userJobs.updateStage(jobId, notInterestedStageId);
+    },
+    onMutate: async (jobId) => {
+      await queryClient.cancelQueries({ queryKey: ['user-jobs'] });
+      
+      const previousUserJobs = queryClient.getQueryData(['user-jobs']);
+
+      // Optimistically update or add the job as Not Interested
+      queryClient.setQueryData(['user-jobs'], (old: any) => {
+        if (!old?.success || !old?.data) return old;
+        
+        const existingJob = old.data.find((userJob: UserJob) => userJob.jobId === jobId);
+        
+        if (existingJob) {
+          // Update existing job to Not Interested stage
+          return {
+            ...old,
+            data: old.data.map((userJob: UserJob) => 
+              userJob.jobId === jobId 
+                ? { ...userJob, stageId: 5, isTracked: true } // Assuming Not Interested is stage 5
+                : userJob
+            ),
+          };
+        } else {
+          // Add new tracked job in Not Interested stage
+          const newUserJob = {
+            jobId,
+            userId: 1,
+            stageId: 5, // Not Interested stage
+            isTracked: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          
+          return {
+            ...old,
+            data: [...old.data, newUserJob],
+          };
+        }
+      });
+
+      return { previousUserJobs };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousUserJobs) {
+        queryClient.setQueryData(['user-jobs'], context.previousUserJobs);
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['user-jobs'] });
