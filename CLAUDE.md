@@ -39,7 +39,6 @@ npm run generate-api-types      # API TypeScript types
 - **JobProcessor** - Main orchestrator for email processing
 - **GmailService** - OAuth2 email fetching
 - **OpenAIService** - AI classification, job extraction, relevance scoring
-- **EmailOrganizerService** - Organizes non-job emails with labels and actions
 - **TelegramService** - Bot notifications and commands
 - **DatabaseService** - Prisma ORM operations
 - **QueueService** - BullMQ background processing
@@ -48,10 +47,9 @@ npm run generate-api-types      # API TypeScript types
 1. Cron triggers hourly (6 AM-8 PM Manila)
 2. Fetch unread emails (last 3 days)
 3. AI classifies job-related emails
-4. **NEW**: Organize non-job emails → rule-based + AI classification → Gmail labels + actions
-5. Extract jobs → deduplication → relevance scoring
-6. Save to database, send relevant jobs (≥60%) via Telegram
-7. Daily summary at 9 PM
+4. Extract jobs → deduplication → relevance scoring
+5. Save to database, send relevant jobs (≥60%) via Telegram
+6. Daily summary at 9 PM
 
 ### Job Deduplication
 - **URL-based hashing** for deterministic IDs
@@ -59,13 +57,6 @@ npm run generate-api-types      # API TypeScript types
 - **Database-level checks** prevent duplicates
 - **Early exit** skips AI processing for known jobs
 
-### Email Organization (NEW)
-- **Hybrid Classification** - Rule-based (free) + AI fallback (paid) for non-job emails
-- **Cost Efficient** - ~90% classified by rules, ~10% by AI (~$0.004 per 25 emails)
-- **Gmail Labels** - Auto-creates organized labels: Security, Finance, Shopping, etc.
-- **Smart Actions** - Archives newsletters/promos, keeps important emails in inbox
-- **Configurable** - Easily customize rules, actions, and thresholds via environment variables
-- **Safe by Default** - Never deletes emails, graceful error handling, dry-run mode
 
 ## Environment Variables
 
@@ -89,13 +80,6 @@ REDIS_URL=redis://
 JWT_SECRET=
 ADMIN_EMAIL=
 
-# Email Organization (Optional)
-EMAIL_ORGANIZATION_ENABLED=true        # Enable email organization
-EMAIL_RULE_CONFIDENCE_THRESHOLD=0.8    # Rule confidence threshold
-EMAIL_AI_FALLBACK=true                 # AI fallback for low confidence
-EMAIL_MAX_AI_COST_PER_RUN=0.10        # Max AI cost per run
-EMAIL_CREATE_LABELS=true               # Create Gmail labels
-EMAIL_DRY_RUN=false                    # Test mode without actions
 ```
 
 ### Web Required
