@@ -125,6 +125,25 @@ app.post('/daily-summary', async (_, res) => {
   }
 });
 
+app.get('/test-token-expiration', async (_, res) => {
+  try {
+    console.log('🧪 Testing Gmail token expiration detection...');
+    // Access Gmail service through job processor
+    const gmailService = (jobProcessor as any).gmail;
+    if (gmailService && typeof gmailService.testTokenExpirationNotifications === 'function') {
+      await gmailService.testTokenExpirationNotifications();
+      res.json({ success: true, message: 'Token expiration test completed - check console logs' });
+    } else {
+      res.status(500).json({ success: false, error: 'Gmail service not available or test method missing' });
+    }
+  } catch (error) {
+    console.error('❌ Token expiration test failed:', error);
+    res
+      .status(500)
+      .json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
 // Global error handler
 app.use((error: Error & { status?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('❌ Unhandled API error:', error);

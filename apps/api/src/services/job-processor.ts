@@ -17,9 +17,9 @@ export class JobProcessor {
   private queue: QueueService | null = null;
 
   constructor() {
-    this.gmail = new GmailService();
-    this.openai = new OpenAIService();
     this.telegram = new TelegramService();
+    this.gmail = new GmailService(this.telegram);
+    this.openai = new OpenAIService();
     this.db = new DatabaseService();
     this.marketIntelligence = new MarketIntelligenceService();
     this.insightAutomation = new InsightAutomationService();
