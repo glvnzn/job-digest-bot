@@ -1,6 +1,7 @@
 import { Queue, Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 import { JobProcessor } from './job-processor';
+import { JobCleanupService } from './job-cleanup';
 
 // Redis connection
 const connection = new IORedis(process.env.REDIS_URL!, {
@@ -20,6 +21,11 @@ export interface ProcessJobsData {
 export interface DailySummaryData {
   triggeredBy: 'cron' | 'manual';
   chatId?: string;
+}
+
+export interface CleanupJobsData {
+  triggeredBy: 'cron' | 'manual';
+  retentionDays?: number;
 }
 
 export class QueueService {
@@ -72,6 +78,11 @@ export class QueueService {
             }
             case 'daily-summary': {
               await this.jobProcessor.sendDailySummaryInternal(job);
+              break;
+            }
+            case 'cleanup-jobs': {
+              const cleanupData = job.data as CleanupJobsData;
+              await this.handleCleanupJob(cleanupData, job);
               break;
             }
 
@@ -152,6 +163,72 @@ export class QueueService {
 
     console.log(`📝 Added daily summary job (ID: ${job.id}) triggered by: ${data.triggeredBy}`);
     return job.id!;
+  }
+
+  async addCleanupJob(data: CleanupJobsData): Promise<string> {
+    // Check if there's already a cleanup running
+    const waitingJobs = await this.jobQueue.getWaiting();
+    const activeJobs = await this.jobQueue.getActive();
+
+    const existingJobs = [...waitingJobs, ...activeJobs].filter(
+      job => job.name === 'cleanup-jobs'
+    );
+
+    if (existingJobs.length > 0) {
+      throw new Error('Job cleanup already in queue or running');
+    }
+
+    const job = await this.jobQueue.add('cleanup-jobs', data, {
+      priority: 20, // Lower priority than regular jobs
+    });
+
+    console.log(`🧹 Added cleanup job (ID: ${job.id}) triggered by: ${data.triggeredBy}`);
+    return job.id!;
+  }
+
+  private async handleCleanupJob(data: CleanupJobsData, job: Job): Promise<void> {
+    console.log(`🧹 Starting job cleanup process (retention: ${data.retentionDays || 3} days)`);
+
+    await job.updateProgress(10);
+
+    try {
+      // Get telegram service from job processor
+      const telegramService = (this.jobProcessor as any).telegram;
+
+      // Create cleanup service with telegram notification capability
+      const jobCleanupService = new JobCleanupService(telegramService);
+
+      // Run full cleanup
+      const result = await jobCleanupService.runFullCleanup(data.retentionDays || 3);
+
+      await job.updateProgress(90);
+
+      const summary = `🧹 Cleanup completed:
+• ${result.jobsDeleted} jobs deleted
+• ${result.insightsDeleted} insights cleaned
+• ${result.emailsDeleted} email records cleaned
+• Duration: ${result.duration}ms
+• Errors: ${result.totalErrors.length}`;
+
+      console.log(summary);
+
+      if (result.totalErrors.length > 0) {
+        console.error('Cleanup errors:', result.totalErrors);
+      }
+
+      // Store result in job data for later retrieval
+      await job.updateData({
+        ...data,
+        result: {
+          summary,
+          ...result,
+        },
+      });
+
+    } catch (error) {
+      console.error('❌ Cleanup job failed:', error);
+      throw error;
+    }
   }
 
   async getJobStats(): Promise<{

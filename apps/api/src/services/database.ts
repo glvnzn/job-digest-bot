@@ -250,6 +250,59 @@ export class DatabaseService {
     };
   }
 
+  // ===== CLEANUP METHODS =====
+
+  /**
+   * Get old untracked jobs for cleanup
+   */
+  async getOldUntrackedJobs(cutoffDate: Date): Promise<JobListing[]> {
+    const jobs = await this.prismaService.getOldUntrackedJobs(cutoffDate);
+
+    return jobs.map(job => ({
+      id: job.id,
+      title: job.title,
+      company: job.company,
+      location: job.location || '',
+      isRemote: job.isRemote,
+      description: job.description || '',
+      requirements: job.requirements,
+      applyUrl: job.applyUrl,
+      salary: job.salary ?? undefined,
+      postedDate: job.postedDate || new Date(),
+      source: job.source,
+      relevanceScore: job.relevanceScore || 0,
+      emailMessageId: job.emailMessageId,
+      processed: job.processed,
+      contentExtracted: job.contentExtracted || false,
+      extractionStatus: job.extractionStatus || 'pending',
+      extractionError: job.extractionError ?? undefined,
+      extractionAttempts: job.extractionAttempts || 0,
+      lastExtractionAt: job.lastExtractionAt ?? undefined,
+      createdAt: job.createdAt,
+    }));
+  }
+
+  /**
+   * Delete jobs by IDs
+   */
+  async deleteJobsByIds(jobIds: string[]): Promise<number> {
+    return await this.prismaService.deleteJobsByIds(jobIds);
+  }
+
+  /**
+   * Clean up orphaned job insights
+   */
+  async cleanupOrphanedJobInsights(): Promise<number> {
+    return await this.prismaService.cleanupOrphanedJobInsights();
+  }
+
+  /**
+   * Clean up old processed emails
+   */
+  async cleanupOldProcessedEmails(cutoffDate: Date): Promise<number> {
+    return await this.prismaService.cleanupOldProcessedEmails(cutoffDate);
+  }
+
   // ===== NEW METHODS (for web interface) =====
 
   /**

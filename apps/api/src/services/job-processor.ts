@@ -702,6 +702,29 @@ export class JobProcessor {
     }
   }
 
+  async queueJobCleanup(triggeredBy: 'cron' | 'manual', retentionDays: number = 3): Promise<void> {
+    if (!this.queue) {
+      throw new Error('Queue service not initialized');
+    }
+
+    try {
+      await this.queue.addCleanupJob({
+        triggeredBy,
+        retentionDays,
+      });
+
+      console.log(`🧹 Job cleanup queued (triggered by: ${triggeredBy}, retention: ${retentionDays} days)`);
+
+      // Send notification for cron-triggered cleanup
+      if (triggeredBy === 'cron') {
+        await this.telegram.sendStatusMessage('🧹 Job cleanup started');
+      }
+    } catch (error) {
+      console.error('Failed to queue job cleanup:', error);
+      throw error;
+    }
+  }
+
   async cleanup(): Promise<void> {
     if (this.queue) {
       await this.queue.close();

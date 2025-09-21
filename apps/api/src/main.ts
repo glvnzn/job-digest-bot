@@ -84,8 +84,28 @@ async function initializeApp(): Promise<void> {
       }
     );
 
+    // Schedule job cleanup daily at 2 AM Manila time
+    cron.schedule(
+      '0 2 * * *',
+      async () => {
+        const currentTime = new Date().toISOString();
+        console.log(`🧹 Running scheduled job cleanup at ${currentTime} (2 AM Manila trigger)...`);
+        try {
+          await jobProcessor.queueJobCleanup('cron');
+          console.log('✅ Job cleanup queued successfully');
+        } catch (error) {
+          console.error('❌ Job cleanup failed:', error);
+        }
+      },
+      {
+        scheduled: true,
+        timezone: 'Asia/Manila',
+      }
+    );
+
     console.log('⏱️ Scheduled job processing: 6 AM - 8 PM Manila time (hourly)');
     console.log('🌙 Scheduled daily summary: 9 PM Manila time daily');
+    console.log('🧹 Scheduled job cleanup: 2 AM Manila time daily');
 
     // Don't run initial job processing in development - use Telegram commands instead
     console.log('💡 Use Telegram commands to manually trigger processing in development mode');
@@ -138,6 +158,45 @@ app.get('/test-token-expiration', async (_, res) => {
     }
   } catch (error) {
     console.error('❌ Token expiration test failed:', error);
+    res
+      .status(500)
+      .json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+app.post('/cleanup', async (req, res) => {
+  try {
+    console.log('🧹 Manual job cleanup triggered via API');
+    const retentionDays = req.body.retentionDays || 3;
+    await jobProcessor.queueJobCleanup('manual', retentionDays);
+    res.json({
+      success: true,
+      message: `Job cleanup queued (retention: ${retentionDays} days)`
+    });
+  } catch (error) {
+    console.error('❌ Manual job cleanup failed:', error);
+    res
+      .status(500)
+      .json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+app.get('/cleanup/preview', async (req, res) => {
+  try {
+    console.log('📊 Job cleanup preview requested via API');
+    const retentionDays = parseInt(req.query.retentionDays as string) || 3;
+
+    // Create a temporary cleanup service instance for preview
+    const { JobCleanupService } = await import('./services/job-cleanup');
+    const cleanupService = new JobCleanupService();
+
+    const preview = await cleanupService.getCleanupPreview(retentionDays);
+    res.json({
+      success: true,
+      preview
+    });
+  } catch (error) {
+    console.error('❌ Cleanup preview failed:', error);
     res
       .status(500)
       .json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });

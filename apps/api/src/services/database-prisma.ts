@@ -481,6 +481,58 @@ export class PrismaDatabaseService {
     });
   }
 
+  // ===== CLEANUP METHODS =====
+
+  /**
+   * Get old untracked jobs for cleanup
+   */
+  async getOldUntrackedJobs(cutoffDate: Date): Promise<Job[]> {
+    return await this.prisma.job.findMany({
+      where: {
+        createdAt: { lt: cutoffDate },
+        userJobs: { none: {} }, // No user tracking this job
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  /**
+   * Delete jobs by IDs in batches
+   */
+  async deleteJobsByIds(jobIds: string[]): Promise<number> {
+    const result = await this.prisma.job.deleteMany({
+      where: {
+        id: { in: jobIds },
+      },
+    });
+    return result.count;
+  }
+
+  /**
+   * Clean up orphaned job insights (insights for deleted jobs)
+   */
+  async cleanupOrphanedJobInsights(): Promise<number> {
+    const result = await this.prisma.jobInsight.deleteMany({
+      where: {
+        job: null, // Job no longer exists
+      },
+    });
+    return result.count;
+  }
+
+  /**
+   * Clean up old processed emails
+   */
+  async cleanupOldProcessedEmails(cutoffDate: Date): Promise<number> {
+    const result = await this.prisma.processedEmail.deleteMany({
+      where: {
+        processedAt: { lt: cutoffDate },
+        deleted: false,
+      },
+    });
+    return result.count;
+  }
+
   async close(): Promise<void> {
     await this.prisma.$disconnect();
   }
