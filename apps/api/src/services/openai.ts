@@ -278,17 +278,21 @@ export class OpenAIService {
           
           // Enhanced job description with URL content and AI summary
           let enhancedDescription = job.description || '';
-          
+          let extractionStatus = 'pending';
+          let extractionError: string | null = null;
+          let contentExtracted = false;
+
           try {
             if (cleanedApplyUrl && this.validateJobUrl(cleanedApplyUrl)) {
               console.log(`🔍 Enhancing job description for: ${job.title} at ${enhancedCompanyName}`);
-              
+              extractionStatus = 'attempting';
+
               // Small delay to be respectful to job sites (2 seconds between requests)
               await new Promise(resolve => setTimeout(resolve, 2000));
-              
+
               // Fetch full job content from URL
               const urlContent = await this.fetchJobUrlContent(cleanedApplyUrl);
-              
+
               if (urlContent && urlContent.length > 100) { // Only proceed if we got substantial content
                 // Generate AI-powered structured summary
                 const aiSummary = await this.generateJobSummary(
@@ -297,22 +301,34 @@ export class OpenAIService {
                   job.description || '',
                   urlContent
                 );
-                
+
                 if (aiSummary && aiSummary.length > enhancedDescription.length) {
                   enhancedDescription = aiSummary;
+                  extractionStatus = 'success';
+                  contentExtracted = true;
                   console.log(`✅ Enhanced description with AI summary (${aiSummary.length} chars)`);
                 } else {
                   // Fallback: use the raw URL content if AI summary fails
                   enhancedDescription = `${job.description || ''}\n\n## Additional Details from Job Posting\n\n${urlContent}`;
+                  extractionStatus = 'partial';
+                  contentExtracted = true;
+                  extractionError = 'AI summary failed, using raw content';
                   console.log(`⚠️ Using raw URL content as fallback (${enhancedDescription.length} chars)`);
                 }
               } else {
+                extractionStatus = 'failed';
+                extractionError = 'Insufficient content from URL (less than 100 characters)';
                 console.log(`⚠️ Insufficient URL content for ${job.title}, using original description`);
               }
+            } else {
+              extractionStatus = 'skipped';
+              extractionError = !cleanedApplyUrl ? 'No valid URL provided' : 'URL validation failed';
+              console.log(`⚠️ Skipping content extraction for ${job.title}: ${extractionError}`);
             }
           } catch (error) {
+            extractionStatus = 'failed';
+            extractionError = error instanceof Error ? error.message : 'Unknown error during extraction';
             console.error(`❌ Failed to enhance job description for ${job.title}:`, error);
-            // Keep original description on error
           }
           
           return {
@@ -330,6 +346,11 @@ export class OpenAIService {
             relevanceScore: 0, // Will be calculated separately
             emailMessageId: '', // Will be set by caller
             processed: false,
+            contentExtracted,
+            extractionStatus,
+            extractionError,
+            extractionAttempts: 1,
+            lastExtractionAt: new Date(),
             createdAt: new Date(),
           };
         })

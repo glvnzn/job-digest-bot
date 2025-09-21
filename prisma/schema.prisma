@@ -8,23 +8,28 @@ datasource db {
 }
 
 model Job {
-  id             String      @id
-  title          String
-  company        String
-  location       String?
-  isRemote       Boolean     @default(false) @map("is_remote")
-  description    String?
-  requirements   String[]
-  applyUrl       String      @map("apply_url")
-  salary         String?
-  postedDate     DateTime?   @map("posted_date")
-  source         String
-  relevanceScore Float?      @map("relevance_score")
-  emailMessageId String      @map("email_message_id")
-  processed      Boolean     @default(false)
-  createdAt      DateTime    @default(now()) @map("created_at")
-  insights       JobInsight?
-  userJobs       UserJob[]
+  id                String      @id
+  title             String
+  company           String
+  location          String?
+  isRemote          Boolean     @default(false) @map("is_remote")
+  description       String?
+  requirements      String[]
+  applyUrl          String      @map("apply_url")
+  salary            String?
+  postedDate        DateTime?   @map("posted_date")
+  source            String
+  relevanceScore    Float?      @map("relevance_score")
+  emailMessageId    String      @map("email_message_id")
+  processed         Boolean     @default(false)
+  contentExtracted  Boolean     @default(false) @map("content_extracted")
+  extractionStatus  String      @default("pending") @map("extraction_status") // pending, success, failed, skipped
+  extractionError   String?     @map("extraction_error")
+  extractionAttempts Int        @default(0) @map("extraction_attempts")
+  lastExtractionAt  DateTime?   @map("last_extraction_at")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  insights          JobInsight?
+  userJobs          UserJob[]
 
   @@map("jobs")
 }

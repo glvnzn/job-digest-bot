@@ -49,6 +49,11 @@ export class DatabaseService {
       relevanceScore: job.relevanceScore,
       emailMessageId: job.emailMessageId,
       processed: job.processed,
+      contentExtracted: job.contentExtracted,
+      extractionStatus: job.extractionStatus,
+      extractionError: job.extractionError ?? undefined,
+      extractionAttempts: job.extractionAttempts,
+      lastExtractionAt: job.lastExtractionAt ?? undefined,
       createdAt: job.createdAt,
     });
   }
@@ -129,6 +134,11 @@ export class DatabaseService {
       relevanceScore: job.relevanceScore || 0,
       emailMessageId: job.emailMessageId,
       processed: job.processed,
+      contentExtracted: job.contentExtracted || false,
+      extractionStatus: job.extractionStatus || 'pending',
+      extractionError: job.extractionError ?? undefined,
+      extractionAttempts: job.extractionAttempts || 0,
+      lastExtractionAt: job.lastExtractionAt ?? undefined,
       createdAt: job.createdAt,
     }));
   }
@@ -162,6 +172,11 @@ export class DatabaseService {
       relevanceScore: job.relevanceScore || 0,
       emailMessageId: job.emailMessageId,
       processed: job.processed,
+      contentExtracted: job.contentExtracted || false,
+      extractionStatus: job.extractionStatus || 'pending',
+      extractionError: job.extractionError ?? undefined,
+      extractionAttempts: job.extractionAttempts || 0,
+      lastExtractionAt: job.lastExtractionAt ?? undefined,
       createdAt: job.createdAt,
     }));
   }
@@ -266,6 +281,11 @@ export class DatabaseService {
       relevanceScore: job.relevanceScore || 0,
       emailMessageId: job.emailMessageId,
       processed: job.processed,
+      contentExtracted: job.contentExtracted || false,
+      extractionStatus: job.extractionStatus || 'pending',
+      extractionError: job.extractionError ?? undefined,
+      extractionAttempts: job.extractionAttempts || 0,
+      lastExtractionAt: job.lastExtractionAt ?? undefined,
       createdAt: job.createdAt,
     }));
   }

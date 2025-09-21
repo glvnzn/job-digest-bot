@@ -88,6 +88,11 @@ export class PrismaDatabaseService {
     relevanceScore?: number;
     emailMessageId: string;
     processed?: boolean;
+    contentExtracted?: boolean;
+    extractionStatus?: string;
+    extractionError?: string;
+    extractionAttempts?: number;
+    lastExtractionAt?: Date;
     createdAt?: Date;
   }): Promise<Job> {
     return await this.prisma.job.upsert({
@@ -97,6 +102,12 @@ export class PrismaDatabaseService {
         processed: jobData.processed ?? false,
         // Update email reference if this job appears in multiple emails
         emailMessageId: jobData.emailMessageId,
+        // Update extraction status if provided
+        contentExtracted: jobData.contentExtracted,
+        extractionStatus: jobData.extractionStatus,
+        extractionError: jobData.extractionError,
+        extractionAttempts: jobData.extractionAttempts,
+        lastExtractionAt: jobData.lastExtractionAt,
       },
       create: {
         id: jobData.id,
@@ -113,6 +124,11 @@ export class PrismaDatabaseService {
         relevanceScore: jobData.relevanceScore,
         emailMessageId: jobData.emailMessageId,
         processed: jobData.processed ?? false,
+        contentExtracted: jobData.contentExtracted ?? false,
+        extractionStatus: jobData.extractionStatus ?? 'pending',
+        extractionError: jobData.extractionError,
+        extractionAttempts: jobData.extractionAttempts ?? 0,
+        lastExtractionAt: jobData.lastExtractionAt,
         createdAt: jobData.createdAt,
       },
     });

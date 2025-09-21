@@ -13,6 +13,11 @@ export interface JobListing {
   relevanceScore: number;
   emailMessageId: string;
   processed: boolean;
+  contentExtracted: boolean;
+  extractionStatus: string;
+  extractionError?: string | null;
+  extractionAttempts: number;
+  lastExtractionAt?: Date | null;
   createdAt: Date;
 }
 

@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { 
+import {
   Building2,
   MapPin,
   Calendar,
@@ -26,7 +26,11 @@ import {
   FileText,
   Edit3,
   Save,
-  ChevronRight
+  ChevronRight,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Info
 } from 'lucide-react';
 import { useJobTracker } from '@/hooks/use-jobs';
 import { useJob } from '@/hooks/use-jobs';
@@ -124,6 +128,55 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
     });
   };
 
+  const getExtractionStatusInfo = (job: any) => {
+    if (!job.extractionStatus) {
+      return {
+        icon: Info,
+        color: 'text-muted-foreground',
+        label: 'Unknown',
+        description: 'Content extraction status not available'
+      };
+    }
+
+    switch (job.extractionStatus) {
+      case 'success':
+        return {
+          icon: CheckCircle,
+          color: 'text-green-600',
+          label: 'Enhanced',
+          description: 'Job content was successfully enhanced with additional details'
+        };
+      case 'partial':
+        return {
+          icon: AlertTriangle,
+          color: 'text-yellow-600',
+          label: 'Partially Enhanced',
+          description: 'Some content was extracted but AI enhancement failed'
+        };
+      case 'failed':
+        return {
+          icon: XCircle,
+          color: 'text-red-600',
+          label: 'Extraction Failed',
+          description: job.extractionError || 'Failed to extract additional job content'
+        };
+      case 'skipped':
+        return {
+          icon: AlertTriangle,
+          color: 'text-orange-600',
+          label: 'Skipped',
+          description: job.extractionError || 'Content extraction was skipped'
+        };
+      default:
+        return {
+          icon: Clock,
+          color: 'text-blue-600',
+          label: 'Pending',
+          description: 'Content extraction is pending'
+        };
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -214,6 +267,70 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
                   )}
                   <Badge variant="secondary">{job.source}</Badge>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Content Extraction Status */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Content Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {(() => {
+                  const statusInfo = getExtractionStatusInfo(job);
+                  const StatusIcon = statusInfo.icon;
+
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Extraction Status</Label>
+                          <div className="mt-1 flex items-center gap-2">
+                            <StatusIcon className={`h-4 w-4 ${statusInfo.color}`} />
+                            <span className="font-medium">{statusInfo.label}</span>
+                          </div>
+                        </div>
+                        {job.extractionAttempts && (
+                          <div className="text-right">
+                            <Label className="text-sm font-medium text-muted-foreground">Attempts</Label>
+                            <div className="mt-1 text-sm">{job.extractionAttempts}</div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="p-3 bg-muted/50 rounded-md">
+                        <p className="text-sm text-muted-foreground">
+                          {statusInfo.description}
+                        </p>
+
+                        {job.lastExtractionAt && (
+                          <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            Last attempt: {formatDate(job.lastExtractionAt)}
+                          </div>
+                        )}
+                      </div>
+
+                      {job.extractionStatus === 'failed' && job.applyUrl && (
+                        <div className="flex items-start gap-2 p-3 border border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20 rounded-md">
+                          <AlertTriangle className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                          <div className="text-sm">
+                            <p className="font-medium text-orange-800 dark:text-orange-200">
+                              Limited job details available
+                            </p>
+                            <p className="text-orange-700 dark:text-orange-300 mt-1">
+                              We couldn't extract the full job description from the posting.
+                              For complete details, please visit the job page directly.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
 

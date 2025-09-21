@@ -57,6 +57,25 @@ components:
         processed:
           type: boolean
           example: true
+        contentExtracted:
+          type: boolean
+          example: false
+        extractionStatus:
+          type: string
+          enum: [pending, success, partial, failed, skipped]
+          example: pending
+        extractionError:
+          type: string
+          example: Failed to fetch URL content
+          nullable: true
+        extractionAttempts:
+          type: integer
+          minimum: 0
+          example: 1
+        lastExtractionAt:
+          type: string
+          format: date-time
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -85,6 +104,9 @@ components:
         - applyUrl
         - source
         - processed
+        - contentExtracted
+        - extractionStatus
+        - extractionAttempts
         - createdAt
         - formattedCreatedAt
         - relevancePercentage

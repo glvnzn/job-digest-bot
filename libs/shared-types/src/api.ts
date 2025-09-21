@@ -104,6 +104,19 @@ export interface components {
             relevanceScore?: number | null;
             /** @example true */
             processed: boolean;
+            /** @example false */
+            contentExtracted: boolean;
+            /**
+             * @example pending
+             * @enum {string}
+             */
+            extractionStatus: "pending" | "success" | "partial" | "failed" | "skipped";
+            /** @example Failed to fetch URL content */
+            extractionError?: string | null;
+            /** @example 1 */
+            extractionAttempts: number;
+            /** Format: date-time */
+            lastExtractionAt?: string | null;
             /** Format: date-time */
             createdAt: string;
             /** @example Jan 15, 2024 */
