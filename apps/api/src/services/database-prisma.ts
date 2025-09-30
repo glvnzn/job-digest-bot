@@ -514,7 +514,7 @@ export class PrismaDatabaseService {
   async cleanupOrphanedJobInsights(): Promise<number> {
     const result = await this.prisma.jobInsight.deleteMany({
       where: {
-        job: null, // Job no longer exists
+        job: { is: null }, // Job no longer exists
       },
     });
     return result.count;
