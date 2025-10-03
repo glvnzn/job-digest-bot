@@ -107,6 +107,7 @@ function JobsContent() {
   };
 
   const handleMarkApplied = (jobId: string) => {
+    setIsDrawerOpen(false);
     markApplied(jobId, {
       onSuccess: () => {
         toast.success('Job marked as applied');
@@ -119,6 +120,7 @@ function JobsContent() {
   };
 
   const handleMarkNotInterested = (jobId: string) => {
+    setIsDrawerOpen(false);
     markNotInterested(jobId, {
       onSuccess: () => {
         toast.success('Job marked as not interested');
@@ -237,9 +239,14 @@ function JobsContent() {
         {/* Compact Job List */}
         <div className="space-y-2">
           {jobs.map((job) => (
-            <Card key={job.id} className={`hover:shadow-sm transition-all duration-200 border-l-4 cursor-pointer ${trackedJobs.has(job.id) ? 'ring-1 ring-primary/20 bg-primary/5' : ''}`} 
+            <Card key={job.id} className={`hover:shadow-sm transition-all duration-200 border-l-4 cursor-pointer ${trackedJobs.has(job.id) ? 'ring-1 ring-primary/20 bg-primary/5' : ''}`}
                   style={{ borderLeftColor: job.relevancePercentage >= 80 ? '#10b981' : job.relevancePercentage >= 60 ? '#f59e0b' : '#6b7280' }}
-                  onClick={() => job.applyUrl && window.open(job.applyUrl, '_blank', 'noopener,noreferrer')}>
+                  onClick={() => {
+                    if (job.applyUrl) {
+                      window.open(job.applyUrl, '_blank', 'noopener,noreferrer');
+                    }
+                    handleViewJob(job.id);
+                  }}>
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-3">
                   {/* Main Content */}
@@ -439,6 +446,8 @@ function JobsContent() {
           isOpen={isDrawerOpen}
           onOpenChange={setIsDrawerOpen}
           onJobUpdate={handleDrawerUpdate}
+          onMarkApplied={handleMarkApplied}
+          onMarkNotInterested={handleMarkNotInterested}
         />
       </main>
     </div>

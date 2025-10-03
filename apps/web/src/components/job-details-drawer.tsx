@@ -41,10 +41,12 @@ interface JobDetailsDrawerProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onJobUpdate?: () => void; // Callback to refresh parent data
+  onMarkApplied?: (jobId: string) => void;
+  onMarkNotInterested?: (jobId: string) => void;
 }
 
-export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: JobDetailsDrawerProps) {
-  const { track, untrack, isTracking, isUntracking } = useJobTracker();
+export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate, onMarkApplied, onMarkNotInterested }: JobDetailsDrawerProps) {
+  const { track, untrack, markApplied, markNotInterested, isTracking, isUntracking, isMarkingApplied, isMarkingNotInterested } = useJobTracker();
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notes, setNotes] = useState('');
   
@@ -203,6 +205,75 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
               )}
             </div>
           </div>
+
+          {/* Quick Actions - Moved to top */}
+          {job && (
+            <div className="space-y-2 pt-2 border-t">
+              {/* Primary Action */}
+              <Button asChild className="w-full">
+                <a
+                  href={job.applyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Apply Now
+                </a>
+              </Button>
+
+              {/* Quick Actions */}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (onMarkApplied) {
+                      onMarkApplied(job.id);
+                    } else {
+                      markApplied(job.id, {
+                        onSuccess: () => {
+                          onJobUpdate?.();
+                          onOpenChange(false);
+                        }
+                      });
+                    }
+                  }}
+                  disabled={isMarkingApplied(job.id)}
+                  className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950/20"
+                >
+                  {isMarkingApplied(job.id) ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                  )}
+                  Mark Applied
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (onMarkNotInterested) {
+                      onMarkNotInterested(job.id);
+                    } else {
+                      markNotInterested(job.id, {
+                        onSuccess: () => {
+                          onJobUpdate?.();
+                          onOpenChange(false);
+                        }
+                      });
+                    }
+                  }}
+                  disabled={isMarkingNotInterested(job.id)}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+                >
+                  {isMarkingNotInterested(job.id) ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <XCircle className="h-4 w-4 mr-2" />
+                  )}
+                  Not Interested
+                </Button>
+              </div>
+            </div>
+          )}
         </SheetHeader>
 
         {isLoading && (
@@ -470,21 +541,12 @@ export function JobDetailsDrawer({ jobId, isOpen, onOpenChange, onJobUpdate }: J
               </Card>
             )}
 
-            {/* Actions */}
-            <div className="flex gap-3 pt-4 border-t">
-              <Button asChild className="flex-1">
-                <a 
-                  href={job.applyUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Apply Now
-                </a>
-              </Button>
-              <Button 
-                variant="outline" 
+            {/* Close Button */}
+            <div className="pt-4 border-t">
+              <Button
+                variant="secondary"
                 onClick={() => onOpenChange(false)}
+                className="w-full"
               >
                 Close
               </Button>
