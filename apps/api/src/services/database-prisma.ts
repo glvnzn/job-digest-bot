@@ -512,9 +512,30 @@ export class PrismaDatabaseService {
    * Clean up orphaned job insights (insights for deleted jobs)
    */
   async cleanupOrphanedJobInsights(): Promise<number> {
+    // Find all job IDs that still exist
+    const existingJobIds = await this.prisma.job.findMany({
+      select: { id: true },
+    });
+    const jobIdSet = new Set(existingJobIds.map(j => j.id));
+
+    // Get all job insights
+    const allInsights = await this.prisma.jobInsight.findMany({
+      select: { id: true, jobId: true },
+    });
+
+    // Find orphaned insights (jobId not in existing jobs)
+    const orphanedInsightIds = allInsights
+      .filter(insight => !jobIdSet.has(insight.jobId))
+      .map(insight => insight.id);
+
+    if (orphanedInsightIds.length === 0) {
+      return 0;
+    }
+
+    // Delete orphaned insights
     const result = await this.prisma.jobInsight.deleteMany({
       where: {
-        job: { is: null }, // Job no longer exists
+        id: { in: orphanedInsightIds },
       },
     });
     return result.count;

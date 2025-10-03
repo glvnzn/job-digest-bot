@@ -35,6 +35,7 @@ export class TelegramService {
       { command: 'start', description: 'Start the job digest bot' },
       { command: 'process', description: 'Manually trigger job processing' },
       { command: 'summary', description: "Get today's summary" },
+      { command: 'cleanup', description: 'Run job cleanup' },
       { command: 'status', description: 'Check bot status' },
       { command: 'help', description: 'Show available commands' },
     ]);
@@ -48,7 +49,8 @@ export class TelegramService {
 
 **Available Commands:**
 /process - Manually trigger job processing
-/summary - Get today's job summary  
+/summary - Get today's job summary
+/cleanup - Run job cleanup
 /status - Check bot status
 /help - Show this help message
 
@@ -63,6 +65,7 @@ export class TelegramService {
 **Available Commands:**
 /process - Manually trigger job processing
 /summary - Get today's job summary
+/cleanup - Run job cleanup (removes old untracked jobs)
 /status - Check bot status
 /help - Show this help message
 
@@ -127,6 +130,21 @@ Built with Node.js/TypeScript • Deployed on Railway`);
         } catch (error) {
           await this.sendErrorMessage(
             `Daily summary failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
+        }
+      }
+    });
+
+    // Handle manual cleanup command
+    this.bot.onText(/\/cleanup/, async msg => {
+      if (msg.chat.id.toString() === this.chatId) {
+        try {
+          await this.sendStatusMessage('🧹 Starting job cleanup...');
+          await processor.queueJobCleanup('manual', 3);
+          await this.sendStatusMessage('✅ Job cleanup queued successfully (retention: 3 days)');
+        } catch (error) {
+          await this.sendErrorMessage(
+            `Cleanup failed: ${error instanceof Error ? error.message : 'Unknown error'}`
           );
         }
       }
