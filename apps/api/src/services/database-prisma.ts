@@ -485,15 +485,68 @@ export class PrismaDatabaseService {
 
   /**
    * Get old untracked jobs for cleanup
+   * Returns jobs that are either:
+   * 1. Untracked and older than cutoffDate
+   * 2. Marked as "Not Interested" (stage_id = 18) and updated before cutoffDate
    */
   async getOldUntrackedJobs(cutoffDate: Date): Promise<Job[]> {
     return await this.prisma.job.findMany({
       where: {
-        createdAt: { lt: cutoffDate },
-        userJobs: { none: {} }, // No user tracking this job
+        OR: [
+          // Untracked jobs older than cutoffDate (existing behavior)
+          {
+            createdAt: { lt: cutoffDate },
+            userJobs: { none: {} },
+          },
+          // Jobs marked as "Not Interested" that were updated before cutoffDate (new behavior)
+          {
+            userJobs: {
+              some: {
+                stageId: 18, // "Not Interested" stage
+                updatedAt: { lt: cutoffDate },
+              },
+            },
+          },
+        ],
       },
       orderBy: { createdAt: 'asc' },
     });
+  }
+
+  /**
+   * Get cleanup statistics without fetching full jobs
+   */
+  async getCleanupStatistics(cutoffDate: Date): Promise<{
+    untrackedCount: number;
+    notInterestedCount: number;
+    total: number;
+  }> {
+    const [untrackedCount, notInterestedCount] = await Promise.all([
+      // Count untracked jobs
+      this.prisma.job.count({
+        where: {
+          createdAt: { lt: cutoffDate },
+          userJobs: { none: {} },
+        },
+      }),
+      // Count jobs marked as "Not Interested"
+      this.prisma.job.count({
+        where: {
+          userJobs: {
+            some: {
+              stageId: 18,
+              updatedAt: { lt: cutoffDate },
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      untrackedCount,
+      notInterestedCount,
+      total: untrackedCount + notInterestedCount,
+    };
   }
 
   /**

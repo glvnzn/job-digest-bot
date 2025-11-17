@@ -24,21 +24,26 @@ export class JobCleanupService {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
 
-    console.log(`🧹 Starting job cleanup: removing untracked jobs older than ${olderThanDays} days (before ${cutoffDate.toISOString()})`);
+    console.log(`🧹 Starting job cleanup: removing untracked jobs and "Not Interested" jobs older than ${olderThanDays} days (before ${cutoffDate.toISOString()})`);
 
     const errors: string[] = [];
     let deletedCount = 0;
 
     try {
-      // Get jobs that are candidates for deletion
-      const jobsToDelete = await this.databaseService.getOldUntrackedJobs(cutoffDate);
+      // Get cleanup statistics first
+      const stats = await this.databaseService.getCleanupStatistics(cutoffDate);
 
-      console.log(`📊 Found ${jobsToDelete.length} jobs eligible for cleanup`);
+      console.log(`📊 Found ${stats.total} jobs eligible for cleanup`);
+      console.log(`   📌 Untracked jobs: ${stats.untrackedCount}`);
+      console.log(`   🚫 "Not Interested" jobs: ${stats.notInterestedCount}`);
 
-      if (jobsToDelete.length === 0) {
+      if (stats.total === 0) {
         console.log('✅ No jobs to clean up');
         return { deletedCount: 0, errors: [] };
       }
+
+      // Get jobs that are candidates for deletion
+      const jobsToDelete = await this.databaseService.getOldUntrackedJobs(cutoffDate);
 
       // Log summary before deletion
       const sourceSummary = jobsToDelete.reduce((acc, job) => {

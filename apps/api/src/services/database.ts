@@ -254,6 +254,9 @@ export class DatabaseService {
 
   /**
    * Get old untracked jobs for cleanup
+   * Returns jobs that are either:
+   * 1. Untracked and older than cutoffDate
+   * 2. Marked as "Not Interested" (stage_id = 18) and updated before cutoffDate
    */
   async getOldUntrackedJobs(cutoffDate: Date): Promise<JobListing[]> {
     const jobs = await this.prismaService.getOldUntrackedJobs(cutoffDate);
@@ -280,6 +283,17 @@ export class DatabaseService {
       lastExtractionAt: job.lastExtractionAt ?? undefined,
       createdAt: job.createdAt,
     }));
+  }
+
+  /**
+   * Get cleanup statistics
+   */
+  async getCleanupStatistics(cutoffDate: Date): Promise<{
+    untrackedCount: number;
+    notInterestedCount: number;
+    total: number;
+  }> {
+    return await this.prismaService.getCleanupStatistics(cutoffDate);
   }
 
   /**
