@@ -5,8 +5,8 @@ import './globals.css';
 import { AppProviders } from '@/providers';
 
 export const metadata = {
-  title: 'Job Digest Bot - AI-Powered Job Alert Curation',
-  description: 'Automatically curate and filter job alerts from your email using AI. Get relevant job opportunities delivered via Telegram.',
+  title: 'Job Digest - AI-Powered Job Alert Curation',
+  description: 'Automatically curate and filter job alerts from your email using AI.',
 };
 
 export default function RootLayout({
